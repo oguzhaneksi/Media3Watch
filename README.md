@@ -155,7 +155,7 @@ Pre-built dashboards for visualizing session data:
                              │ HTTPS POST /v1/sessions
                              ▼
               ┌──────────────────────────────┐
-              │       Ingest API (Go)        │
+              │    Ingest API (Kotlin)      │
               │   - API key validation       │
               │   - Schema validation        │
               │   - Idempotent upsert        │
@@ -401,7 +401,7 @@ media3watch/
 │   ├── core/               # Session tracking, listeners
 │   ├── inspector/          # Debug overlay UI
 │   └── transport/          # Local queue, HTTP upload
-├── backend/                # Go service
+├── backend/                # Kotlin service
 │   ├── cmd/ingest/         # Main entry point
 │   ├── internal/api/       # HTTP handlers
 │   └── internal/db/        # Postgres repository
