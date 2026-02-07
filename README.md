@@ -5,7 +5,7 @@
 **Open-source QoE debugging and lightweight analytics for Android Media3 (ExoPlayer).**
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg?style=flat-square)](LICENSE)
-[![Android](https://img.shields.io/badge/Android-Media3%201.2+-3DDC84?style=flat-square&logo=android)](https://developer.android.com/media/media3)
+[![Android](https://img.shields.io/badge/Android-Media3%201.9+-3DDC84?style=flat-square&logo=android)](https://developer.android.com/media/media3)
 [![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker)](docker-compose.yml)
 
 [Why This Exists](#why-this-exists) • [Features](#features) • [Quick Start](#quick-start) • [Data Model](#data-model) • [Roadmap](#roadmap)
@@ -36,15 +36,15 @@ You ship a video app with Media3. Works great in development. Then production hi
 
 ## Features
 
-### Android SDK
+### Android SDK (Modular)
 
-The `media3watch-sdk` module wraps Media3's `AnalyticsListener` and produces a per-session summary.
+The `starter-media3` package provides a modular integration for Media3's `AnalyticsListener` and produces a per-session summary.
 
 **Collected metrics:**
 - `sessionId` — Unique session identifier
 - `contentId` — Optional content identifier for grouping
 - `streamType` — `VOD` or `LIVE`
-- `startupTimeMs` — Time from play request to first frame
+- `startupTimeMs` — Time from play command to first frame (`player_startup_ms`)
 - `rebufferTimeMs` — Total time spent rebuffering
 - `rebufferCount` — Number of rebuffer events
 - `rebufferRatio` — `rebufferTimeMs / (playTimeMs + rebufferTimeMs)`
@@ -57,18 +57,24 @@ The `media3watch-sdk` module wraps Media3's `AnalyticsListener` and produces a p
 
 **Explicit startup measurement:**
 
-```kotlin
-// Call when user initiates playback (e.g., taps play button)
-Media3Watch.markPlayRequested()
+Current MVP focus is on **player_startup** only.
 
-// SDK automatically measures time to first frame
+Formula:
+`player_startup_ms = first_frame_rendered_ts - play_command_ts`
+
+```kotlin
+// Call EXACTLY when player.play() or playWhenReady = true is executed.
+// This represents the play command, NOT the user tap or navigation start.
+Media3Watch.markPlayRequested()
 ```
 
-This ensures accurate startup time even when preloading or buffering before user intent.
+Notes:
+- **Excluded:** Navigation, API calls, entitlement checks, and preload times are **not** part of this metric.
+- **Media3 Integration:** `markPlayRequested()` is called manually when the play command is given. The first frame is captured automatically via Media3 callbacks.
 
 ---
 
-### Session Inspector Overlay
+### Inspector Overlay (Optional)
 
 A local-first debug overlay for development and QA.
 
@@ -143,9 +149,11 @@ Pre-built dashboards for visualizing session data:
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Android App                              │
 │  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐  │
-│  │ Media3      │───▶│ Media3Watch │───▶│ Session Inspector   │  │
+│  │ Media3      │───▶│ Media3Watch │───▶│ Inspector Overlay   │  │
 │  │ ExoPlayer   │    │ SDK         │    │ (overlay + export)  │  │
 │  └─────────────┘    └──────┬──────┘    └─────────────────────┘  │
+│                            │                                     │
+│          For detailed SDK architecture, see [android/README.md](android/README.md)
 │                            │                                     │
 │                    ┌───────▼───────┐                            │
 │                    │ Local Queue   │                            │
@@ -184,7 +192,9 @@ Pre-built dashboards for visualizing session data:
 ### Prerequisites
 
 - Docker & Docker Compose
-- Android Studio
+- Android Studio (Ladybug or newer)
+- Android App: `minSdk 23`, `targetSdk 36`
+- Build Environment: AGP 9.0.0+, Kotlin 2.3.0+
 
 ### 1. Start the Backend
 
@@ -224,7 +234,7 @@ Add the dependency:
 ```kotlin
 // build.gradle.kts
 dependencies {
-    implementation("io.media3watch:sdk:1.0.0")
+    implementation("io.media3watch:starter-media3:1.0.0")
 }
 ```
 
@@ -368,7 +378,7 @@ Each session produces one JSON document submitted to `/v1/sessions`.
 | `timestamp` | integer | Yes | Session end time (Unix ms) |
 | `contentId` | string | No | Content identifier for grouping |
 | `streamType` | string | No | `VOD` or `LIVE` |
-| `startupTimeMs` | integer | No | Time from `markPlayRequested()` to first frame |
+| `startupTimeMs` | integer | No | `first_frame_rendered_ts - play_command_ts` |
 | `playTimeMs` | integer | No | Total playback time |
 | `rebufferTimeMs` | integer | No | Total rebuffering time |
 | `rebufferCount` | integer | No | Number of rebuffer events |
@@ -397,10 +407,15 @@ The `schemaVersion` field allows the backend to handle different payload version
 
 ```
 media3watch/
-├── sdk/                    # Android SDK (Kotlin)
-│   ├── core/               # Session tracking, listeners
-│   ├── inspector/          # Debug overlay UI
-│   └── transport/          # Local queue, HTTP upload
+├── android/                # Android Project Root
+│   └── sdk/                # Modular Android SDK
+│       ├── schema/         # Pure Kotlin: JSON schema & versions
+│       ├── core/           # Pure Kotlin: Session state machine
+│       ├── android-runtime/# Android Glue: Context, Storage, Lifecycle
+│       ├── adapter-media3/ # Media3 (ExoPlayer) events mapping
+│       ├── transport-okhttp/# Optional: Local queue & OkHttp upload
+│       ├── inspector-overlay/# Optional: View-based debug overlay
+│       └── starter-media3/ # Meta-package: All-in-one dependency
 ├── backend/                # Kotlin service
 │   ├── cmd/ingest/         # Main entry point
 │   ├── internal/api/       # HTTP handlers
@@ -483,6 +498,7 @@ Media3Watch.init(context) {
 
 The following are explicitly **not included** in the current release:
 
+- **End-to-end startup** — No measurement of API gating, entitlement, or navigation latency.
 - **Full raw event pipeline** — No Redis Streams, Kafka, or event processor
 - **OpenSearch** — Postgres handles session storage; no full-text event search
 - **Prometheus/alerting** — No time-series metrics export in MVP
