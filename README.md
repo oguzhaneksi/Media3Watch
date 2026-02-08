@@ -416,12 +416,13 @@ media3watch/
 │       ├── transport-okhttp/# Optional: Local queue & OkHttp upload
 │       ├── inspector-overlay/# Optional: View-based debug overlay
 │       └── starter-media3/ # Meta-package: All-in-one dependency
-├── backend/                # Kotlin service
-│   ├── cmd/ingest/         # Main entry point
-│   ├── internal/api/       # HTTP handlers
-│   └── internal/db/        # Postgres repository
+├── backend/                # Kotlin (Ktor) service
+│   ├── src/                # Standard Kotlin source sets
+│   │   ├── main/kotlin/    # API handlers, DB repository, and models
+│   │   └── main/resources/ # Flyway migrations and config
+│   └── build.gradle.kts    # Gradle build configuration
 ├── dashboards/             # Grafana dashboard JSON
-├── migrations/             # Postgres schema migrations
+├── migrations/             # Postgres schema migrations (Flyway)
 ├── docker-compose.yml      # Local development stack
 └── docs/                   # Additional documentation
 ```
@@ -457,7 +458,9 @@ Media3Watch.init(context) {
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `M3W_API_KEY` | `dev-key` | Required API key for ingestion |
-| `DATABASE_URL` | (required) | Postgres connection string |
+| `DATABASE_URL` | `jdbc:postgresql://postgres:5432/media3watch` | Postgres JDBC connection string |
+| `DATABASE_USER` | `m3w` | Postgres username |
+| `DATABASE_PASSWORD` | `m3w` | Postgres password |
 | `PORT` | `8080` | HTTP server port |
 | `LOG_LEVEL` | `info` | Logging verbosity |
 
