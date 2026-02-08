@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="GradleMigrationSettings" migrationVersion="1" />
+  <component name="GradleSettings">
+    <option name="linkedExternalProjectsSettings">
+      <GradleProjectSettings>
+        <option name="testRunner" value="CHOOSE_PER_TEST" />
+        <option name="externalProjectPath" value="$PROJECT_DIR$" />
+        <option name="gradleJvm" value="#GRADLE_LOCAL_JAVA_HOME" />
+        <option name="modules">
+          <set>
+            <option value="$PROJECT_DIR$" />
+            <option value="$PROJECT_DIR$/sample" />
+            <option value="$PROJECT_DIR$/sdk" />
+            <option value="$PROJECT_DIR$/sdk/adapter-media3" />
+            <option value="$PROJECT_DIR$/sdk/android-runtime" />
+            <option value="$PROJECT_DIR$/sdk/core" />
+            <option value="$PROJECT_DIR$/sdk/inspector-overlay" />
+            <option value="$PROJECT_DIR$/sdk/schema" />
+            <option value="$PROJECT_DIR$/sdk/starter-media3" />
+            <option value="$PROJECT_DIR$/sdk/transport-okhttp" />
+          </set>
+        </option>
+      </GradleProjectSettings>
+    </option>
+  </component>
+</project>
