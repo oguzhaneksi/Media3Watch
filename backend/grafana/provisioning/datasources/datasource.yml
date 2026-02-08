@@ -1,0 +1,26 @@
+apiVersion: 1
+
+datasources:
+  - name: PostgreSQL
+    type: postgres
+    access: proxy
+    url: postgres:5432
+    database: media3watch
+    user: m3w
+    secureJsonData:
+      password: m3w
+    jsonData:
+      sslmode: disable
+      maxOpenConns: 5
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+    isDefault: true
+    editable: true
+
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://backend:8080/metrics
+    isDefault: false
+    editable: true
+
