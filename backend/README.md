@@ -88,18 +88,19 @@ If auto-provisioning fails:
    cat grafana/dashboards/media3watch-overview.json
    ```
 3. **Paste JSON** into import field
-4. **Select Data Source**: Choose Postgres datasource (usually `Media3Watch DB`)
+4. **Select Data Source**: Choose Postgres datasource (named `PostgreSQL`)
 5. **Click Import**
 
 ### Datasource Configuration
 
-Datasource is auto-provisioned via `grafana/provisioning/datasources/datasource.yml`:
+Datasources are auto-provisioned via `grafana/provisioning/datasources/datasource.yml`:
 
 ```yaml
 apiVersion: 1
 datasources:
-  - name: Media3Watch DB
+  - name: PostgreSQL
     type: postgres
+    access: proxy
     url: postgres:5432
     database: media3watch
     user: m3w
@@ -107,7 +108,18 @@ datasources:
       password: m3w
     jsonData:
       sslmode: disable
-      postgresVersion: 1600
+      maxOpenConns: 5
+      maxIdleConns: 2
+      connMaxLifetime: 14400
+    isDefault: true
+    editable: true
+
+  - name: Prometheus
+    type: prometheus
+    access: proxy
+    url: http://backend:8080/metrics
+    isDefault: false
+    editable: true
 ```
 
 **Production changes needed**:
@@ -118,7 +130,7 @@ datasources:
 ### Custom Dashboard Creation
 
 1. **Create Panel** → **Add Visualization**
-2. **Select Datasource**: Media3Watch DB
+2. **Select Datasource**: PostgreSQL
 3. **Write SQL Query**:
    ```sql
    SELECT
