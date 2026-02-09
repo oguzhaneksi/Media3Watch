@@ -267,7 +267,7 @@ Use [Bug Report template](.github/ISSUE_TEMPLATE/02-bug.yml).
 ### Proposing Features
 Use [Feature Proposal template](.github/ISSUE_TEMPLATE/01-feature.yml).
 
-**Requiredfrom PO**:
+**Required from PO**:
 - Goal (one sentence)
 - User story
 - Acceptance criteria
