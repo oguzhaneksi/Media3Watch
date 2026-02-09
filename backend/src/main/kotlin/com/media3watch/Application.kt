@@ -10,22 +10,29 @@ import com.media3watch.observability.ErrorCodes
 import com.media3watch.observability.ErrorDetail
 import com.media3watch.observability.ErrorResponse
 import com.media3watch.security.apiKey
-import io.ktor.http.*
-import io.ktor.serialization.kotlinx.json.*
-import io.ktor.server.application.*
-import io.ktor.server.auth.*
-import io.ktor.server.engine.*
-import io.ktor.server.netty.*
-import io.ktor.server.plugins.calllogging.*
-import io.ktor.server.plugins.contentnegotiation.*
-import io.ktor.server.plugins.ratelimit.*
-import io.ktor.server.plugins.statuspages.*
+import io.ktor.http.HttpStatusCode
+import io.ktor.serialization.kotlinx.json.json
+import io.ktor.server.application.Application
+import io.ktor.server.application.install
+import io.ktor.server.auth.Authentication
+import io.ktor.server.engine.embeddedServer
+import io.ktor.server.netty.Netty
+import io.ktor.server.plugins.calllogging.CallLogging
+import io.ktor.server.plugins.calllogging.processingTimeMillis
+import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.plugins.ratelimit.RateLimit
+import io.ktor.server.plugins.ratelimit.RateLimitName
+import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.server.response.respond
+import io.ktor.server.routing.rateLimit
+import io.ktor.server.routing.routing
 import io.micrometer.core.instrument.Counter
-import io.micrometer.core.instrument.binder.jvm.*
+import io.micrometer.core.instrument.binder.jvm.ClassLoaderMetrics
+import io.micrometer.core.instrument.binder.jvm.JvmGcMetrics
+import io.micrometer.core.instrument.binder.jvm.JvmMemoryMetrics
+import io.micrometer.core.instrument.binder.jvm.JvmThreadMetrics
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import kotlinx.serialization.json.Json
@@ -44,7 +51,7 @@ fun main() {
     embeddedServer(
         Netty,
         port = System.getenv("PORT")?.toIntOrNull() ?: 8080,
-        host = "0.0.0.0"
+        host = "0.0.0.0",
     ) {
         module(config)
     }.start(wait = true)
@@ -70,30 +77,37 @@ fun Application.module(config: AppConfig = AppConfig.fromEnvironment()) {
     }
 
     // Custom business metrics
-    val sessionsIngestedCounter = Counter.builder("sessions_ingested_total")
-        .description("Total number of successfully ingested sessions")
-        .register(prometheusRegistry)
+    val sessionsIngestedCounter =
+        Counter
+            .builder("sessions_ingested_total")
+            .description("Total number of successfully ingested sessions")
+            .register(prometheusRegistry)
 
-    val sessionsFailedCounter = Counter.builder("sessions_failed_total")
-        .description("Total number of failed session ingestions")
-        .register(prometheusRegistry)
+    val sessionsFailedCounter =
+        Counter
+            .builder("sessions_failed_total")
+            .description("Total number of failed session ingestions")
+            .register(prometheusRegistry)
 
     // Install plugins
     install(ContentNegotiation) {
-        json(Json {
-            prettyPrint = true
-            isLenient = true
-            ignoreUnknownKeys = true
-        })
+        json(
+            Json {
+                prettyPrint = true
+                isLenient = true
+                ignoreUnknownKeys = true
+            },
+        )
     }
 
     install(CallLogging) {
-        level = when (config.logLevel.uppercase()) {
-            "DEBUG" -> Level.DEBUG
-            "WARN" -> Level.WARN
-            "ERROR" -> Level.ERROR
-            else -> Level.INFO
-        }
+        level =
+            when (config.logLevel.uppercase()) {
+                "DEBUG" -> Level.DEBUG
+                "WARN" -> Level.WARN
+                "ERROR" -> Level.ERROR
+                else -> Level.INFO
+            }
         format { call ->
             val status = call.response.status()
             val method = call.request.httpMethod.value
@@ -114,9 +128,9 @@ fun Application.module(config: AppConfig = AppConfig.fromEnvironment()) {
                 ErrorResponse(
                     ErrorDetail(
                         code = ErrorCodes.INTERNAL_ERROR,
-                        message = "Unexpected server error"
-                    )
-                )
+                        message = "Unexpected server error",
+                    ),
+                ),
             )
         }
     }
@@ -151,4 +165,3 @@ fun Application.module(config: AppConfig = AppConfig.fromEnvironment()) {
 
     logger.info("Application started successfully")
 }
-

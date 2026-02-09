@@ -8,9 +8,13 @@ plugins {
     alias(libs.plugins.detekt)
 }
 
-ktlint {
-    version.set("1.5.0")
-    android.set(true)
+allprojects {
+    apply(plugin = "org.jlleitschuh.gradle.ktlint")
+
+    ktlint {
+        version.set("1.5.0")
+        android.set(true)
+    }
 }
 
 detekt {

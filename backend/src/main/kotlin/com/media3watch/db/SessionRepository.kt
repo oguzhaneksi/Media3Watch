@@ -6,13 +6,16 @@ import java.sql.SQLException
 import java.sql.Timestamp
 import javax.sql.DataSource
 
-class SessionRepository(private val dataSource: DataSource) {
+class SessionRepository(
+    private val dataSource: DataSource,
+) {
     private val logger = LoggerFactory.getLogger(SessionRepository::class.java)
 
-    fun upsertSession(session: SessionSummary): Result<Unit> {
-        return try {
+    fun upsertSession(session: SessionSummary): Result<Unit> =
+        try {
             dataSource.connection.use { connection ->
-                val sql = """
+                val sql =
+                    """
                     INSERT INTO sessions (
                         session_id, timestamp, content_id, stream_type,
                         player_startup_ms, rebuffer_time_ms, rebuffer_count,
@@ -30,7 +33,7 @@ class SessionRepository(private val dataSource: DataSource) {
                         payload = EXCLUDED.payload,
                         created_at = EXCLUDED.created_at
                     WHERE sessions.created_at <= EXCLUDED.created_at
-                """.trimIndent()
+                    """.trimIndent()
 
                 connection.prepareStatement(sql).use { stmt ->
                     stmt.setString(1, session.sessionId)
@@ -51,6 +54,4 @@ class SessionRepository(private val dataSource: DataSource) {
             logger.error("Database upsert failed for session: ${session.sessionId}", e)
             Result.failure(e)
         }
-    }
 }
-

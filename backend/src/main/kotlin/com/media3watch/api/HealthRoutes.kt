@@ -1,8 +1,9 @@
 package com.media3watch.api
 
-import io.ktor.http.*
-import io.ktor.server.response.*
-import io.ktor.server.routing.*
+import io.ktor.http.HttpStatusCode
+import io.ktor.server.response.respond
+import io.ktor.server.routing.Route
+import io.ktor.server.routing.get
 
 fun Route.healthRoutes() {
     get("/health") {
@@ -10,9 +11,8 @@ fun Route.healthRoutes() {
             HttpStatusCode.OK,
             mapOf(
                 "status" to "healthy",
-                "timestamp" to System.currentTimeMillis()
-            )
+                "timestamp" to System.currentTimeMillis(),
+            ),
         )
     }
 }
-

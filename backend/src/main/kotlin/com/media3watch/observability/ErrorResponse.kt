@@ -4,14 +4,14 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class ErrorResponse(
-    val error: ErrorDetail
+    val error: ErrorDetail,
 )
 
 @Serializable
 data class ErrorDetail(
     val code: String,
     val message: String,
-    val timestamp: Long = System.currentTimeMillis()
+    val timestamp: Long = System.currentTimeMillis(),
 )
 
 object ErrorCodes {
@@ -21,4 +21,3 @@ object ErrorCodes {
     const val DATABASE_ERROR = "DATABASE_ERROR"
     const val INTERNAL_ERROR = "INTERNAL_ERROR"
 }
-
