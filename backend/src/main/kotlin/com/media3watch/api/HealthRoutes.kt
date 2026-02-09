@@ -10,9 +10,8 @@ fun Route.healthRoutes() {
             HttpStatusCode.OK,
             mapOf(
                 "status" to "healthy",
-                "timestamp" to System.currentTimeMillis()
-            )
+                "timestamp" to System.currentTimeMillis(),
+            ),
         )
     }
 }
-

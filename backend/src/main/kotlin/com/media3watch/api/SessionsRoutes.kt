@@ -19,13 +19,13 @@ private val logger = LoggerFactory.getLogger("SessionsRoutes")
 @Serializable
 data class SessionResponse(
     val status: String,
-    val sessionId: String
+    val sessionId: String,
 )
 
 fun Route.sessionsRoutes(
     repository: SessionRepository,
     sessionsIngestedCounter: Counter,
-    sessionsFailedCounter: Counter
+    sessionsFailedCounter: Counter,
 ) {
     authenticate("api-key-auth") {
         post("/v1/sessions") {
@@ -39,31 +39,32 @@ fun Route.sessionsRoutes(
                         ErrorResponse(
                             ErrorDetail(
                                 code = ErrorCodes.INVALID_SCHEMA,
-                                message = "Missing required field: sessionId"
-                            )
-                        )
+                                message = "Missing required field: sessionId",
+                            ),
+                        ),
                     )
                     return@post
                 }
 
                 val result = repository.upsertSession(session)
 
-                result.onSuccess {
-                    sessionsIngestedCounter.increment()
-                    call.respond(HttpStatusCode.OK, SessionResponse("success", session.sessionId))
-                }.onFailure { error ->
-                    sessionsFailedCounter.increment()
-                    logger.error("Failed to upsert session", error)
-                    call.respond(
-                        HttpStatusCode.ServiceUnavailable,
-                        ErrorResponse(
-                            ErrorDetail(
-                                code = ErrorCodes.DATABASE_ERROR,
-                                message = "Temporary storage issue"
-                            )
+                result
+                    .onSuccess {
+                        sessionsIngestedCounter.increment()
+                        call.respond(HttpStatusCode.OK, SessionResponse("success", session.sessionId))
+                    }.onFailure { error ->
+                        sessionsFailedCounter.increment()
+                        logger.error("Failed to upsert session", error)
+                        call.respond(
+                            HttpStatusCode.ServiceUnavailable,
+                            ErrorResponse(
+                                ErrorDetail(
+                                    code = ErrorCodes.DATABASE_ERROR,
+                                    message = "Temporary storage issue",
+                                ),
+                            ),
                         )
-                    )
-                }
+                    }
             } catch (e: Exception) {
                 logger.error("Error processing session request", e)
                 call.respond(
@@ -71,12 +72,11 @@ fun Route.sessionsRoutes(
                     ErrorResponse(
                         ErrorDetail(
                             code = ErrorCodes.INVALID_SCHEMA,
-                            message = "Invalid request body: ${e.message}"
-                        )
-                    )
+                            message = "Invalid request body: ${e.message}",
+                        ),
+                    ),
                 )
             }
         }
     }
 }
-

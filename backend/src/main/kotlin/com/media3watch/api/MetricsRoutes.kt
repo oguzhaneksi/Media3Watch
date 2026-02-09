@@ -9,8 +9,7 @@ fun Route.metricsRoutes(registry: PrometheusMeterRegistry) {
     get("/metrics") {
         call.respondText(
             registry.scrape(),
-            ContentType.parse("text/plain; version=0.0.4")
+            ContentType.parse("text/plain; version=0.0.4"),
         )
     }
 }
-

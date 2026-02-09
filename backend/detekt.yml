@@ -1,0 +1,35 @@
+build:
+  maxIssues: 0
+  excludeCorrectable: false
+  weights:
+    # complexity: 2
+    # LongParameterList: 1
+    # style: 1
+    # comments: 1
+
+config:
+  validation: true
+  warningsAsErrors: false
+
+style:
+  WildcardImport:
+    active: false  # Wildcard imports are idiomatic in Ktor applications
+  MagicNumber:
+    active: false  # Allow magic numbers for now
+  MaxLineLength:
+    active: true
+    maxLineLength: 140
+
+complexity:
+  LongMethod:
+    active: true
+    threshold: 100  # Increased from default 60 to match existing code
+  LongParameterList:
+    active: true
+    functionThreshold: 8  # Increased from default 6
+  TooManyFunctions:
+    active: false
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: false  # Allow generic exception catching for now

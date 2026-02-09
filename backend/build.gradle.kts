@@ -4,6 +4,8 @@ plugins {
     kotlin("jvm") version "2.3.10"
     kotlin("plugin.serialization") version "2.3.10"
     application
+    id("org.jlleitschuh.gradle.ktlint") version "12.1.2"
+    id("io.gitlab.arturbosch.detekt") version "1.23.7"
 }
 
 group = "com.media3watch"
@@ -66,4 +68,30 @@ kotlin {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+// Ktlint configuration
+ktlint {
+    version.set("1.5.0")
+    android.set(false)
+    outputToConsole.set(true)
+    coloredOutput.set(true)
+    ignoreFailures.set(false)
+}
+
+// Detekt configuration
+detekt {
+    buildUponDefaultConfig = true
+    allRules = false
+    config.setFrom(files("$rootDir/detekt.yml"))
+}
+
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+    jvmTarget = "21"
+    reports {
+        html.required.set(true)
+        xml.required.set(true)
+        txt.required.set(false)
+        sarif.required.set(false)
+    }
 }
