@@ -304,7 +304,7 @@ Spikes are **timeboxed** research tasks (0.5-3 days) producing a decision or pro
 
 ## Getting Help
 
-- **Questions**: Open a [Discussion](https://github.com/oguzhaneksi/Media3Watch/discussions) (or ask in Issues if no Discussions enabled)
+- **Questions**: Ask in [Issues](https://github.com/oguzhaneksi/Media3Watch/issues).
 - **Bugs**: Use Bug Report template
 - **Features**: Use Feature Proposal template
 - **Security**: See [SECURITY.md](SECURITY.md)
