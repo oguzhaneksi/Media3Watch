@@ -38,7 +38,6 @@ import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
-import javax.sql.DataSource
 import kotlin.time.Duration.Companion.seconds
 
 fun main() {
