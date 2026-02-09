@@ -4,4 +4,15 @@ plugins {
     alias(libs.plugins.kotlin.compose) apply false
     alias(libs.plugins.android.library) apply false
     alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.ktlint)
+    alias(libs.plugins.detekt)
+}
+
+ktlint {
+    version.set("1.5.0")
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    allRules = false
 }

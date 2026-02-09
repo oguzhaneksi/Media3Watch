@@ -3,6 +3,8 @@ import org.gradle.jvm.tasks.Jar
 plugins {
     kotlin("jvm") version "2.3.10"
     kotlin("plugin.serialization") version "2.3.10"
+    id("org.jlleitschuh.gradle.ktlint") version "13.0.0"
+    id("io.gitlab.arturbosch.detekt") version "1.23.7"
     application
 }
 
@@ -66,4 +68,14 @@ kotlin {
 
 tasks.test {
     useJUnitPlatform()
+}
+
+ktlint {
+    android.set(false)
+    version.set("1.5.0")
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    allRules = false
 }
