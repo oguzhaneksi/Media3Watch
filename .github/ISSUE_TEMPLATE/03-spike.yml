@@ -1,0 +1,59 @@
+name: Spike / Research
+description: Timeboxed research to answer a question and produce a decision/prototype.
+title: "[Spike]: "
+labels: ["needs-po", "spike"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Spikes are **timeboxed**. The output must be a decision, doc, benchmark, or prototype.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Research question / hypothesis
+      placeholder: "Example: What’s the safest MVP schema for session ingest with future-proofing?"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: timebox
+    attributes:
+      label: Timebox
+      options:
+        - "0.5 day"
+        - "1 day"
+        - "2 days"
+        - "3 days"
+      default: 1
+    validations:
+      required: true
+
+  - type: textarea
+    id: success
+    attributes:
+      label: Success criteria (what must be produced)
+      placeholder: |
+        - A short decision doc with pros/cons
+        - A recommendation
+        - Optional: prototype branch / benchmark numbers
+    validations:
+      required: true
+
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Non-goals
+      placeholder: |
+        - Not implementing full feature
+        - Not adding production infra
+    validations:
+      required: true
+
+  - type: textarea
+    id: references
+    attributes:
+      label: References / links
+      placeholder: "Docs, issues, similar projects..."
+    validations:
+      required: false

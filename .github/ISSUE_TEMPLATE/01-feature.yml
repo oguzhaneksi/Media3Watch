@@ -1,0 +1,189 @@
+name: Feature Proposal (PO Gate)
+description: Propose a feature. This will be reviewed by the Product Owner before implementation.
+title: "[Feature]: "
+labels: ["needs-po", "feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## PO Gate
+        This issue is **not ready for implementation** until the PO marks it as `spec-ready`.
+        Keep scope tight. MVP first.
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal (1 sentence)
+      description: What outcome do we want?
+      placeholder: "Example: Measure player_startup_ms and ingest it to backend with schemaVersioned payload."
+    validations:
+      required: true
+
+  - type: textarea
+    id: user_story
+    attributes:
+      label: User Story
+      description: As a ..., I want ..., so that ...
+      placeholder: "As a video engineer, I want ... so that ..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem_context
+    attributes:
+      label: Problem / Context
+      description: Why do we need this? What pain does it solve?
+      placeholder: "Current limitation, observed pain, use-case..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed_solution
+    attributes:
+      label: Proposed Solution (high-level)
+      description: What do we think we’ll build? Keep it high level.
+      placeholder: "SDK changes + backend endpoint changes + storage..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance Criteria (testable)
+      description: Bullet list. Make it verifiable.
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: non_goals
+    attributes:
+      label: Non-goals (explicit)
+      description: What we will NOT do in this scope.
+      placeholder: |
+        - Not doing X
+        - Not adding Y
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope / Won't do
+      description: Features or work explicitly excluded from this effort.
+      placeholder: |
+        - Won't implement feature Z
+        - Won't support legacy version X
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope_class
+    attributes:
+      label: Scope class
+      options:
+        - "MVP (must have)"
+        - "Nice-to-have (probably later)"
+        - "Future / backlog"
+      default: 0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: impacted_area
+    attributes:
+      label: Impacted area
+      multiple: true
+      options:
+        - Android SDK
+        - Backend API
+        - Both (SDK + Backend)
+        - Docs / Repo tooling
+    validations:
+      required: true
+
+  - type: dropdown
+    id: schema_impact
+    attributes:
+      label: API/Schema impact
+      description: Consider schemaVersion and backward compatibility.
+      options:
+        - None
+        - Minor (additive / backward compatible)
+        - Potential breaking (needs schemaVersion bump)
+      default: 0
+    validations:
+      required: true
+
+  - type: textarea
+    id: test_plan
+    attributes:
+      label: Test plan
+      description: How will we verify it works?
+      placeholder: |
+        - Unit tests:
+        - Integration tests:
+        - Manual checks:
+    validations:
+      required: true
+
+  - type: textarea
+    id: risks
+    attributes:
+      label: Risks & Edge cases
+      description: What could go wrong? What tricky cases exist?
+      placeholder: "- retries, idempotency, missing fields, process death, etc."
+    validations:
+      required: false
+
+  - type: textarea
+    id: definition_of_done
+    attributes:
+      label: Definition of Done
+      description: Checklist of what must be completed before this is truly "done".
+      placeholder: |
+        - [ ] Tests added (unit + integration)
+        - [ ] Docs updated (API reference, README)
+        - [ ] Migrations applied (if DB changes)
+        - [ ] Performance validated (no regressions)
+        - [ ] Privacy/security reviewed (no PII leaks, no secret logs)
+    validations:
+      required: true
+
+  - type: textarea
+    id: task_breakdown
+    attributes:
+      label: Task breakdown (1–3 day chunks)
+      description: Break this into implementable tasks with owners.
+      placeholder: |
+        1. [Android] Implement metric collection in sdk:core (1 day)
+        2. [Backend] Add endpoint + DB column (1 day)
+        3. [QA] Add integration tests (0.5 day)
+        4. [Review] Code review + merge (0.5 day)
+    validations:
+      required: true
+
+  - type: textarea
+    id: open_questions
+    attributes:
+      label: Open questions
+      description: Anything still unclear or needing decision?
+      placeholder: |
+        - Should we support schemaVersion 1.0.0 clients?
+        - What's the retention policy for this metric?
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: guardrails
+    attributes:
+      label: Guardrails
+      description: Quick sanity checks
+      options:
+        - label: "I confirm this proposal does NOT change the definition of player_startup_ms unless explicitly stated."
+          required: false
+        - label: "I confirm schema/backward compatibility impact has been considered."
+          required: false

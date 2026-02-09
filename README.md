@@ -468,13 +468,18 @@ Media3Watch.init(context) {
 
 ## Roadmap
 
+**Legend**: 
+- `[x]` = Implemented and shipped
+- `[~]` = In progress / Partially implemented
+- `[ ]` = Planned but not started
+
 ### v1.0 (MVP) — Current
 
-- [x] Android SDK with session summary collection
-- [x] `markPlayRequested()` for explicit startup measurement
-- [x] Session Inspector overlay (timeline, stats, export/share)
-- [x] Backend ingest API with Postgres storage
-- [x] Grafana dashboards (QoE overview, breakdown, session explorer)
+- [ ] Android SDK with session summary collection
+- [ ] `markPlayRequested()` for explicit startup measurement
+- [ ] Session Inspector overlay (timeline, stats, export/share) — **Planned**
+- [ ] Backend ingest API with Postgres storage
+- [ ] Grafana dashboards (QoE overview, breakdown, session explorer)
 
 ### v1.1 — Short-term
 

@@ -152,28 +152,23 @@ playButton.setOnClickListener {
 
 ---
 
-## �🛠 Tech Stack (2026 Target)
+## 🛠 Module-Specific Tech Stack
 
-Built on a modern and sustainable technology stack aligned with 2026 standards.
-
-### Build & Tooling
-*   **AGP (Android Gradle Plugin):** 9.0.0 (Targeting Jan 2026)
+### SDK Requirements
+*   **minSdk:** 23 (Required by Media3 1.9.x)
+*   **compileSdk / targetSdk:** 36 (Android 16)
 *   **Kotlin:** 2.3.0+
-*   **Dependency Management:** Version Catalog (`libs.versions.toml`) + Build Logic Convention Plugins.
+*   **AGP:** 9.0.0+
 
-### Android SDK Levels
-*   **minSdk:** 23 (Required by Media3 1.9.x and modern Android features)
-*   **compileSdk / targetSdk:** 36 (Android 16) - Aligned with Google Play requirements.
+### Key Dependencies
+*   **Media3:** 1.9.x — ExoPlayer integration (adapter module only)
+*   **kotlinx.serialization** — JSON encoding for SessionSummary (schema module)
+*   **Coroutines + Flow** — Event streaming and state machine (core module)
+*   **OkHttp** — Network transport (transport-okhttp module, optional)
+*   **WorkManager** — Background upload (android-runtime module)
 
-### Media & Data
-*   **Media3:** 1.9.x (Stable)
-*   **Concurrency:** Coroutines + Flow (For state machine and event streaming).
-*   **Serialization:** `kotlinx.serialization` (For JSON schema).
-*   **Network:** OkHttp (Industry standard).
-*   **Storage:** File-based atomic JSON writing (Lightweight, no Room dependency).
-*   **Background Jobs:** WorkManager (For upload operations).
+### Quality Tools
+*   **ktlint + detekt** — Code style and static analysis
+*   **Dokka** — API documentation generation
+*   **Binary Compatibility Validator** — Public API stability tracking
 
-### Quality & CI
-*   **Linting:** ktlint + detekt
-*   **Docs:** Dokka
-*   **Binary Compatibility:** Binary Compatibility Validator for public API tracking.

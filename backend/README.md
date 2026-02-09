@@ -12,321 +12,19 @@ Media3Watch Backend provides:
 - **Privacy by design**: Data stays in your database.
 - **Developer simplicity**: One binary, one database, and a pre-configured Grafana dashboard.
 
-## 🏗 High-Level Architecture
-The backend is built with **Kotlin** and **Ktor**, optimized for low-latency ingestion and minimal resource footprint.
+## 🏗 Backend Architecture
+Lightweight Kotlin/Ktor service optimized for session ingestion.
 
-```text
-[Android SDK] --- (JSON/HTTP) ---> [Ktor Backend] ---> [PostgreSQL] <--- [Grafana]
-```
+**Core Stack**:
+- **Language**: Kotlin (JVM)
+- **Framework**: Ktor (async, non-blocking HTTP server)
+- **Database**: PostgreSQL 16+ (hybrid relational + JSONB storage)
+- **Migrations**: Flyway (version-controlled schema changes)
+- **Connection Pooling**: HikariCP (optimized for concurrent requests)
 
-## 🔄 Data Flow
-1. **SDK**: Aggregates playback events (startup, buffering, errors) into a `SessionSummary`.
-2. **Transport**: Sends the summary via `POST /v1/sessions` (with automatic retry and idempotency).
-3. **Backend**: Validates the `X-API-Key`, maps the JSON to structured columns, and stores the full payload in a `JSONB` column.
-4. **Postgres**: Acts as the single source of truth.
-5. **Grafana**: Queries Postgres directly to provide real-time dashboards for metrics like Startup Time (`player_startup_ms`) and Rebuffer Ratio.
+**Data Flow**: SDK → HTTP POST → Ktor validation → Postgres upsert → Grafana queries
 
-## 📡 API Overview
-
-### `POST /v1/sessions`
-Ingests a completed playback session summary.
-
-- **Headers**:
-    - `X-API-Key: <your_secret_key>`
-    - `Content-Type: application/json`
-- **Body**: [SessionSummary JSON](../docs/schema.md)
-- **Idempotency**: The `sessionId` field is used as a unique key. Repeated requests with the same `sessionId` will update the existing record (upsert).
-- **Response**: `200 OK` on success.
-
-### `GET /health`
-Returns system health status for Docker/Kubernetes health checks.
-
-## 🔑 Authentication
-Authentication is handled via a simple `X-API-Key` header.
-- The key is defined in environment variables.
-- Requests without a valid key return `401 Unauthorized`.
-
-### Rate Limiting (Production Ready)
-To prevent abuse and ensure fair resource usage, the backend implements rate limiting:
-
-```kotlin
-// RouteRateLimit configuration in Application.kt
-install(RateLimit) {
-    register(RateLimitName("api-key-limit")) {
-        rateLimiter(limit = 100, refillPeriod = 60.seconds)
-        requestKey { applicationCall ->
-            applicationCall.request.header("X-API-Key") ?: "anonymous"
-        }
-    }
-}
-
-// Apply to routes
-routing {
-    rateLimit(RateLimitName("api-key-limit")) {
-        post("/v1/sessions") {
-            // Handle session ingestion
-        }
-    }
-}
-```
-
-**Current limits:**
-- **100 requests per minute** per API key
-- Exceeding the limit returns `429 Too Many Requests` with `Retry-After` header
-
-**Future roadmap:**
-- [ ] Multi-tenant API key support with per-tenant quotas
-- [ ] API key rotation mechanism
-- [ ] Distributed rate limiting (Redis-backed) for multi-instance deployments
-
-## 📈 Scalability & Data Retention
-
-### Current Performance Capacity
-PostgreSQL handles the expected load efficiently for solo developers and small teams:
-
-- ✅ **1-2M sessions**: Excellent performance with proper indexing
-- ⚠️ **10M+ sessions**: Monitor query performance and consider partitioning
-- ⚠️ **JSONB growth**: Large `payload` columns increase storage linearly
-
-### Implemented Solutions
-
-#### 1. Time-Based Partitioning
-For high-volume environments, the database schema supports declarative partitioning:
-
-```sql
--- Main sessions table (partitioned)
-CREATE TABLE sessions (
-    id BIGSERIAL,
-    session_id VARCHAR(128) NOT NULL,
-    timestamp TIMESTAMPTZ NOT NULL,
-    content_id VARCHAR(256),
-    stream_type VARCHAR(16),
-    player_startup_ms INTEGER,
-    rebuffer_time_ms INTEGER,
-    rebuffer_count INTEGER,
-    error_count INTEGER,
-    payload JSONB,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-) PARTITION BY RANGE (timestamp);
-
--- Auto-create monthly partitions
-CREATE TABLE sessions_2026_01 PARTITION OF sessions
-    FOR VALUES FROM ('2026-01-01') TO ('2026-02-01');
-
-CREATE TABLE sessions_2026_02 PARTITION OF sessions
-    FOR VALUES FROM ('2026-02-01') TO ('2026-03-01');
-```
-
-#### 2. Automated Data Retention
-Default retention policy: **90 days**
-
-Using `pg_cron` for production environments:
-
-```sql
--- Enable pg_cron extension
-CREATE EXTENSION IF NOT EXISTS pg_cron;
-
--- Schedule daily cleanup at 2 AM UTC
-SELECT cron.schedule(
-    'cleanup-old-sessions',
-    '0 2 * * *',
-    $$DELETE FROM sessions WHERE timestamp < NOW() - INTERVAL '90 days'$$
-);
-```
-
-For lightweight deployments without `pg_cron`, use a cron job:
-
-```bash
-# Add to crontab: Daily cleanup at 2 AM
-0 2 * * * psql -U m3w -d media3watch -c "DELETE FROM sessions WHERE timestamp < NOW() - INTERVAL '90 days';"
-```
-
-#### 3. Index Optimization
-Core indexes for fast querying:
-
-```sql
-CREATE INDEX idx_sessions_timestamp ON sessions (timestamp DESC);
-CREATE INDEX idx_sessions_content_id ON sessions (content_id) WHERE content_id IS NOT NULL;
-CREATE INDEX idx_sessions_stream_type ON sessions (stream_type) WHERE stream_type IS NOT NULL;
-CREATE INDEX idx_sessions_player_startup ON sessions (player_startup_ms) WHERE player_startup_ms IS NOT NULL;
-
--- Partial index for error analysis
-CREATE INDEX idx_sessions_errors ON sessions (error_count, timestamp DESC) WHERE error_count > 0;
-```
-
-## 🔍 Observability & Error Handling
-
-### Structured Logging
-All requests are logged with structured metadata for easy troubleshooting:
-
-```kotlin
-install(CallLogging) {
-    level = Level.INFO
-    format { call ->
-        val status = call.response.status()
-        val method = call.request.httpMethod.value
-        val path = call.request.path()
-        val duration = call.processingTimeMillis()
-        "$method $path - $status (${duration}ms)"
-    }
-    
-    filter { call ->
-        !call.request.path().startsWith("/health")
-    }
-}
-```
-
-**Log output example:**
-```
-INFO  POST /v1/sessions - 200 (45ms)
-WARN  POST /v1/sessions - 401 (2ms) [Invalid API key]
-ERROR POST /v1/sessions - 500 (120ms) [Database connection timeout]
-```
-
-### Application Metrics (Prometheus)
-Monitoring critical KPIs for backend health:
-
-```kotlin
-install(MicrometerMetrics) {
-    registry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
-    
-    meterBinders = listOf(
-        JvmMemoryMetrics(),
-        JvmGcMetrics(),
-        ProcessorMetrics(),
-        JvmThreadMetrics()
-    )
-}
-
-// Expose metrics endpoint
-routing {
-    get("/metrics") {
-        call.respond(registry.scrape())
-    }
-}
-```
-
-**Available metrics:**
-- `http_server_requests_total` — Total requests by endpoint and status
-- `http_server_request_duration_seconds` — Request latency distribution
-- `db_connection_pool_active` — Active database connections
-- `db_query_duration_seconds` — Database query latency
-- `sessions_ingested_total` — Successful session writes
-
-### Error Response Format
-Standardized JSON error responses for client-side handling:
-
-```json
-{
-  "error": {
-    "code": "INVALID_SCHEMA",
-    "message": "Missing required field: sessionId",
-    "timestamp": 1706900000000
-  }
-}
-```
-
-**Error codes:**
-- `INVALID_API_KEY` — Authentication failure (401)
-- `RATE_LIMIT_EXCEEDED` — Too many requests (429)
-- `INVALID_SCHEMA` — Malformed request body (400)
-- `DATABASE_ERROR` — Temporary storage issue (503)
-- `INTERNAL_ERROR` — Unexpected server error (500)
-
-## ⚡ Idempotency & Conflict Resolution
-
-### Atomic Upsert with Optimistic Locking
-The backend guarantees **at-least-once delivery** with safe concurrent writes:
-
-```kotlin
-suspend fun upsertSession(session: SessionSummary): Result<Unit> {
-    return try {
-        database.execute { connection ->
-            connection.prepareStatement("""
-                INSERT INTO sessions (
-                    session_id, timestamp, content_id, stream_type,
-                    player_startup_ms, rebuffer_time_ms, rebuffer_count,
-                    error_count, payload, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb, NOW())
-                ON CONFLICT (session_id) 
-                DO UPDATE SET
-                    timestamp = EXCLUDED.timestamp,
-                    content_id = EXCLUDED.content_id,
-                    stream_type = EXCLUDED.stream_type,
-                    player_startup_ms = EXCLUDED.player_startup_ms,
-                    rebuffer_time_ms = EXCLUDED.rebuffer_time_ms,
-                    rebuffer_count = EXCLUDED.rebuffer_count,
-                    error_count = EXCLUDED.error_count,
-                    payload = EXCLUDED.payload,
-                    created_at = EXCLUDED.created_at
-                WHERE sessions.created_at <= EXCLUDED.created_at
-            """).apply {
-                setString(1, session.sessionId)
-                setTimestamp(2, Timestamp(session.timestamp))
-                // ... additional bindings
-            }.executeUpdate()
-        }
-        Result.success(Unit)
-    } catch (e: SQLException) {
-        logger.error("Database upsert failed", e)
-        Result.failure(e)
-    }
-}
-```
-
-**Guarantees:**
-- ✅ Same `sessionId` → Update only if new data is newer (`created_at` check)
-- ✅ Concurrent requests → Postgres serializable isolation prevents data corruption
-- ✅ Network retry from SDK → Safe to retry, no duplicate metrics
-
-## 🗄️ Database Connection Pooling
-
-### HikariCP Configuration
-Production-ready connection pool settings for optimal performance:
-
-```kotlin
-// application.conf
-ktor {
-    deployment {
-        port = 8080
-    }
-}
-
-database {
-    driverClassName = "org.postgresql.Driver"
-    jdbcUrl = ${DATABASE_URL}
-    username = ${DATABASE_USER}
-    password = ${DATABASE_PASSWORD}
-    
-    hikari {
-        maximumPoolSize = 20
-        minimumIdle = 5
-        connectionTimeout = 30000      # 30 seconds
-        idleTimeout = 600000           # 10 minutes
-        maxLifetime = 1800000          # 30 minutes
-        leakDetectionThreshold = 60000 # 1 minute
-        
-        # Performance tuning
-        cachePrepStmts = true
-        prepStmtCacheSize = 250
-        prepStmtCacheSqlLimit = 2048
-    }
-}
-```
-
-**Rationale:**
-- `maximumPoolSize = 20` — Sufficient for ~1,000 req/min with avg 50ms query time
-- `minimumIdle = 5` — Keep warm connections for instant response
-- `leakDetectionThreshold` — Detect connection leaks during development
-
-**Monitoring pool health:**
-```kotlin
-val poolMXBean = hikariDataSource.hikariPoolMXBean
-logger.info(
-    "Pool stats: active=${poolMXBean.activeConnections}, " +
-    "idle=${poolMXBean.idleConnections}, total=${poolMXBean.totalConnections}"
-)
-```
+---
 
 ## 💾 Database Design Philosophy
 We use **PostgreSQL** for its reliability and excellent JSON support.
@@ -347,6 +45,172 @@ The fastest way to get started is using Docker Compose:
     - **Backend**: `http://localhost:8080`
     - **Grafana**: `http://localhost:3000` (Default credentials: `admin`/`admin`)
     - **Postgres**: `localhost:5432`
+
+## 📊 Grafana Setup & Dashboard Provisioning
+
+### Quick Start (Docker Compose)
+Grafana is pre-configured in the docker-compose stack with automatic dashboard provisioning.
+
+1. **Start Grafana**:
+   ```bash
+   docker compose up -d grafana
+   ```
+
+2. **Access Grafana**:
+   - URL: `http://localhost:3000`
+   - Default credentials: `admin` / `admin`
+   - You'll be prompted to change password on first login
+
+3. **Verify Dashboard**:
+   - Navigate to **Dashboards** → **Browse**
+   - Look for **"Media3Watch QoE Overview"**
+   - Dashboard should be auto-provisioned from `grafana/dashboards/media3watch-overview.json`
+
+### Dashboard Features
+
+#### QoE Overview Dashboard
+Pre-built dashboard includes:
+- **Startup Time Distribution**: Histogram of `player_startup_ms`
+- **Rebuffer Ratio Trend**: Time-series of rebuffer percentage
+- **Error Rate**: Session errors over time
+- **Stream Type Breakdown**: VOD vs LIVE metrics
+- **Top Content**: Sessions by `contentId`
+- **Session List**: Recent sessions with click-to-JSON view
+
+### Manual Dashboard Import (if needed)
+
+If auto-provisioning fails:
+
+1. **Open Grafana** → **Dashboards** → **Import**
+2. **Upload JSON**:
+   ```bash
+   # Copy dashboard JSON
+   cat grafana/dashboards/media3watch-overview.json
+   ```
+3. **Paste JSON** into import field
+4. **Select Data Source**: Choose Postgres datasource (usually `Media3Watch DB`)
+5. **Click Import**
+
+### Datasource Configuration
+
+Datasource is auto-provisioned via `grafana/provisioning/datasources/datasource.yml`:
+
+```yaml
+apiVersion: 1
+datasources:
+  - name: Media3Watch DB
+    type: postgres
+    url: postgres:5432
+    database: media3watch
+    user: m3w
+    secureJsonData:
+      password: m3w
+    jsonData:
+      sslmode: disable
+      postgresVersion: 1600
+```
+
+**Production changes needed**:
+- Change `user` and `password` to production values
+- Enable SSL: `sslmode: require`
+- Use environment variables for secrets
+
+### Custom Dashboard Creation
+
+1. **Create Panel** → **Add Visualization**
+2. **Select Datasource**: Media3Watch DB
+3. **Write SQL Query**:
+   ```sql
+   SELECT
+     timestamp,
+     player_startup_ms
+   FROM sessions
+   WHERE timestamp > NOW() - INTERVAL '7 days'
+   ORDER BY timestamp DESC
+   ```
+4. **Choose Visualization**: Time series, histogram, table, etc.
+5. **Save Dashboard**
+
+### Common Queries
+
+#### Startup Time Percentiles
+```sql
+SELECT
+  percentile_cont(0.5) WITHIN GROUP (ORDER BY player_startup_ms) AS p50,
+  percentile_cont(0.75) WITHIN GROUP (ORDER BY player_startup_ms) AS p75,
+  percentile_cont(0.95) WITHIN GROUP (ORDER BY player_startup_ms) AS p95,
+  percentile_cont(0.99) WITHIN GROUP (ORDER BY player_startup_ms) AS p99
+FROM sessions
+WHERE player_startup_ms IS NOT NULL
+  AND timestamp > NOW() - INTERVAL '24 hours';
+```
+
+#### Error Rate by Category
+```sql
+SELECT
+  last_error_category,
+  COUNT(*) AS error_count
+FROM sessions
+WHERE error_count > 0
+  AND timestamp > NOW() - INTERVAL '7 days'
+GROUP BY last_error_category
+ORDER BY error_count DESC;
+```
+
+#### Rebuffer Ratio Distribution
+```sql
+SELECT
+  CASE
+    WHEN rebuffer_time_ms = 0 THEN '0% (no rebuffer)'
+    WHEN rebuffer_time_ms::float / (play_time_ms + rebuffer_time_ms) < 0.01 THEN '0-1%'
+    WHEN rebuffer_time_ms::float / (play_time_ms + rebuffer_time_ms) < 0.05 THEN '1-5%'
+    ELSE '>5%'
+  END AS rebuffer_bucket,
+  COUNT(*) AS session_count
+FROM sessions
+WHERE play_time_ms > 0
+  AND timestamp > NOW() - INTERVAL '7 days'
+GROUP BY rebuffer_bucket
+ORDER BY rebuffer_bucket;
+```
+
+### Dashboard Export
+
+To export custom dashboards for version control:
+
+1. **Open Dashboard** → **Settings** (gear icon)
+2. **JSON Model** tab
+3. **Copy JSON**
+4. **Save to file**:
+   ```bash
+   # Add to version control
+   echo '<json>' > grafana/dashboards/custom-dashboard.json
+   ```
+
+### Alerting (Future)
+
+Planned for future releases:
+- [ ] Alert on high error rate (>5% of sessions)
+- [ ] Alert on degraded startup time (p95 > threshold)
+- [ ] Alert on backend health issues
+- [ ] Integration with Slack/PagerDuty
+
+### Troubleshooting
+
+**Dashboard not appearing?**
+- Check Grafana logs: `docker compose logs grafana`
+- Verify provisioning config: `grafana/provisioning/dashboards/dashboard.yml`
+- Ensure JSON is valid: `cat grafana/dashboards/*.json | jq .`
+
+**Datasource connection failed?**
+- Verify Postgres is running: `docker compose ps postgres`
+- Check database credentials in `datasource.yml`
+- Test connection: `psql -h localhost -U m3w -d media3watch`
+
+**No data in panels?**
+- Verify backend is ingesting: `curl -H "X-API-Key: dev-key" http://localhost:8080/health`
+- Check sessions table: `psql -U m3w -d media3watch -c "SELECT COUNT(*) FROM sessions;"`
+- Adjust time range in Grafana (top-right corner)
 
 ## ⚙️ Environment Variables
 ### Core Configuration
@@ -382,13 +246,13 @@ The fastest way to get started is using Docker Compose:
 
 ## 🗺 Roadmap
 ### ✅ Implemented (Production Ready)
-- [x] **Rate limiting**: Per-API-key throttling (100 req/min)
-- [x] **Structured logging**: Request/response logging with duration tracking
-- [x] **Prometheus metrics**: Backend health monitoring (`/metrics` endpoint)
-- [x] **HikariCP connection pooling**: Optimized database connection management
-- [x] **Idempotent upserts**: Safe retry handling with optimistic locking
-- [x] **Index optimization**: Fast queries for common analytics patterns
-- [x] **Data retention strategy**: 90-day default with automated cleanup
+- [ ] **Rate limiting**: Per-API-key throttling (100 req/min)
+- [ ] **Structured logging**: Request/response logging with duration tracking
+- [ ] **Prometheus metrics**: Backend health monitoring (`/metrics` endpoint)
+- [ ] **HikariCP connection pooling**: Optimized database connection management
+- [ ] **Idempotent upserts**: Safe retry handling with optimistic locking
+- [ ] **Index optimization**: Fast queries for common analytics patterns
+- [ ] **Data retention strategy**: 90-day default with automated cleanup
 
 ### 📋 Short Term
 - [ ] **Grafana dashboard provisioning**: Automated dashboard distribution
