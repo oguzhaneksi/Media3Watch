@@ -10,9 +10,11 @@ plugins {
 
 ktlint {
     version.set("1.5.0")
+    android.set(true)
 }
 
 detekt {
     buildUponDefaultConfig = true
     allRules = false
+    config.setFrom(files("$rootDir/detekt.yml"))
 }
