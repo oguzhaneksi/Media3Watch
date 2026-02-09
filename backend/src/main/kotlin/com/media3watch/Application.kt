@@ -38,6 +38,7 @@ import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
+import javax.sql.DataSource
 import kotlin.time.Duration.Companion.seconds
 
 fun main() {
@@ -57,26 +58,28 @@ fun main() {
     }.start(wait = true)
 }
 
-fun Application.module(config: AppConfig = AppConfig.fromEnvironment()) {
-    val logger = LoggerFactory.getLogger("Application")
-
-    // Initialize database
+private fun initializeDatabase(config: AppConfig): SessionRepository {
     val dataSource = DatabaseFactory.createDataSource(config)
     DatabaseFactory.runMigrations(dataSource)
-    val sessionRepository = SessionRepository(dataSource)
+    return SessionRepository(dataSource)
+}
 
-    // Prometheus metrics
+data class MetricsConfig(
+    val prometheusRegistry: PrometheusMeterRegistry,
+    val sessionsIngestedCounter: Counter,
+    val sessionsFailedCounter: Counter,
+)
+
+private fun setupMetrics(config: AppConfig): MetricsConfig {
     val prometheusRegistry = PrometheusMeterRegistry(PrometheusConfig.DEFAULT)
 
     if (config.enableMetrics) {
-        // JVM metrics
         JvmMemoryMetrics().bindTo(prometheusRegistry)
         JvmGcMetrics().bindTo(prometheusRegistry)
         JvmThreadMetrics().bindTo(prometheusRegistry)
         ClassLoaderMetrics().bindTo(prometheusRegistry)
     }
 
-    // Custom business metrics
     val sessionsIngestedCounter =
         Counter
             .builder("sessions_ingested_total")
@@ -89,7 +92,12 @@ fun Application.module(config: AppConfig = AppConfig.fromEnvironment()) {
             .description("Total number of failed session ingestions")
             .register(prometheusRegistry)
 
-    // Install plugins
+    return MetricsConfig(prometheusRegistry, sessionsIngestedCounter, sessionsFailedCounter)
+}
+
+private fun Application.installPlugins(config: AppConfig) {
+    val logger = LoggerFactory.getLogger("Application")
+
     install(ContentNegotiation) {
         json(
             Json {
@@ -149,17 +157,28 @@ fun Application.module(config: AppConfig = AppConfig.fromEnvironment()) {
             keyProvider = { config.apiKey }
         }
     }
+}
 
-    // Configure routing
+fun Application.module(config: AppConfig = AppConfig.fromEnvironment()) {
+    val logger = LoggerFactory.getLogger("Application")
+
+    val sessionRepository = initializeDatabase(config)
+    val metricsConfig = setupMetrics(config)
+    installPlugins(config)
+
     routing {
         healthRoutes()
 
         if (config.enableMetrics) {
-            metricsRoutes(prometheusRegistry)
+            metricsRoutes(metricsConfig.prometheusRegistry)
         }
 
         rateLimit(RateLimitName("api-key-limit")) {
-            sessionsRoutes(sessionRepository, sessionsIngestedCounter, sessionsFailedCounter)
+            sessionsRoutes(
+                sessionRepository,
+                metricsConfig.sessionsIngestedCounter,
+                metricsConfig.sessionsFailedCounter,
+            )
         }
     }
 

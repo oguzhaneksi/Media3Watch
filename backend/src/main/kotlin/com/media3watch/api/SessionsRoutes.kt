@@ -13,6 +13,7 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.post
 import io.micrometer.core.instrument.Counter
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
 import org.slf4j.LoggerFactory
 
 private val logger = LoggerFactory.getLogger("SessionsRoutes")
@@ -66,8 +67,8 @@ fun Route.sessionsRoutes(
                             ),
                         )
                     }
-            } catch (e: Exception) {
-                logger.error("Error processing session request", e)
+            } catch (e: SerializationException) {
+                logger.error("Invalid session payload", e)
                 call.respond(
                     HttpStatusCode.BadRequest,
                     ErrorResponse(
