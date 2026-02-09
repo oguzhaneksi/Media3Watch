@@ -21,7 +21,7 @@ We take security seriously. If you discover a security vulnerability in Media3Wa
 - Exploit the vulnerability in production systems
 
 ### ✅ Do:
-1. **Email** your findings to: **[security@media3watch.dev]** (or replace with actual contact)
+1. **Email** your findings to: **security@media3watch.dev**
 2. Include:
    - Description of the vulnerability
    - Steps to reproduce
