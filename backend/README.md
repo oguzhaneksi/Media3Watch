@@ -148,13 +148,13 @@ WHERE player_startup_ms IS NOT NULL
 #### Error Rate by Category
 ```sql
 SELECT
-  last_error_category,
+  DATE_TRUNC('day', timestamp) AS day,
   COUNT(*) AS error_count
 FROM sessions
 WHERE error_count > 0
   AND timestamp > NOW() - INTERVAL '7 days'
-GROUP BY last_error_category
-ORDER BY error_count DESC;
+GROUP BY day
+ORDER BY day DESC;
 ```
 
 #### Rebuffer Ratio Distribution
