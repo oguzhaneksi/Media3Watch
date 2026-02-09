@@ -270,36 +270,31 @@ jobs:
   # Schema Validation
   # ============================================
   schema-validation:
-    name: Schema Compatibility Check
+    name: Schema File Presence Check
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Validate schema version consistency
+      - name: Check schema files exist
         run: |
-          # Check that schemaVersion is declared in both Android and backend
-          echo "Checking schema version consistency..."
+          # Verify that schema modules are present in the repository
+          echo "Checking schema file presence..."
           
-          # This is a placeholder - actual implementation would:
-          # 1. Parse SessionSummary.kt from Android SDK
-          # 2. Parse SessionSummary.kt from backend
-          # 3. Compare field names and types
-          # 4. Verify schemaVersion matches in both
-          
-          # For now, just check files exist
+          # Check Android schema module exists
           if [ ! -f "android/sdk/schema/build.gradle.kts" ]; then
             echo "::error::Android schema module not found"
             exit 1
           fi
           
+          # Check backend source directory exists
           if [ ! -d "backend/src/main/kotlin" ]; then
             echo "::error::Backend source not found"
             exit 1
           fi
           
-          echo "✅ Schema structure looks good"
+          echo "✅ Schema files are present"
 
       - name: Check schema versioning guide is up to date
         run: |
