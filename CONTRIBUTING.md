@@ -38,9 +38,9 @@ Violations may result in temporary or permanent bans from the project.
 
 ### Setup
 1. **Fork** the repository on GitHub
-2. **Clone** your fork:
+2. **Clone** the repository:
    ```bash
-   git clone https://github.com/YOUR_USERNAME/media3watch.git
+   git clone https://github.com/Media3Watch/media3watch.git
    cd media3watch
    ```
 
