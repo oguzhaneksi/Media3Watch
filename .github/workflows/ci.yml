@@ -296,7 +296,7 @@ jobs:
           
           echo "✅ Schema files are present"
 
-      - name: Check schema versioning guide is up to date
+      - name: Check schema versioning guide exists
         run: |
           if [ ! -f ".github/schema-versioning-guide.md" ]; then
             echo "::error::Schema versioning guide not found"
