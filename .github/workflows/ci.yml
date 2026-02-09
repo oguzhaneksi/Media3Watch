@@ -326,7 +326,6 @@ jobs:
           use-quiet-mode: 'yes'
           config-file: '.github/markdown-link-check-config.json'
           base-branch: 'main'
-        continue-on-error: true
 
       - name: Validate required docs exist
         run: |
