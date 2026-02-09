@@ -199,8 +199,8 @@ Pre-built dashboards for visualizing session data:
 ### 1. Start the Backend
 
 ```bash
-git clone https://github.com/yourusername/media3watch.git
-cd media3watch
+git clone https://github.com/oguzhaneksi/Media3Watch.git
+cd Media3Watch
 
 # Start services
 docker compose up -d
