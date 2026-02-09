@@ -267,28 +267,29 @@ jobs:
           cache-to: type=gha,mode=max
 
   # ============================================
-  # Schema Validation
+  # Schema Structure Checks
   # ============================================
-  schema-validation:
-    name: Schema Compatibility Check
+  schema-structure:
+    name: Schema Files Check
     runs-on: ubuntu-latest
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Validate schema version consistency
+      - name: Check schema module structure exists
         run: |
-          # Check that schemaVersion is declared in both Android and backend
-          echo "Checking schema version consistency..."
+          # Basic existence check for schema-related files
+          echo "Verifying schema module structure..."
           
-          # This is a placeholder - actual implementation would:
+          # TODO: Implement actual schema compatibility validation
+          # Real validation would:
           # 1. Parse SessionSummary.kt from Android SDK
           # 2. Parse SessionSummary.kt from backend
           # 3. Compare field names and types
           # 4. Verify schemaVersion matches in both
           
-          # For now, just check files exist
+          # For now, just check that key paths exist
           if [ ! -f "android/sdk/schema/build.gradle.kts" ]; then
             echo "::error::Android schema module not found"
             exit 1
@@ -299,9 +300,9 @@ jobs:
             exit 1
           fi
           
-          echo "✅ Schema structure looks good"
+          echo "✅ Schema module structure exists"
 
-      - name: Check schema versioning guide is up to date
+      - name: Check schema versioning guide exists
         run: |
           if [ ! -f ".github/schema-versioning-guide.md" ]; then
             echo "::error::Schema versioning guide not found"
