@@ -75,7 +75,7 @@ Violations may result in temporary or permanent bans from the project.
 ## Development Workflow
 
 ### 1. Pick or Create an Issue
-- Browse [Issues](https://github.com/yourusername/media3watch/issues)
+- Browse [Issues](https://github.com/Media3Watch/media3watch/issues)
 - Look for `good-first-issue` or `help-wanted` labels
 - Comment on the issue to claim it
 - Wait for maintainer approval before starting work
