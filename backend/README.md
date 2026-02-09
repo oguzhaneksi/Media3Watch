@@ -63,7 +63,7 @@ Grafana is pre-configured in the docker-compose stack with automatic dashboard p
 
 3. **Verify Dashboard**:
    - Navigate to **Dashboards** → **Browse**
-   - Look for **"Media3Watch QoE Overview"**
+   - Look for **"Media3Watch Overview"**
    - Dashboard should be auto-provisioned from `grafana/dashboards/media3watch-overview.json`
 
 ### Dashboard Features
