@@ -40,8 +40,8 @@ Violations may result in temporary or permanent bans from the project.
 1. **Fork** the repository on GitHub
 2. **Clone** the repository:
    ```bash
-   git clone https://github.com/Media3Watch/media3watch.git
-   cd media3watch
+   git clone https://github.com/oguzhaneksi/Media3Watch.git
+   cd Media3Watch
    ```
 
 3. **Start backend** (for integration testing):
@@ -75,7 +75,7 @@ Violations may result in temporary or permanent bans from the project.
 ## Development Workflow
 
 ### 1. Pick or Create an Issue
-- Browse [Issues](https://github.com/Media3Watch/media3watch/issues)
+- Browse [Issues](https://github.com/oguzhaneksi/Media3Watch/issues)
 - Look for `good-first-issue` or `help-wanted` labels
 - Comment on the issue to claim it
 - Wait for maintainer approval before starting work
@@ -304,7 +304,7 @@ Spikes are **timeboxed** research tasks (0.5-3 days) producing a decision or pro
 
 ## Getting Help
 
-- **Questions**: Open a [Discussion](https://github.com/yourusername/media3watch/discussions) (or ask in Issues if no Discussions enabled)
+- **Questions**: Open a [Discussion](https://github.com/oguzhaneksi/Media3Watch/discussions) (or ask in Issues if no Discussions enabled)
 - **Bugs**: Use Bug Report template
 - **Features**: Use Feature Proposal template
 - **Security**: See [SECURITY.md](SECURITY.md)
