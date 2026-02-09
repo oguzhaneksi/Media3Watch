@@ -6,7 +6,7 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg?style=flat-square)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-Media3%201.9+-3DDC84?style=flat-square&logo=android)](https://developer.android.com/media/media3)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker)](docker-compose.yml)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker)](backend/docker-compose.yml)
 
 [Why This Exists](#why-this-exists) • [Features](#features) • [Quick Start](#quick-start) • [Data Model](#data-model) • [Roadmap](#roadmap)
 
