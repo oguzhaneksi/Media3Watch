@@ -161,14 +161,14 @@ ORDER BY day DESC;
 ```sql
 SELECT
   CASE
-    WHEN rebuffer_time_ms = 0 THEN '0% (no rebuffer)'
-    WHEN rebuffer_time_ms::float / (play_time_ms + rebuffer_time_ms) < 0.01 THEN '0-1%'
-    WHEN rebuffer_time_ms::float / (play_time_ms + rebuffer_time_ms) < 0.05 THEN '1-5%'
-    ELSE '>5%'
+    WHEN rebuffer_time_ms = 0 THEN '0 ms (no rebuffer)'
+    WHEN rebuffer_time_ms <= 1000 THEN '1-1000 ms'
+    WHEN rebuffer_time_ms <= 5000 THEN '1001-5000 ms'
+    ELSE '>5000 ms'
   END AS rebuffer_bucket,
   COUNT(*) AS session_count
 FROM sessions
-WHERE play_time_ms > 0
+WHERE rebuffer_time_ms IS NOT NULL
   AND timestamp > NOW() - INTERVAL '7 days'
 GROUP BY rebuffer_bucket
 ORDER BY rebuffer_bucket;
