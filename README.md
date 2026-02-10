@@ -431,27 +431,33 @@ media3watch/
 
 ## Configuration
 
-### SDK Configuration
+### SDK Configuration (MVP)
 
 ```kotlin
 Media3Watch.init(context) {
-    // Remote endpoint
+    // Remote endpoint (required for upload)
     endpoint = "https://your-backend.com/v1/sessions"
     apiKey = "your-api-key"
     
     // Inspector overlay (local debugging)
     enableInspector = true
     
-    // Upload behavior
-    uploadOnSessionEnd = true      // Auto-upload when session ends
-    uploadOnBackground = true      // Upload when app backgrounds
-    maxRetries = 3                 // Retry failed uploads
-    
-    // Privacy
-    collectDeviceInfo = true       // Include device model, OS
-    anonymizeSessionId = false     // Use random session IDs
+    // Privacy (optional, default: true)
+    collectDeviceInfo = true       // Include device model, OS version
 }
 ```
+
+**MVP defaults (hardcoded in v1.0)**:
+- Session IDs: Random UUID v4
+- Upload trigger: On session end or app background (>2min idle)
+- Retry strategy: 3 attempts with exponential backoff (1s, 2s, 4s)
+
+### Planned Configuration (v1.1+)
+
+Additional parameters under consideration for future releases:
+- `maxRetries` — Custom retry count
+- `uploadOnSessionEnd` / `uploadOnBackground` — Granular upload control
+- `anonymizeSessionId` — Alternative ID generation strategies
 
 ### Backend Environment Variables
 
