@@ -92,14 +92,15 @@ body:
     validations:
       required: true
 
-  - type: checkboxes
+  - type: dropdown
     id: impacted_area
     attributes:
       label: Impacted area
       options:
-        - label: Android SDK
-        - label: Backend API
-        - label: Docs / Repo tooling
+        - Android SDK
+        - Backend API
+        - Docs / Repo tooling
+      multiple: true
     validations:
       required: true
 
