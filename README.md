@@ -363,8 +363,9 @@ Each session produces one JSON document submitted to `/v1/sessions`.
   },
   
   "custom": {
-    "userId": "user-abc",
-    "experimentGroup": "variant-b"
+    "experimentGroup": "variant-b",
+    "featureSet": "new_player_ui",
+    "cdn": "cloudfront"
   }
 }
 ```
