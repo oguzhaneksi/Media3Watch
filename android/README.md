@@ -158,7 +158,7 @@ playButton.setOnClickListener {
 *   **minSdk:** 23 (Required by Media3 1.9.x)
 *   **compileSdk / targetSdk:** 36 (Android 16)
 *   **Kotlin:** 2.3.0+
-*   **AGP:** 9.0.0+
+*   **AGP:** 8.13.2+
 
 ### Key Dependencies
 *   **Media3:** 1.9.x — ExoPlayer integration (adapter module only)
