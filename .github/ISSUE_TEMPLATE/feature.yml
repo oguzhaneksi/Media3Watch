@@ -1,4 +1,4 @@
-name: Feature Proposal (PO Gate)
+name: Feature Proposal
 description: Propose a feature. This will be reviewed by the Product Owner before implementation.
 title: "[Feature]: "
 labels: ["needs-po", "feature"]
