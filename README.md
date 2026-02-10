@@ -442,7 +442,7 @@ Media3Watch.init(context) {
     // Inspector overlay (local debugging)
     enableInspector = true
     
-    // Privacy (optional, defaults to true)
+    // Privacy (optional, default: true)
     collectDeviceInfo = true       // Include device model, OS version
 }
 ```
@@ -458,8 +458,6 @@ Additional parameters under consideration for future releases:
 - `maxRetries` — Custom retry count
 - `uploadOnSessionEnd` / `uploadOnBackground` — Granular upload control
 - `anonymizeSessionId` — Alternative ID generation strategies
-
-See [roadmap issues](https://github.com/oguzhaneksi/Media3Watch/labels/enhancement) for status.
 
 ### Backend Environment Variables
 
