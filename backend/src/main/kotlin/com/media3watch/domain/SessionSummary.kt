@@ -13,6 +13,6 @@ data class SessionSummary(
     val rebufferTimeMs: Int? = null,
     val rebufferCount: Int? = null,
     val errorCount: Int? = null,
-    val payload: String? = null // Raw JSON payload
+    // Raw JSON payload
+    val payload: String? = null,
 )
-

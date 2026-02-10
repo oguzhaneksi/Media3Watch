@@ -11,11 +11,11 @@ data class AppConfig(
     val hikariMaxPoolSize: Int,
     val hikariMinIdle: Int,
     val logLevel: String,
-    val enableMetrics: Boolean
+    val enableMetrics: Boolean,
 ) {
     companion object {
-        fun fromEnvironment(): AppConfig {
-            return AppConfig(
+        fun fromEnvironment(): AppConfig =
+            AppConfig(
                 apiKey = System.getenv("M3W_API_KEY") ?: "dev-key",
                 databaseUrl = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5432/media3watch",
                 databaseUser = System.getenv("DATABASE_USER") ?: "m3w",
@@ -26,9 +26,7 @@ data class AppConfig(
                 hikariMaxPoolSize = System.getenv("HIKARI_MAX_POOL_SIZE")?.toIntOrNull() ?: 20,
                 hikariMinIdle = System.getenv("HIKARI_MIN_IDLE")?.toIntOrNull() ?: 5,
                 logLevel = System.getenv("LOG_LEVEL") ?: "INFO",
-                enableMetrics = System.getenv("ENABLE_METRICS")?.toBoolean() ?: true
+                enableMetrics = System.getenv("ENABLE_METRICS")?.toBoolean() ?: true,
             )
-        }
     }
 }
-

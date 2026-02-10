@@ -1,0 +1,370 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  # ============================================
+  # Android SDK Jobs
+  # ============================================
+  android-lint:
+    name: Android Lint & Code Style
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./android
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run ktlint
+        run: ./gradlew ktlintCheck
+
+      - name: Run detekt
+        run: ./gradlew detekt
+
+      - name: Upload lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-lint-reports
+          path: android/build/reports/
+
+  android-unit-tests:
+    name: Android Unit Tests
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: ./android
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run unit tests
+        run: ./gradlew test --continue
+
+      - name: Publish test results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: android/**/build/test-results/**/*.xml
+          check_name: Android Unit Test Results
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-test-reports
+          path: android/**/build/reports/tests/
+
+  android-build:
+    name: Android Build
+    runs-on: ubuntu-latest
+    needs: [android-lint, android-unit-tests]
+    defaults:
+      run:
+        working-directory: ./android
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build SDK modules
+        run: ./gradlew :sdk:schema:build :sdk:core:build :sdk:android-runtime:build :sdk:adapter-media3:build
+
+      - name: Build sample app
+        run: ./gradlew :sample:assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: sample-app-debug
+          path: android/sample/build/outputs/apk/debug/*.apk
+
+  # ============================================
+  # Backend Jobs
+  # ============================================
+  backend-lint:
+    name: Backend Lint & Code Style
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run ktlint
+        run: ./gradlew ktlintCheck
+
+      - name: Run detekt
+        run: ./gradlew detekt
+
+      - name: Upload lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-lint-reports
+          path: backend/build/reports/
+
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      pull-requests: write
+    defaults:
+      run:
+        working-directory: ./backend
+    
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: media3watch_test
+          POSTGRES_USER: m3w_test
+          POSTGRES_PASSWORD: test_password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Run tests
+        env:
+          DATABASE_URL: jdbc:postgresql://localhost:5432/media3watch_test
+          DATABASE_USER: m3w_test
+          DATABASE_PASSWORD: test_password
+          M3W_API_KEY: test-key
+        run: ./gradlew test --continue
+
+      - name: Publish test results
+        if: always()
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        with:
+          files: backend/**/build/test-results/**/*.xml
+          check_name: Backend Test Results
+
+      - name: Upload test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-reports
+          path: backend/build/reports/tests/
+
+  backend-build:
+    name: Backend Build & Package
+    runs-on: ubuntu-latest
+    needs: [backend-lint, backend-tests]
+    defaults:
+      run:
+        working-directory: ./backend
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build backend
+        run: ./gradlew build -x test
+
+      - name: Upload JAR
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-jar
+          path: backend/build/libs/*.jar
+
+  # ============================================
+  # Docker Build (optional, for PR validation)
+  # ============================================
+  docker-build:
+    name: Docker Image Build Test
+    runs-on: ubuntu-latest
+    needs: [backend-build]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image (no push)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: false
+          tags: media3watch-backend:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ============================================
+  # Schema Validation
+  # ============================================
+  schema-validation:
+    name: Schema File Presence Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check schema files exist
+        run: |
+          # Verify that schema modules are present in the repository
+          echo "Checking schema file presence..."
+          
+          # Check Android schema module exists
+          if [ ! -f "android/sdk/schema/build.gradle.kts" ]; then
+            echo "::error::Android schema module not found"
+            exit 1
+          fi
+          
+          # Check backend source directory exists
+          if [ ! -d "backend/src/main/kotlin" ]; then
+            echo "::error::Backend source not found"
+            exit 1
+          fi
+          
+          echo "✅ Schema files are present"
+
+      - name: Check schema versioning guide exists
+        run: |
+          if [ ! -f ".github/schema-versioning-guide.md" ]; then
+            echo "::error::Schema versioning guide not found"
+            exit 1
+          fi
+          echo "✅ Schema versioning guide exists"
+
+  # ============================================
+  # Documentation Checks
+  # ============================================
+  docs-check:
+    name: Documentation Validation
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for broken links in README files
+        uses: gaurav-nelson/github-action-markdown-link-check@v1
+        with:
+          use-quiet-mode: 'yes'
+          config-file: '.github/markdown-link-check-config.json'
+          base-branch: 'main'
+
+      - name: Validate required docs exist
+        run: |
+          REQUIRED_DOCS=(
+            "README.md"
+            "android/README.md"
+            "backend/README.md"
+            ".github/schema-versioning-guide.md"
+            "SECURITY.md"
+            "CONTRIBUTING.md"
+          )
+          
+          for doc in "${REQUIRED_DOCS[@]}"; do
+            if [ ! -f "$doc" ]; then
+              echo "::error::Required doc missing: $doc"
+              exit 1
+            fi
+          done
+          
+          echo "✅ All required docs exist"
+
+  # ============================================
+  # Final Status Check
+  # ============================================
+  ci-success:
+    name: CI Pipeline Complete
+    runs-on: ubuntu-latest
+    needs: [android-build, backend-build, schema-validation, docs-check]
+    if: always()
+    
+    steps:
+      - name: Check all jobs passed
+        run: |
+          if [ "${{ needs.android-build.result }}" != "success" ] || \
+             [ "${{ needs.backend-build.result }}" != "success" ] || \
+             [ "${{ needs.schema-validation.result }}" != "success" ] || \
+             [ "${{ needs.docs-check.result }}" != "success" ]; then
+            echo "::error::One or more CI jobs failed"
+            exit 1
+          fi
+          echo "✅ All CI checks passed"

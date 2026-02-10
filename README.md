@@ -6,7 +6,7 @@
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache%202.0-green.svg?style=flat-square)](LICENSE)
 [![Android](https://img.shields.io/badge/Android-Media3%201.9+-3DDC84?style=flat-square&logo=android)](https://developer.android.com/media/media3)
-[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker)](docker-compose.yml)
+[![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=flat-square&logo=docker)](backend/docker-compose.yml)
 
 [Why This Exists](#why-this-exists) • [Features](#features) • [Quick Start](#quick-start) • [Data Model](#data-model) • [Roadmap](#roadmap)
 
@@ -199,8 +199,8 @@ Pre-built dashboards for visualizing session data:
 ### 1. Start the Backend
 
 ```bash
-git clone https://github.com/yourusername/media3watch.git
-cd media3watch
+git clone https://github.com/oguzhaneksi/Media3Watch.git
+cd Media3Watch
 
 # Start services
 docker compose up -d
@@ -468,13 +468,18 @@ Media3Watch.init(context) {
 
 ## Roadmap
 
+**Legend**: 
+- `[x]` = Implemented and shipped
+- `[~]` = In progress / Partially implemented
+- `[ ]` = Planned but not started
+
 ### v1.0 (MVP) — Current
 
-- [x] Android SDK with session summary collection
-- [x] `markPlayRequested()` for explicit startup measurement
-- [x] Session Inspector overlay (timeline, stats, export/share)
-- [x] Backend ingest API with Postgres storage
-- [x] Grafana dashboards (QoE overview, breakdown, session explorer)
+- [ ] Android SDK with session summary collection
+- [ ] `markPlayRequested()` for explicit startup measurement
+- [ ] Session Inspector overlay (timeline, stats, export/share) — **Planned**
+- [ ] Backend ingest API with Postgres storage
+- [ ] Grafana dashboards (QoE overview, breakdown, session explorer)
 
 ### v1.1 — Short-term
 
