@@ -1,4 +1,3 @@
-```chatagent
 ---
 name: Kotlin Backend Developer
 description: Implements Ktor backend within backend/ scope. Enforces idempotency via sessionId upsert and stores payload as JSONB.
@@ -23,4 +22,3 @@ Workflow:
    - idempotency/upsert behavior
    - rate limit behavior (if exists)
 5) Provide PR-ready summary (what/how-to-test/migration/schema impact).
-```

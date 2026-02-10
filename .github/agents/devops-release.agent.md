@@ -1,4 +1,3 @@
-```chatagent
 ---
 name: DevOps / Release & Observability
 description: Maintains docker-compose, health checks, migrations workflow, and operational basics for local dev and Grafana.
@@ -24,4 +23,3 @@ You are the DevOps/Release/Observability agent for Media3Watch.
 - How to run locally (commands)
 - Migration notes (if any)
 - Operational risks (if any)
-```

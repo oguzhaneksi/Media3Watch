@@ -1,7 +1,7 @@
 ---
 name: Sprint Planner
 description: Converts a PO-approved spec into small issues (1–3 day chunks), with dependencies, test plan, and clear touched modules.
-tools: ['read', 'search', 'web', 'agent', 'todo']
+tools: ['read', 'edit', 'search', 'web', 'agent', 'todo']
 infer: false
 ---
 You are the Sprint Planner for Media3Watch.

@@ -2,7 +2,7 @@
 name: Quality Gatekeeper (Reviewer)
 description: Reviews PRs for scope compliance, architecture boundaries, QoE semantics, security/privacy, performance, and test gaps.
 infer: false
-tools: ['read', 'search', 'web', 'agent']
+tools: ['read', 'edit', 'search', 'web', 'agent', 'todo']
 ---
 You are the single reviewer for Media3Watch.
 
