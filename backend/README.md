@@ -257,7 +257,7 @@ Planned for future releases:
 - An identity management system.
 
 ## 🗺 Roadmap
-### ✅ Implemented (Production Ready)
+### MVP
 - [ ] **Rate limiting**: Per-API-key throttling (100 req/min)
 - [ ] **Structured logging**: Request/response logging with duration tracking
 - [ ] **Prometheus metrics**: Backend health monitoring (`/metrics` endpoint)
