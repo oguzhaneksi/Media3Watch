@@ -8,5 +8,5 @@ enum class SessionState {
     BUFFERING,
     SEEKING,
     BACKGROUND,
-    ENDED
+    ENDED,
 }

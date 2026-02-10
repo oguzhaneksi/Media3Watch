@@ -5,9 +5,7 @@ plugins {
 
 android {
     namespace = "com.media3watch.sample"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.media3watch.sample"

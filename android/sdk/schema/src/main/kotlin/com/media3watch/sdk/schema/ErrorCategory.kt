@@ -5,5 +5,5 @@ enum class ErrorCategory {
     DRM,
     SOURCE,
     DECODER,
-    UNKNOWN
+    UNKNOWN,
 }

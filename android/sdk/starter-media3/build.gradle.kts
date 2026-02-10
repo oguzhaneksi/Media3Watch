@@ -4,9 +4,7 @@ plugins {
 
 android {
     namespace = "com.media3watch.sdk.starter_media3"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 23

@@ -54,11 +54,12 @@ class PlaybackEventTest {
 
     @Test
     fun `PlayerError event is instantiable with error details`() {
-        val event = PlaybackEvent.PlayerError(
-            testTimestamp,
-            errorCode = 1001,
-            errorCategory = ErrorCategory.NETWORK
-        )
+        val event =
+            PlaybackEvent.PlayerError(
+                testTimestamp,
+                errorCode = 1001,
+                errorCategory = ErrorCategory.NETWORK,
+            )
         assertEquals(testTimestamp, event.timestamp)
         assertEquals(1001, event.errorCode)
         assertEquals(ErrorCategory.NETWORK, event.errorCategory)
@@ -103,22 +104,23 @@ class PlaybackEventTest {
 
     @Test
     fun `all PlaybackEvent types are sealed class subtypes`() {
-        val events: List<PlaybackEvent> = listOf(
-            PlaybackEvent.PlayRequested(testTimestamp),
-            PlaybackEvent.FirstFrameRendered(testTimestamp),
-            PlaybackEvent.BufferingStarted(testTimestamp),
-            PlaybackEvent.BufferingEnded(testTimestamp, 100),
-            PlaybackEvent.IsPlayingChanged(testTimestamp, true),
-            PlaybackEvent.SeekStarted(testTimestamp),
-            PlaybackEvent.SeekEnded(testTimestamp, 200),
-            PlaybackEvent.PlayerError(testTimestamp, 1001, ErrorCategory.NETWORK),
-            PlaybackEvent.MediaItemTransition(testTimestamp, "test"),
-            PlaybackEvent.AppBackgrounded(testTimestamp),
-            PlaybackEvent.AppForegrounded(testTimestamp),
-            PlaybackEvent.PlayerReleased(testTimestamp),
-            PlaybackEvent.PlaybackEnded(testTimestamp),
-            PlaybackEvent.BackgroundIdleTimeout(testTimestamp)
-        )
+        val events: List<PlaybackEvent> =
+            listOf(
+                PlaybackEvent.PlayRequested(testTimestamp),
+                PlaybackEvent.FirstFrameRendered(testTimestamp),
+                PlaybackEvent.BufferingStarted(testTimestamp),
+                PlaybackEvent.BufferingEnded(testTimestamp, 100),
+                PlaybackEvent.IsPlayingChanged(testTimestamp, true),
+                PlaybackEvent.SeekStarted(testTimestamp),
+                PlaybackEvent.SeekEnded(testTimestamp, 200),
+                PlaybackEvent.PlayerError(testTimestamp, 1001, ErrorCategory.NETWORK),
+                PlaybackEvent.MediaItemTransition(testTimestamp, "test"),
+                PlaybackEvent.AppBackgrounded(testTimestamp),
+                PlaybackEvent.AppForegrounded(testTimestamp),
+                PlaybackEvent.PlayerReleased(testTimestamp),
+                PlaybackEvent.PlaybackEnded(testTimestamp),
+                PlaybackEvent.BackgroundIdleTimeout(testTimestamp),
+            )
 
         assertEquals(14, events.size)
         events.forEach { event ->

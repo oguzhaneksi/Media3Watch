@@ -6,5 +6,5 @@ import kotlinx.serialization.Serializable
 data class DeviceInfo(
     val model: String,
     val os: String,
-    val osVersion: String
+    val osVersion: String,
 )

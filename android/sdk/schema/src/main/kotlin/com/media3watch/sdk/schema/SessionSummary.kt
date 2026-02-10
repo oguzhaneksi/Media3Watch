@@ -22,5 +22,5 @@ data class SessionSummary(
     val droppedFrames: Int? = null,
     val device: DeviceInfo? = null,
     val app: AppInfo? = null,
-    val custom: Map<String, String>? = null
+    val custom: Map<String, String>? = null,
 )
