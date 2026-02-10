@@ -8,16 +8,15 @@ body:
       value: |
         Thanks for reporting! Please include **repro steps** and **logs** if possible.
 
-  - type: dropdown
+  - type: checkboxes
     id: area
     attributes:
       label: Area
-      multiple: true
       options:
-        - Android SDK
-        - Backend API
-        - Grafana / Dashboards
-        - Docs / Tooling
+        - label: Android SDK
+        - label: Backend API
+        - label: Grafana / Dashboards
+        - label: Docs / Tooling
     validations:
       required: true
 

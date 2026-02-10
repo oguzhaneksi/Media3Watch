@@ -92,16 +92,14 @@ body:
     validations:
       required: true
 
-  - type: dropdown
+  - type: checkboxes
     id: impacted_area
     attributes:
       label: Impacted area
-      multiple: true
       options:
-        - Android SDK
-        - Backend API
-        - Both (SDK + Backend)
-        - Docs / Repo tooling
+        - label: Android SDK
+        - label: Backend API
+        - label: Docs / Repo tooling
     validations:
       required: true
 
@@ -111,7 +109,7 @@ body:
       label: API/Schema impact
       description: Consider schemaVersion and backward compatibility.
       options:
-        - None
+        - "None"
         - Minor (additive / backward compatible)
         - Potential breaking (needs schemaVersion bump)
       default: 0
