@@ -183,6 +183,4 @@ body:
       description: Quick sanity checks
       options:
         - label: "I confirm this proposal does NOT change the definition of player_startup_ms unless explicitly stated."
-          required: false
         - label: "I confirm schema/backward compatibility impact has been considered."
-          required: false
