@@ -47,6 +47,9 @@ jobs:
   android-unit-tests:
     name: Android Unit Tests
     runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      pull-requests: write
     defaults:
       run:
         working-directory: ./android
@@ -156,6 +159,9 @@ jobs:
   backend-tests:
     name: Backend Tests
     runs-on: ubuntu-latest
+    permissions:
+      checks: write
+      pull-requests: write
     defaults:
       run:
         working-directory: ./backend
