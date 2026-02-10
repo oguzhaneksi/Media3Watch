@@ -22,11 +22,11 @@ import io.ktor.server.plugins.calllogging.processingTimeMillis
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.plugins.ratelimit.RateLimit
 import io.ktor.server.plugins.ratelimit.RateLimitName
+import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.httpMethod
 import io.ktor.server.request.path
 import io.ktor.server.response.respond
-import io.ktor.server.plugins.ratelimit.rateLimit
 import io.ktor.server.routing.routing
 import io.micrometer.core.instrument.Counter
 import io.micrometer.core.instrument.binder.jvm.ClassLoaderMetrics
