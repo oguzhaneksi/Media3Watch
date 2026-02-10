@@ -1,0 +1,71 @@
+name: Bug Report
+description: Report a bug with clear repro steps and expected behavior.
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! Please include **repro steps** and **logs** if possible.
+
+  - type: checkboxes
+    id: area
+    attributes:
+      label: Area
+      options:
+        - label: Android SDK
+        - label: Backend API
+        - label: Grafana / Dashboards
+        - label: Docs / Tooling
+    validations:
+      required: true
+
+  - type: textarea
+    id: what_happened
+    attributes:
+      label: What happened?
+      placeholder: "Describe the bug. Include screenshots/log snippets if relevant."
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction steps
+      description: Step-by-step, minimal repro.
+      placeholder: |
+        1) ...
+        2) ...
+        3) ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / payload samples
+      description: Paste logs or JSON samples (redact secrets like API keys).
+      placeholder: "Attach files or paste relevant parts here."
+    validations:
+      required: false
+
+  - type: textarea
+    id: env
+    attributes:
+      label: Environment
+      description: Versions + device/runtime info.
+      placeholder: |
+        - SDK version / commit:
+        - App / player version:
+        - Device + OS:
+        - Backend version:
+        - Postgres version:
+    validations:
+      required: true
