@@ -17,32 +17,28 @@ import com.media3watch.sdk.schema.SessionState
 class SessionStateMachine(
     val sessionId: String,
 ) {
-    private var _currentState: SessionState = SessionState.ATTACHED
-    private var _endReason: EndReason? = null
-    private var _hasMeaningfulActivity: Boolean = false
+    var currentState: SessionState = SessionState.ATTACHED
+        private set
+
+    var endReason: EndReason? = null
+        private set
+
+    var hasMeaningfulActivity: Boolean = false
+        private set
 
     // Playback state tracking for playbackActive computation
-    private var _playWhenReady: Boolean = false
-    private var _playbackState: Int = 1 // Media3 Player.STATE_IDLE = 1
-    private var _isPlaying: Boolean = false
+    private var playWhenReady: Boolean = false
+    private var playbackState: Int = 1 // Media3 Player.STATE_IDLE = 1
+    private var isPlaying: Boolean = false
 
     // Background state tracking
-    private var _preBackgroundState: SessionState? = null
+    private var preBackgroundState: SessionState? = null
 
     // State change listener
-    private var _listener: StateChangeListener? = null
-
-    val currentState: SessionState
-        get() = _currentState
-
-    val endReason: EndReason?
-        get() = _endReason
+    private var listener: StateChangeListener? = null
 
     val isActive: Boolean
-        get() = _currentState != SessionState.NO_SESSION && _currentState != SessionState.ENDED
-
-    val hasMeaningfulActivity: Boolean
-        get() = _hasMeaningfulActivity
+        get() = currentState != SessionState.NO_SESSION && currentState != SessionState.ENDED
 
     /**
      * Listener for state changes.
@@ -59,7 +55,7 @@ class SessionStateMachine(
      * Set the state change listener.
      */
     fun setStateChangeListener(listener: StateChangeListener?) {
-        _listener = listener
+        this.listener = listener
     }
 
     /**
@@ -69,7 +65,7 @@ class SessionStateMachine(
      */
     fun processEvent(event: PlaybackEvent): Boolean {
         // Once in ENDED state, reject all events
-        if (_currentState == SessionState.ENDED) {
+        if (currentState == SessionState.ENDED) {
             return false
         }
 
@@ -100,9 +96,7 @@ class SessionStateMachine(
     /**
      * Check if a session should be discarded (no meaningful activity).
      */
-    fun shouldDiscard(): Boolean {
-        return !_hasMeaningfulActivity
-    }
+    fun shouldDiscard(): Boolean = !hasMeaningfulActivity
 
     private fun handlePlayRequested(event: PlaybackEvent.PlayRequested) {
         markMeaningfulActivity()
@@ -113,20 +107,20 @@ class SessionStateMachine(
     private fun handleFirstFrameRendered(event: PlaybackEvent.FirstFrameRendered) {
         markMeaningfulActivity()
         // FirstFrameRendered implies playback started
-        if (_currentState == SessionState.ATTACHED) {
+        if (currentState == SessionState.ATTACHED) {
             transitionTo(SessionState.PLAYING, "FirstFrameRendered")
         }
     }
 
     private fun handleIsPlayingChanged(event: PlaybackEvent.IsPlayingChanged) {
-        _isPlaying = event.isPlaying
+        this.isPlaying = event.isPlaying
 
         if (event.isPlaying) {
             markMeaningfulActivity()
         }
 
         // Update state based on isPlaying
-        when (_currentState) {
+        when (currentState) {
             SessionState.ATTACHED -> {
                 if (event.isPlaying) {
                     transitionTo(SessionState.PLAYING, "IsPlayingChanged(true)")
@@ -156,17 +150,17 @@ class SessionStateMachine(
     }
 
     private fun handlePlayWhenReadyChanged(event: PlaybackEvent.PlayWhenReadyChanged) {
-        _playWhenReady = event.playWhenReady
+        this.playWhenReady = event.playWhenReady
     }
 
     private fun handlePlaybackStateChanged(event: PlaybackEvent.PlaybackStateChanged) {
-        _playbackState = event.playbackState
+        this.playbackState = event.playbackState
     }
 
     private fun handleBufferingStarted(event: PlaybackEvent.BufferingStarted) {
         markMeaningfulActivity()
 
-        when (_currentState) {
+        when (currentState) {
             SessionState.ATTACHED -> {
                 transitionTo(SessionState.BUFFERING, "BufferingStarted")
             }
@@ -178,27 +172,27 @@ class SessionStateMachine(
     }
 
     private fun handleBufferingEnded(event: PlaybackEvent.BufferingEnded) {
-        if (_currentState == SessionState.BUFFERING) {
-            val nextState = if (_isPlaying) SessionState.PLAYING else SessionState.PAUSED
+        if (currentState == SessionState.BUFFERING) {
+            val nextState = if (isPlaying) SessionState.PLAYING else SessionState.PAUSED
             transitionTo(nextState, "BufferingEnded")
         }
     }
 
     private fun handleSeekStarted(event: PlaybackEvent.SeekStarted) {
-        if (_currentState == SessionState.PLAYING) {
+        if (currentState == SessionState.PLAYING) {
             transitionTo(SessionState.SEEKING, "SeekStarted")
         }
     }
 
     private fun handleSeekEnded(event: PlaybackEvent.SeekEnded) {
-        if (_currentState == SessionState.SEEKING) {
-            val nextState = if (_isPlaying) SessionState.PLAYING else SessionState.PAUSED
+        if (currentState == SessionState.SEEKING) {
+            val nextState = if (isPlaying) SessionState.PLAYING else SessionState.PAUSED
             transitionTo(nextState, "SeekEnded")
         }
     }
 
     private fun handleAppBackgrounded(event: PlaybackEvent.AppBackgrounded) {
-        if (_currentState in
+        if (currentState in
             listOf(
                 SessionState.ATTACHED,
                 SessionState.PLAYING,
@@ -207,21 +201,21 @@ class SessionStateMachine(
                 SessionState.SEEKING,
             )
         ) {
-            _preBackgroundState = _currentState
+            preBackgroundState = currentState
             transitionTo(SessionState.BACKGROUND, "AppBackgrounded")
         }
     }
 
     private fun handleAppForegrounded(event: PlaybackEvent.AppForegrounded) {
-        if (_currentState == SessionState.BACKGROUND) {
+        if (currentState == SessionState.BACKGROUND) {
             // Return to previous state or derive from playback state
             val nextState =
                 when {
-                    _preBackgroundState != null -> _preBackgroundState!!
-                    _isPlaying -> SessionState.PLAYING
+                    preBackgroundState != null -> preBackgroundState!!
+                    isPlaying -> SessionState.PLAYING
                     else -> SessionState.PAUSED
                 }
-            _preBackgroundState = null
+            preBackgroundState = null
             transitionTo(nextState, "AppForegrounded")
         }
     }
@@ -235,20 +229,20 @@ class SessionStateMachine(
     }
 
     private fun handleBackgroundIdleTimeout(event: PlaybackEvent.BackgroundIdleTimeout) {
-        if (_currentState == SessionState.BACKGROUND && !isPlaybackActive()) {
+        if (currentState == SessionState.BACKGROUND && !isPlaybackActive()) {
             endSession(EndReason.BACKGROUND_IDLE_TIMEOUT, "BackgroundIdleTimeout")
         }
     }
 
     private fun handleMediaItemTransition(event: PlaybackEvent.MediaItemTransition) {
         // MediaItemTransition ends the session if we've had meaningful activity
-        if (_hasMeaningfulActivity) {
+        if (hasMeaningfulActivity) {
             endSession(EndReason.CONTENT_SWITCH, "MediaItemTransition")
         }
     }
 
     private fun markMeaningfulActivity() {
-        _hasMeaningfulActivity = true
+        hasMeaningfulActivity = true
     }
 
     /**
@@ -257,28 +251,26 @@ class SessionStateMachine(
      *
      * Media3 Player.STATE_BUFFERING = 3
      */
-    private fun isPlaybackActive(): Boolean {
-        return _isPlaying || (_playWhenReady && _playbackState == 3)
-    }
+    private fun isPlaybackActive(): Boolean = isPlaying || (playWhenReady && playbackState == 3)
 
     private fun transitionTo(
         newState: SessionState,
         reason: String?,
     ) {
-        if (newState == _currentState) {
+        if (newState == currentState) {
             return // Idempotent
         }
 
-        val oldState = _currentState
-        _currentState = newState
-        _listener?.onStateChanged(oldState, newState, reason)
+        val oldState = currentState
+        currentState = newState
+        listener?.onStateChanged(oldState, newState, reason)
     }
 
     private fun endSession(
         reason: EndReason,
         eventReason: String,
     ) {
-        _endReason = reason
+        endReason = reason
         transitionTo(SessionState.ENDED, eventReason)
     }
 }

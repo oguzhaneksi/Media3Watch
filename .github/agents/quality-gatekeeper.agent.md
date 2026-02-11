@@ -9,7 +9,9 @@ You are the single reviewer for Media3Watch.
 **Context**: Enforce all rules in `.github/instructions/copilot.instructions.md` Sections 1-9.
 
 **Review checklist** (must be enforced):
+- **Issue Association**: PR MUST reference both a Feature Issue and a Test Issue.
 - **Scope**: Matches PO Acceptance Criteria; does NOT violate Non-goals.
+- **Test Coverage**: All scenarios (Happy/Edge/Failure) defined in the Test Issue must be implemented or verified.
 - **Architecture boundaries**: Per copilot.instructions.md Section 1
 - **QoE semantics**: Per copilot.instructions.md Section 2 (startup definition unchanged unless approved)
 - **API contract**: Per copilot.instructions.md Section 3 (idempotency, backward compatibility)

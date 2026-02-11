@@ -136,9 +136,10 @@ Then open a Pull Request on GitHub.
 
 ### PR Template
 Use the provided [PR template](.github/pull_request_template.md). Include:
+- **Related Issues**: Reference both the Feature and the Test sub-issue.
 - **What changed**: Brief summary (2-5 bullets)
 - **Why**: Motivation or issue reference
-- **How tested**: Manual + automated tests
+- **How tested**: Manual + automated tests (covering Happy/Edge/Failure scenarios)
 - **Scope**: Android, Backend, Docs, etc.
 - **Breaking changes**: Yes/No (describe if yes)
 
@@ -272,11 +273,18 @@ Use [Feature Proposal template](.github/ISSUE_TEMPLATE/01-feature.yml).
 - User story
 - Acceptance criteria
 - Non-goals (what you're NOT building)
+- **Test Sub-issue**: Every feature must have a linked Test Issue (using the Test Issue template) before starting implementation.
 
 ⚠️ **Note**: Features require Product Owner approval before implementation. Issues are marked `needs-po` until reviewed, then `spec-ready` when approved.
 
 ### Research / Spikes
 Use [Spike template](.github/ISSUE_TEMPLATE/03-spike.yml).
+
+### Testing Strategy (Sub-issues)
+Each implementation task is paired with a **Test issue** (using [Test Issue template](.github/ISSUE_TEMPLATE/04-test.yml)). 
+- **Developers** work from the Feature spec.
+- **Test Writers** work from the Test spec.
+- **Reviewers** ensure BOTH specs are satisfied before merging.
 
 Spikes are **timeboxed** research tasks (0.5-3 days) producing a decision or prototype.
 

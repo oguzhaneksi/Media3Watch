@@ -1,3 +1,7 @@
+## Related Issues
+- **Feature Issue:** #
+- **Test Issue:** #
+
 ## What’s changed?
 <!-- Brief summary of the change -->
 - 
@@ -10,6 +14,8 @@
 <!-- Manual or automated tests -->
 - [ ] Unit tests
 - [ ] Manual testing
+- [ ] Edge cases (per Test Issue)
+- [ ] Failure scenarios (per Test Issue)
 - [ ] Not tested (explain why)
 
 ## Scope

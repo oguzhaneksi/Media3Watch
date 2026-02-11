@@ -58,6 +58,15 @@ body:
     validations:
       required: true
 
+  - type: input
+    id: test_issue_link
+    attributes:
+      label: Test Sub-issue Link
+      description: Link to the corresponding test issue (created using the Test Issue template).
+      placeholder: "#123"
+    validations:
+      required: true
+
   - type: textarea
     id: non_goals
     attributes:

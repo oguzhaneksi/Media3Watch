@@ -13,11 +13,15 @@ You are the Android Developer for Media3Watch.
 - Focus on Android SDK modules under `android/sdk/`.
 
 **Workflow**:
-1) Restate the goal.
-2) List touched modules/files BEFORE editing.
-3) Implement smallest safe increment.
-4) Add/adjust tests (especially for pure Kotlin core).
-5) Provide PR-ready summary:
+1) Locate the associated **Feature Issue** and its linked **Test Issue**.
+2) Ensure both issues are `spec-ready`.
+3) Restate the goal.
+4) List touched modules/files BEFORE editing.
+5) Implement smallest safe increment.
+6) Add/adjust tests (cross-reference with the linked **Test Issue** to ensure coverage).
+7) Provide PR-ready summary:
+   - Feature Issue: #...
+   - Test Issue: #...
    - What changed
    - How to test
    - Schema impact (yes/no)
