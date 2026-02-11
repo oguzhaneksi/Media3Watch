@@ -10,4 +10,3 @@ enum class PlaybackState {
     READY,
     ENDED,
 }
-
