@@ -67,9 +67,7 @@ class SessionStateMachine(
      * Returns whether playback is currently active.
      * playbackActive = isPlaying OR (playWhenReady AND playbackState == BUFFERING)
      */
-    fun isPlaybackActive(): Boolean {
-        return isPlaying || (playWhenReady && playbackState == STATE_BUFFERING)
-    }
+    fun isPlaybackActive(): Boolean = isPlaying || (playWhenReady && playbackState == STATE_BUFFERING)
 
     /**
      * Adds a state change listener.
@@ -141,8 +139,10 @@ class SessionStateMachine(
 
     private fun handleBufferingStarted(event: PlaybackEvent.BufferingStarted) {
         markMeaningfulActivity()
-        if (currentState == SessionState.ATTACHED || currentState == SessionState.PLAYING ||
-            currentState == SessionState.PAUSED || currentState == SessionState.SEEKING
+        if (currentState == SessionState.ATTACHED ||
+            currentState == SessionState.PLAYING ||
+            currentState == SessionState.PAUSED ||
+            currentState == SessionState.SEEKING
         ) {
             transitionTo(SessionState.BUFFERING)
         }
@@ -227,14 +227,15 @@ class SessionStateMachine(
     private fun handleAppForegrounded(event: PlaybackEvent.AppForegrounded) {
         if (currentState == SessionState.BACKGROUND) {
             // Restore to previous state, but respect current playback state
-            val targetState = when (stateBeforeBackground) {
-                SessionState.ATTACHED -> SessionState.ATTACHED
-                SessionState.PLAYING -> if (isPlaying) SessionState.PLAYING else SessionState.PAUSED
-                SessionState.PAUSED -> if (isPlaying) SessionState.PLAYING else SessionState.PAUSED
-                SessionState.BUFFERING -> SessionState.BUFFERING
-                SessionState.SEEKING -> SessionState.SEEKING
-                else -> if (isPlaying) SessionState.PLAYING else SessionState.PAUSED
-            }
+            val targetState =
+                when (stateBeforeBackground) {
+                    SessionState.ATTACHED -> SessionState.ATTACHED
+                    SessionState.PLAYING -> if (isPlaying) SessionState.PLAYING else SessionState.PAUSED
+                    SessionState.PAUSED -> if (isPlaying) SessionState.PLAYING else SessionState.PAUSED
+                    SessionState.BUFFERING -> SessionState.BUFFERING
+                    SessionState.SEEKING -> SessionState.SEEKING
+                    else -> if (isPlaying) SessionState.PLAYING else SessionState.PAUSED
+                }
             stateBeforeBackground = null
             transitionTo(targetState)
         }
@@ -277,7 +278,10 @@ class SessionStateMachine(
         transitionTo(SessionState.ENDED)
     }
 
-    private fun notifyStateChange(oldState: SessionState, newState: SessionState) {
+    private fun notifyStateChange(
+        oldState: SessionState,
+        newState: SessionState,
+    ) {
         val listeners = stateChangeListeners.toList() // Copy to avoid concurrent modification
         listeners.forEach { listener ->
             try {
@@ -293,6 +297,10 @@ class SessionStateMachine(
      * Listener interface for state changes.
      */
     fun interface StateChangeListener {
-        fun onStateChanged(sessionId: String, oldState: SessionState, newState: SessionState)
+        fun onStateChanged(
+            sessionId: String,
+            oldState: SessionState,
+            newState: SessionState,
+        )
     }
 }

@@ -8,12 +8,11 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.DisplayName
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
-import org.junit.jupiter.params.provider.EnumSource
 import java.util.stream.Stream
 
 /**
@@ -1060,7 +1059,7 @@ class SessionStateMachineTest {
     }
 
     companion object {
-        private const val testTs = 1706900000000L
+        private const val TEST_TS = 1706900000000L
 
         @JvmStatic
         fun endReasonScenarios(): Stream<Arguments> =
@@ -1068,32 +1067,32 @@ class SessionStateMachineTest {
                 Arguments.of(
                     EndReason.PLAYER_RELEASED,
                     listOf(
-                        PlaybackEvent.IsPlayingChanged(testTs, isPlaying = true),
+                        PlaybackEvent.IsPlayingChanged(TEST_TS, isPlaying = true),
                     ),
-                    PlaybackEvent.PlayerReleased(testTs + 100),
+                    PlaybackEvent.PlayerReleased(TEST_TS + 100),
                 ),
                 Arguments.of(
                     EndReason.PLAYBACK_ENDED,
                     listOf(
-                        PlaybackEvent.IsPlayingChanged(testTs, isPlaying = true),
+                        PlaybackEvent.IsPlayingChanged(TEST_TS, isPlaying = true),
                     ),
-                    PlaybackEvent.PlaybackEnded(testTs + 100),
+                    PlaybackEvent.PlaybackEnded(TEST_TS + 100),
                 ),
                 Arguments.of(
                     EndReason.CONTENT_SWITCH,
                     listOf(
-                        PlaybackEvent.IsPlayingChanged(testTs, isPlaying = true),
+                        PlaybackEvent.IsPlayingChanged(TEST_TS, isPlaying = true),
                     ),
-                    PlaybackEvent.MediaItemTransition(testTs + 100, newContentId = "video-456"),
+                    PlaybackEvent.MediaItemTransition(TEST_TS + 100, newContentId = "video-456"),
                 ),
                 Arguments.of(
                     EndReason.BACKGROUND_IDLE_TIMEOUT,
                     listOf(
-                        PlaybackEvent.IsPlayingChanged(testTs, isPlaying = true),
-                        PlaybackEvent.IsPlayingChanged(testTs + 50, isPlaying = false),
-                        PlaybackEvent.AppBackgrounded(testTs + 100),
+                        PlaybackEvent.IsPlayingChanged(TEST_TS, isPlaying = true),
+                        PlaybackEvent.IsPlayingChanged(TEST_TS + 50, isPlaying = false),
+                        PlaybackEvent.AppBackgrounded(TEST_TS + 100),
                     ),
-                    PlaybackEvent.BackgroundIdleTimeout(testTs + 200),
+                    PlaybackEvent.BackgroundIdleTimeout(TEST_TS + 200),
                 ),
                 // Note: PLAYER_REPLACED is not included in this parameterized test because it requires
                 // a higher-level API call (Media3Watch.attach(newPlayer)) rather than just a PlaybackEvent.
