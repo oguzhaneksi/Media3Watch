@@ -12,12 +12,23 @@ import com.media3watch.sdk.schema.SessionState
  * It tracks the current session state, detects meaningful activity, and handles
  * session end triggers with appropriate EndReason values.
  *
+ * Idempotency: Duplicate events are handled idempotently. State transitions only occur
+ * when the new state differs from the current state. Duplicate events (e.g., multiple
+ * BufferingStarted while already in BUFFERING) are safely ignored.
+ *
  * Thread safety: This class is NOT thread-safe. Callers must synchronize access
  * if calling from multiple threads.
+ *
+ * @param sessionId Unique identifier for this session. Must not be blank.
+ * @throws IllegalArgumentException if sessionId is blank
  */
 class SessionStateMachine(
     val sessionId: String,
 ) {
+    init {
+        require(sessionId.isNotBlank()) { "sessionId must not be blank" }
+    }
+
     var currentState: SessionState = SessionState.ATTACHED
         private set
 
@@ -83,6 +94,7 @@ class SessionStateMachine(
             is PlaybackEvent.AppBackgrounded -> handleAppBackgrounded(event)
             is PlaybackEvent.AppForegrounded -> handleAppForegrounded(event)
             is PlaybackEvent.PlayerReleased -> handlePlayerReleased(event)
+            is PlaybackEvent.PlayerReplaced -> handlePlayerReplaced(event)
             is PlaybackEvent.PlaybackEnded -> handlePlaybackEnded(event)
             is PlaybackEvent.BackgroundIdleTimeout -> handleBackgroundIdleTimeout(event)
             is PlaybackEvent.MediaItemTransition -> handleMediaItemTransition(event)
@@ -225,6 +237,10 @@ class SessionStateMachine(
         endSession(EndReason.PLAYER_RELEASED, "PlayerReleased")
     }
 
+    private fun handlePlayerReplaced(event: PlaybackEvent.PlayerReplaced) {
+        endSession(EndReason.PLAYER_REPLACED, "PlayerReplaced")
+    }
+
     private fun handlePlaybackEnded(event: PlaybackEvent.PlaybackEnded) {
         endSession(EndReason.PLAYBACK_ENDED, "PlaybackEnded")
     }
@@ -247,10 +263,12 @@ class SessionStateMachine(
     }
 
     /**
-     * Compute playbackActive as per session-lifecycle.md:
+     * Compute playbackActive as per session-lifecycle.md §4:
      * playbackActive = (isPlaying == true) OR (playWhenReady == true AND playbackState == BUFFERING)
+     *
+     * This determines whether the session should be kept alive during background idle timeout.
      */
-    private fun isPlaybackActive(): Boolean = isPlaying || (playWhenReady && playbackState == PlaybackState.BUFFERING)
+    fun isPlaybackActive(): Boolean = isPlaying || (playWhenReady && playbackState == PlaybackState.BUFFERING)
 
     private fun transitionTo(
         newState: SessionState,

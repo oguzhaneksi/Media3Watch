@@ -67,6 +67,10 @@ sealed class PlaybackEvent(
         override val timestamp: Long,
     ) : PlaybackEvent(timestamp)
 
+    data class PlayerReplaced(
+        override val timestamp: Long,
+    ) : PlaybackEvent(timestamp)
+
     data class PlaybackEnded(
         override val timestamp: Long,
     ) : PlaybackEvent(timestamp)
