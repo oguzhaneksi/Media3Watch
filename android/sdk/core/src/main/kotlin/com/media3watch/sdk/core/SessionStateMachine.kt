@@ -2,6 +2,7 @@ package com.media3watch.sdk.core
 
 import com.media3watch.sdk.schema.EndReason
 import com.media3watch.sdk.schema.PlaybackEvent
+import com.media3watch.sdk.schema.PlaybackState
 import com.media3watch.sdk.schema.SessionState
 
 /**
@@ -28,7 +29,7 @@ class SessionStateMachine(
 
     // Playback state tracking for playbackActive computation
     private var playWhenReady: Boolean = false
-    private var playbackState: Int = 1 // Media3 Player.STATE_IDLE = 1
+    private var playbackState: PlaybackState = PlaybackState.IDLE
     private var isPlaying: Boolean = false
 
     // Background state tracking
@@ -248,10 +249,8 @@ class SessionStateMachine(
     /**
      * Compute playbackActive as per session-lifecycle.md:
      * playbackActive = (isPlaying == true) OR (playWhenReady == true AND playbackState == BUFFERING)
-     *
-     * Media3 Player.STATE_BUFFERING = 3
      */
-    private fun isPlaybackActive(): Boolean = isPlaying || (playWhenReady && playbackState == 3)
+    private fun isPlaybackActive(): Boolean = isPlaying || (playWhenReady && playbackState == PlaybackState.BUFFERING)
 
     private fun transitionTo(
         newState: SessionState,

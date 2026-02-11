@@ -32,7 +32,7 @@ sealed class PlaybackEvent(
 
     data class PlaybackStateChanged(
         override val timestamp: Long,
-        val playbackState: Int, // Media3 Player.STATE_* constants
+        val playbackState: PlaybackState,
     ) : PlaybackEvent(timestamp)
 
     data class SeekStarted(

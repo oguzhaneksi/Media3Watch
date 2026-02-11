@@ -135,21 +135,10 @@ class PlaybackEventEdgeCaseTest {
     }
 
     @Test
-    fun `PlaybackStateChanged handles various Media3 states`() {
-        // Media3 Player.STATE_IDLE = 1, STATE_BUFFERING = 2, STATE_READY = 3, STATE_ENDED = 4
-        val states = listOf(1, 2, 3, 4)
+    fun `PlaybackStateChanged handles various states`() {
+        val states = PlaybackState.entries
 
         states.forEach { state ->
-            val event = PlaybackEvent.PlaybackStateChanged(1706900000000L, playbackState = state)
-            assertEquals(state, event.playbackState)
-        }
-    }
-
-    @Test
-    fun `PlaybackStateChanged handles invalid state values`() {
-        val invalidStates = listOf(-1, 0, 999)
-
-        invalidStates.forEach { state ->
             val event = PlaybackEvent.PlaybackStateChanged(1706900000000L, playbackState = state)
             assertEquals(state, event.playbackState)
         }

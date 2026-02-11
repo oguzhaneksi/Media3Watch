@@ -103,6 +103,20 @@ class PlaybackEventTest {
     }
 
     @Test
+    fun `PlayWhenReadyChanged event is instantiable with flag`() {
+        val event = PlaybackEvent.PlayWhenReadyChanged(testTimestamp, playWhenReady = true)
+        assertEquals(testTimestamp, event.timestamp)
+        assertEquals(true, event.playWhenReady)
+    }
+
+    @Test
+    fun `PlaybackStateChanged event is instantiable with state`() {
+        val event = PlaybackEvent.PlaybackStateChanged(testTimestamp, playbackState = PlaybackState.READY)
+        assertEquals(testTimestamp, event.timestamp)
+        assertEquals(PlaybackState.READY, event.playbackState)
+    }
+
+    @Test
     fun `all PlaybackEvent types are sealed class subtypes`() {
         val events: List<PlaybackEvent> =
             listOf(
@@ -111,6 +125,8 @@ class PlaybackEventTest {
                 PlaybackEvent.BufferingStarted(testTimestamp),
                 PlaybackEvent.BufferingEnded(testTimestamp, 100),
                 PlaybackEvent.IsPlayingChanged(testTimestamp, true),
+                PlaybackEvent.PlayWhenReadyChanged(testTimestamp, true),
+                PlaybackEvent.PlaybackStateChanged(testTimestamp, PlaybackState.READY),
                 PlaybackEvent.SeekStarted(testTimestamp),
                 PlaybackEvent.SeekEnded(testTimestamp, 200),
                 PlaybackEvent.PlayerError(testTimestamp, 1001, ErrorCategory.NETWORK),
@@ -122,7 +138,7 @@ class PlaybackEventTest {
                 PlaybackEvent.BackgroundIdleTimeout(testTimestamp),
             )
 
-        assertEquals(14, events.size)
+        assertEquals(16, events.size)
         events.forEach { event ->
             assertNotNull(event)
             assertEquals(testTimestamp, event.timestamp)
