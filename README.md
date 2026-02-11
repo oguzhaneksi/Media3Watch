@@ -194,7 +194,7 @@ Pre-built dashboards for visualizing session data:
 - Docker & Docker Compose
 - Android Studio (Ladybug or newer)
 - Android App: `minSdk 23`, `targetSdk 36`
-- Build Environment: AGP 9.0.0+, Kotlin 2.3.0+
+- Build Environment: AGP 8.13.2+, Kotlin 2.3.0+
 
 ### 1. Start the Backend
 

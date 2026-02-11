@@ -1,3 +1,3 @@
 package com.media3watch.sdk.schema
 
-class MyClass
+const val SCHEMA_VERSION = "1.0.0"
