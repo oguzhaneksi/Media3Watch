@@ -7,7 +7,6 @@ import androidx.media3.common.Player.STATE_BUFFERING
 import androidx.media3.common.Player.STATE_ENDED
 import androidx.media3.common.Player.STATE_IDLE
 import androidx.media3.common.Player.STATE_READY
-import androidx.media3.common.VideoSize
 import com.media3watch.sdk.schema.ErrorCategory
 import com.media3watch.sdk.schema.PlaybackEvent
 
