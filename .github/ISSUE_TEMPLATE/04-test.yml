@@ -1,0 +1,183 @@
+name: Test Issue (QA Gate)
+description: Define comprehensive test coverage for a feature implementation. Must reference a spec-ready feature issue.
+title: "[Test]: "
+labels: ["needs-qa", "test"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## QA Gate
+        This test issue should reference a **spec-ready** feature. 
+        Tests must be implemented and passing before the feature is considered complete.
+
+  - type: input
+    id: related_feature
+    attributes:
+      label: Related Implementation (Feature)
+      description: Link to the feature issue this test covers
+      placeholder: "#123"
+    validations:
+      required: true
+
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: What is the testing goal? What behavior are we validating?
+      placeholder: "Validate that startup metric calculation is accurate and resilient to edge cases..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What modules/components are being tested?
+      placeholder: |
+        - sdk:core state machine
+        - sdk:adapter-media3 integration
+        - Backend ingest endpoint
+    validations:
+      required: true
+
+  - type: dropdown
+    id: coverage_target
+    attributes:
+      label: Coverage Target
+      description: Expected test coverage level
+      options:
+        - "Critical Path Only (smoke tests)"
+        - "Standard (happy + major edge cases)"
+        - "Comprehensive (all scenarios + edge cases)"
+      default: 1
+    validations:
+      required: true
+
+  - type: textarea
+    id: test_strategy
+    attributes:
+      label: Test Strategy
+      description: Testing approach and methodologies
+      placeholder: |
+        - Unit tests for pure Kotlin logic (sdk:core, sdk:schema)
+        - Integration tests for API endpoints
+        - Instrumentation tests if Android runtime involved
+        - Manual verification steps for overlay/UI
+    validations:
+      required: true
+
+  - type: textarea
+    id: happy_path
+    attributes:
+      label: "Required Test Scenarios: Happy Path"
+      description: Normal, expected usage scenarios
+      placeholder: |
+        - [ ] Normal startup flow (play → buffering → ready → playing → frame rendered)
+        - [ ] Session upload succeeds on first attempt
+        - [ ] Metrics calculated correctly for standard playback
+    validations:
+      required: true
+
+  - type: textarea
+    id: edge_cases
+    attributes:
+      label: "Required Test Scenarios: Edge Cases"
+      description: Boundary conditions and unusual scenarios
+      placeholder: |
+        - [ ] Player transitions rapidly (play/pause/play)
+        - [ ] Network flaky during upload (retries)
+        - [ ] Session ends before first frame rendered
+        - [ ] Process death mid-session
+    validations:
+      required: true
+
+  - type: textarea
+    id: failure_scenarios
+    attributes:
+      label: "Required Test Scenarios: Failure Scenarios"
+      description: Error conditions and resilience testing
+      placeholder: |
+        - [ ] Backend returns 5xx during upload
+        - [ ] Invalid API key (401 expected)
+        - [ ] Malformed payload (400 expected)
+        - [ ] Database constraint violation (upsert succeeds)
+    validations:
+      required: true
+
+  - type: textarea
+    id: code_quality_rules
+    attributes:
+      label: Code Quality Rules
+      description: Standards that must be maintained
+      placeholder: |
+        - No blocking calls on main thread
+        - No hardcoded values (use constants/config)
+        - Proper error logging without PII
+        - Test coverage >80% for critical paths
+        - All flaky tests must be fixed or quarantined
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of Scope
+      description: What we will NOT test in this issue
+      placeholder: |
+        - Performance benchmarks (separate issue)
+        - Full Grafana dashboard testing
+        - Multi-device compatibility matrix
+    validations:
+      required: true
+
+  - type: textarea
+    id: definition_of_done
+    attributes:
+      label: Definition of Done
+      description: Checklist of what must be completed before closing this test issue
+      placeholder: |
+        - [ ] All happy path tests implemented and passing
+        - [ ] All edge case tests implemented and passing
+        - [ ] All failure scenario tests implemented and passing
+        - [ ] Code quality rules verified (lint, no warnings)
+        - [ ] Tests documented (comments explain what/why)
+        - [ ] CI/CD pipeline runs all tests successfully
+        - [ ] No flaky tests (3+ consecutive clean runs)
+        - [ ] Test coverage report meets target threshold
+    validations:
+      required: true
+
+  - type: textarea
+    id: test_data
+    attributes:
+      label: Test Data / Fixtures
+      description: Any specific test data or fixtures needed?
+      placeholder: |
+        - Sample SessionSummary payloads
+        - Mock Media3 player states
+        - Test API keys for backend
+    validations:
+      required: false
+
+  - type: dropdown
+    id: test_environment
+    attributes:
+      label: Test Environment
+      description: Where will these tests run?
+      options:
+        - "Local only"
+        - "CI/CD pipeline"
+        - "Both local + CI/CD"
+      default: 2
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: guardrails
+    attributes:
+      label: Guardrails
+      description: Quality gates
+      options:
+        - label: "I confirm these tests do NOT modify production behavior."
+        - label: "I confirm test data does NOT contain PII or secrets."
+        - label: "I confirm flaky tests will be fixed or quarantined, not ignored."
