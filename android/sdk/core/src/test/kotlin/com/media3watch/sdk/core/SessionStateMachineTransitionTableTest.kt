@@ -2,11 +2,9 @@ package com.media3watch.sdk.core
 
 import com.media3watch.sdk.schema.EndReason
 import com.media3watch.sdk.schema.PlaybackEvent
-import com.media3watch.sdk.schema.PlaybackState
 import com.media3watch.sdk.schema.SessionState
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertNull
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
@@ -28,8 +26,8 @@ class SessionStateMachineTransitionTableTest {
 
     companion object {
         @JvmStatic
-        fun transitionTestCases(): Stream<Arguments> {
-            return Stream.of(
+        fun transitionTestCases(): Stream<Arguments> =
+            Stream.of(
                 // ATTACHED → active states
                 Arguments.of(
                     TransitionTest(
@@ -398,7 +396,6 @@ class SessionStateMachineTransitionTableTest {
                     ),
                 ),
             )
-        }
     }
 
     @ParameterizedTest(name = "{0}")

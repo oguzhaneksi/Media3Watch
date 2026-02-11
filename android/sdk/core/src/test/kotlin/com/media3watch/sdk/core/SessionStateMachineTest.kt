@@ -12,9 +12,7 @@ import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 
 class SessionStateMachineTest {
-    private fun createStateMachine(): SessionStateMachine {
-        return SessionStateMachine("test-session-123")
-    }
+    private fun createStateMachine(): SessionStateMachine = SessionStateMachine("test-session-123")
 
     @Test
     fun `initial state is ATTACHED`() {
