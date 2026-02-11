@@ -26,7 +26,7 @@ class SessionStateMachine(
     val sessionId: String,
 ) {
     init {
-        require(sessionId.isNotBlank()) { "sessionId must not be blank" }
+        require(sessionId.isNotEmpty() && sessionId.isNotBlank()) { "sessionId must not be empty or blank" }
     }
 
     var currentState: SessionState = SessionState.ATTACHED
