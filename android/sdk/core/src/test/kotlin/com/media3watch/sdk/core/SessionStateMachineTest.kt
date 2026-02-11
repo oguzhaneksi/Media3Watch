@@ -420,6 +420,21 @@ class SessionStateMachineTest {
         assertEquals(1, callbackCount) // Should not increment
     }
 
+    @Test
+    @DisplayName("Remove state change listener → stops receiving callbacks")
+    fun test_removeStateChangeListener_stops_callbacks() {
+        var callbackCount = 0
+        val listener = SessionStateMachine.StateChangeListener { _, _, _ -> callbackCount++ }
+
+        stateMachine.addStateChangeListener(listener)
+        stateMachine.processEvent(PlaybackEvent.IsPlayingChanged(testTimestamp, isPlaying = true))
+        assertEquals(1, callbackCount)
+
+        stateMachine.removeStateChangeListener(listener)
+        stateMachine.processEvent(PlaybackEvent.IsPlayingChanged(testTimestamp + 100, isPlaying = false))
+        assertEquals(1, callbackCount) // Should not increment
+    }
+
     // ======================
     // Edge Cases: Rapid State Transitions
     // ======================
@@ -990,6 +1005,38 @@ class SessionStateMachineTest {
     }
 
     // ======================
+    // Thread Safety: Documentation Tests
+    // ======================
+
+    @Test
+    @DisplayName("Thread-safety: Single-threaded contract is documented (not thread-safe)")
+    fun test_single_threaded_contract_documented() {
+        // This test documents the single-threaded contract of SessionStateMachine.
+        // As documented in SessionStateMachine.kt:
+        // "Thread-safety: Not thread-safe. Caller must synchronize access if needed."
+        //
+        // This is an acceptable MVP design decision because:
+        // 1. Media3 Player callbacks run on a single thread (main thread by default)
+        // 2. The state machine will be called from Media3 adapter callbacks sequentially
+        // 3. Adding synchronization adds complexity without benefit in the expected usage
+        //
+        // If concurrent access is needed in the future, the caller should:
+        // - Wrap calls in synchronized blocks
+        // - Use a serial executor/dispatcher
+        // - Add @Synchronized annotations to public methods
+
+        // Demonstration: Sequential access works correctly
+        stateMachine.processEvent(PlaybackEvent.IsPlayingChanged(testTimestamp, isPlaying = true))
+        assertEquals(SessionState.PLAYING, stateMachine.getState())
+
+        stateMachine.processEvent(PlaybackEvent.IsPlayingChanged(testTimestamp + 100, isPlaying = false))
+        assertEquals(SessionState.PAUSED, stateMachine.getState())
+
+        // Note: Concurrent access is not tested as it would require implementation changes.
+        // The contract explicitly states the class is not thread-safe.
+    }
+
+    // ======================
     // Parameterized Tests: All End Reasons
     // ======================
 
@@ -1048,8 +1095,12 @@ class SessionStateMachineTest {
                     ),
                     PlaybackEvent.BackgroundIdleTimeout(testTs + 200),
                 ),
-                // Note: PLAYER_REPLACED requires attach(newPlayer) API call, not just an event
-                // So we simulate it with PlayerReleased for testing purposes in this parameterized test
+                // Note: PLAYER_REPLACED is not included in this parameterized test because it requires
+                // a higher-level API call (Media3Watch.attach(newPlayer)) rather than just a PlaybackEvent.
+                // PLAYER_REPLACED will be tested in integration tests when the Media3 adapter and
+                // runtime modules are implemented (see Issue #20).
+                // The end trigger logic itself is validated through ContentSwitch and PlayerReleased,
+                // which exercise the same transitionToEnded() code path.
             )
     }
 }
