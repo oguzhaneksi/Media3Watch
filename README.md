@@ -16,21 +16,7 @@
 
 ## Why This Exists
 
-You ship a video app with Media3. Works great in development. Then production hits—users complain about buffering, your PM asks for startup time metrics, and you have nothing.
-
-**Your options:**
-
-| Solution | Problem |
-|----------|---------|
-| Mux / Bitmovin / Conviva | Expensive, vendor lock-in, data on their servers |
-| Build from scratch | 3 months of work, constant maintenance |
-| Media3Watch | Debug sessions fast, share JSON, track QoE trends |
-
-**Media3Watch is:**
-- **Self-hostable** — Your data stays on your infrastructure
-- **Local-first** — Debug overlay works offline, upload when ready
-- **Lightweight** — Postgres + Grafana, no complex pipelines
-- **Open-source** — Apache 2.0, forever free
+You ship a video app with Media3. Works great in development. Then production hits—users complain about buffering, your PM asks for startup time metrics, and you have nothing. Media3Watch is a **self-hostable**, **local-first**, **lightweight** alternative to expensive vendor solutions. Debug sessions fast, share JSON, track QoE trends—all on your infrastructure.
 
 ---
 
@@ -145,45 +131,14 @@ Pre-built dashboards for visualizing session data:
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Android App                              │
-│  ┌─────────────┐    ┌─────────────┐    ┌─────────────────────┐  │
-│  │ Media3      │───▶│ Media3Watch │───▶│ Inspector Overlay   │  │
-│  │ ExoPlayer   │    │ SDK         │    │ (overlay + export)  │  │
-│  └─────────────┘    └──────┬──────┘    └─────────────────────┘  │
-│                            │                                     │
-│          For detailed SDK architecture, see [android/README.md](android/README.md)
-│                            │                                     │
-│                    ┌───────▼───────┐                            │
-│                    │ Local Queue   │                            │
-│                    │ (offline-first)│                           │
-│                    └───────┬───────┘                            │
-└────────────────────────────┼────────────────────────────────────┘
-                             │ HTTPS POST /v1/sessions
-                             ▼
-              ┌──────────────────────────────┐
-              │    Ingest API (Kotlin)      │
-              │   - API key validation       │
-              │   - Schema validation        │
-              │   - Idempotent upsert        │
-              └──────────────┬───────────────┘
-                             │
-                             ▼
-              ┌──────────────────────────────┐
-              │         Postgres             │
-              │   - sessions table           │
-              │   - JSON column for payload  │
-              └──────────────┬───────────────┘
-                             │
-                             ▼
-              ┌──────────────────────────────┐
-              │          Grafana             │
-              │   - QoE Overview             │
-              │   - Breakdown by type        │
-              │   - Session Explorer         │
-              └──────────────────────────────┘
-```
+**High-level flow:**
+- Android SDK collects session metrics from Media3
+- Optional inspector overlay for local debugging
+- Sessions queue locally and upload to backend
+- Backend stores in Postgres (relational + JSONB)
+- Grafana dashboards visualize QoE trends
+
+For detailed SDK architecture, see [android/README.md](android/README.md).
 
 ---
 
@@ -257,24 +212,24 @@ class MyApp : Application() {
 }
 ```
 
-Attach to your player:
+Attach to your player and mark play requested:
 
 ```kotlin
 val player = ExoPlayer.Builder(context).build()
 
-// Attach SDK
+// 1. Attach (starts session tracking)
 Media3Watch.attach(player)
 
-// Set content metadata
-Media3Watch.setContentId("video-123")
-Media3Watch.setStreamType(StreamType.VOD)
+// 2. Mark when play() is called (starts startup timer)
+Media3Watch.markPlayRequested()
+player.play()
 
-// Mark when user requests playback (for accurate startup time)
-playButton.setOnClickListener {
-    Media3Watch.markPlayRequested()
-    player.play()
-}
+// 3. Detach when releasing (ends and uploads session)
+Media3Watch.detach()
+player.release()
 ```
+
+**⚠️ Important**: You MUST call `Media3Watch.detach()` before releasing the player or leaving playback permanently. Failure to detach will prevent session metrics from uploading and may cause memory leaks.
 
 ### 3. Test with curl
 
@@ -394,14 +349,6 @@ Each session produces one JSON document submitted to `/v1/sessions`.
 | `app` | object | No | App info (`name`, `version`) |
 | `custom` | object | No | User-defined key-value pairs |
 
-### Schema Versioning
-
-The `schemaVersion` field allows the backend to handle different payload versions. When adding new fields:
-
-1. Add as optional fields (nullable)
-2. Bump minor version (e.g., `1.0.0` → `1.1.0`)
-3. Backend continues accepting older versions
-
 ---
 
 ## Project Structure
@@ -432,35 +379,9 @@ media3watch/
 
 ## Configuration
 
-### SDK Configuration (MVP)
+See SDK init examples in [Quick Start](#quick-start) section.
 
-```kotlin
-Media3Watch.init(context) {
-    // Remote endpoint (required for upload)
-    endpoint = "https://your-backend.com/v1/sessions"
-    apiKey = "your-api-key"
-    
-    // Inspector overlay (local debugging)
-    enableInspector = true
-    
-    // Privacy (optional, default: true)
-    collectDeviceInfo = true       // Include device model, OS version
-}
-```
-
-**MVP defaults (hardcoded in v1.0)**:
-- Session IDs: Random UUID v4
-- Upload trigger: On session end or app background (>2min idle)
-- Retry strategy: 3 attempts with exponential backoff (1s, 2s, 4s)
-
-### Planned Configuration (v1.1+)
-
-Additional parameters under consideration for future releases:
-- `maxRetries` — Custom retry count
-- `uploadOnSessionEnd` / `uploadOnBackground` — Granular upload control
-- `anonymizeSessionId` — Alternative ID generation strategies
-
-### Backend Environment Variables
+**Backend environment variables:**
 
 | Variable | Default | Description |
 |----------|---------|-------------|
@@ -475,53 +396,13 @@ Additional parameters under consideration for future releases:
 
 ## Roadmap
 
-**Legend**: 
-- `[x]` = Implemented and shipped
-- `[~]` = In progress / Partially implemented
-- `[ ]` = Planned but not started
-
-### v1.0 (MVP) — Current
+### v1.0 (MVP)
 
 - [ ] Android SDK with session summary collection
 - [ ] `markPlayRequested()` for explicit startup measurement
-- [ ] Session Inspector overlay (timeline, stats, export/share) — **Planned**
+- [ ] Session Inspector overlay (timeline, stats, export/share)
 - [ ] Backend ingest API with Postgres storage
 - [ ] Grafana dashboards (QoE overview, breakdown, session explorer)
-
-### v1.1 — Short-term
-
-- [ ] Optional raw event timeline storage (short retention)
-- [ ] Click-through from session explorer to event timeline
-- [ ] Configurable retention policies
-- [ ] Basic DRM timing metrics (license fetch duration)
-
-### v2.0+ — Future
-
-> **Note:** The following features are not in MVP and require additional infrastructure.
-
-- [ ] Event streaming pipeline (Redis Streams or Kafka)
-- [ ] Event processor service for aggregation
-- [ ] OpenSearch for full-text event search
-- [ ] Prometheus metrics export and alerting
-- [ ] Vendor compatibility modes (Mux, Bitmovin, FastPix semantics)
-- [ ] Ads/SSAI analytics integration
-- [ ] Advanced DRM analytics
-
----
-
-## Out of Scope (MVP)
-
-The following are explicitly **not included** in the current release:
-
-- **End-to-end startup** — No measurement of API gating, entitlement, or navigation latency.
-- **Full raw event pipeline** — No Redis Streams, Kafka, or event processor
-- **OpenSearch** — Postgres handles session storage; no full-text event search
-- **Prometheus/alerting** — No time-series metrics export in MVP
-- **Vendor compatibility modes** — Single schema, no Mux/Bitmovin mapping
-- **Ads/SSAI analytics** — Session-level metrics only
-- **Deep DRM analytics** — Basic error category only, no detailed breakdowns
-
-See [Roadmap](#roadmap) for future plans.
 
 ---
 
