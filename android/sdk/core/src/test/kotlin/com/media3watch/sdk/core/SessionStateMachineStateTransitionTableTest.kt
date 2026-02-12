@@ -360,17 +360,18 @@ class SessionStateMachineStateTransitionTableTest {
                     SessionState.ENDED,
                     "BACKGROUND → ENDED: PlayerReleased",
                 ),
-                // BACKGROUND state memory tests (return to previous state)
+                // BACKGROUND state memory tests (per spec: only PLAYING/PAUSED on foreground)
                 Arguments.of(
                     SessionState.BACKGROUND,
                     listOf(
                         PlaybackEvent.IsPlayingChanged(TS, isPlaying = true),
                         PlaybackEvent.BufferingStarted(TS + 10),
                         PlaybackEvent.AppBackgrounded(TS + 20),
+                        // isPlaying is still true, so should go to PLAYING per spec
                     ),
                     PlaybackEvent.AppForegrounded(TS + 30),
-                    SessionState.BUFFERING,
-                    "BACKGROUND → BUFFERING: AppForegrounded (restoring BUFFERING state)",
+                    SessionState.PLAYING,
+                    "BACKGROUND → PLAYING: AppForegrounded with isPlaying=true (was BUFFERING)",
                 ),
                 Arguments.of(
                     SessionState.BACKGROUND,
@@ -378,20 +379,21 @@ class SessionStateMachineStateTransitionTableTest {
                         PlaybackEvent.IsPlayingChanged(TS, isPlaying = true),
                         PlaybackEvent.SeekStarted(TS + 10),
                         PlaybackEvent.AppBackgrounded(TS + 20),
+                        // isPlaying is still true, so should go to PLAYING per spec
                     ),
                     PlaybackEvent.AppForegrounded(TS + 30),
-                    SessionState.SEEKING,
-                    "BACKGROUND → SEEKING: AppForegrounded (restoring SEEKING state)",
+                    SessionState.PLAYING,
+                    "BACKGROUND → PLAYING: AppForegrounded with isPlaying=true (was SEEKING)",
                 ),
-                // Additional edge case: ATTACHED → BACKGROUND → ATTACHED
+                // Additional edge case: ATTACHED → BACKGROUND → PAUSED (isPlaying=false by default)
                 Arguments.of(
                     SessionState.BACKGROUND,
                     listOf(
                         PlaybackEvent.AppBackgrounded(TS),
                     ),
                     PlaybackEvent.AppForegrounded(TS + 10),
-                    SessionState.ATTACHED,
-                    "BACKGROUND → ATTACHED: AppForegrounded from ATTACHED state",
+                    SessionState.PAUSED,
+                    "BACKGROUND → PAUSED: AppForegrounded with isPlaying=false (was ATTACHED)",
                 ),
             )
     }

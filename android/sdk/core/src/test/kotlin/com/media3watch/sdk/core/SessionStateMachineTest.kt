@@ -307,6 +307,36 @@ class SessionStateMachineTest {
         assertNull(stateMachine.getEndReason())
     }
 
+    @Test
+    @DisplayName("MediaItemTransition from ATTACHED state → no end (not in active playback state)")
+    fun test_ContentSwitch_from_ATTACHED_does_not_end() {
+        // Setup: ATTACHED with meaningful activity
+        stateMachine.processEvent(PlaybackEvent.PlayRequested(testTimestamp))
+        assertTrue(stateMachine.hasMeaningfulActivity())
+        assertEquals(SessionState.ATTACHED, stateMachine.getState())
+
+        // MediaItemTransition should NOT end from ATTACHED (per spec: only from PLAYING/PAUSED/BUFFERING)
+        stateMachine.processEvent(PlaybackEvent.MediaItemTransition(testTimestamp + 100, newContentId = "video-2"))
+
+        assertEquals(SessionState.ATTACHED, stateMachine.getState())
+        assertNull(stateMachine.getEndReason())
+    }
+
+    @Test
+    @DisplayName("MediaItemTransition from SEEKING state → no end (not in active playback state)")
+    fun test_ContentSwitch_from_SEEKING_does_not_end() {
+        // Setup: ATTACHED → PLAYING → SEEKING
+        stateMachine.processEvent(PlaybackEvent.IsPlayingChanged(testTimestamp, isPlaying = true))
+        stateMachine.processEvent(PlaybackEvent.SeekStarted(testTimestamp + 100))
+        assertEquals(SessionState.SEEKING, stateMachine.getState())
+
+        // MediaItemTransition should NOT end from SEEKING (per spec: only from PLAYING/PAUSED/BUFFERING)
+        stateMachine.processEvent(PlaybackEvent.MediaItemTransition(testTimestamp + 200, newContentId = "video-2"))
+
+        assertEquals(SessionState.SEEKING, stateMachine.getState())
+        assertNull(stateMachine.getEndReason())
+    }
+
     // ======================
     // Happy Path: Discard Rule
     // ======================
@@ -535,21 +565,23 @@ class SessionStateMachineTest {
     }
 
     @Test
-    @DisplayName("BUFFERING → BACKGROUND → foreground → returns to BUFFERING")
+    @DisplayName("BUFFERING → BACKGROUND → foreground → returns to PLAYING (per spec)")
     fun test_background_memory_from_buffering() {
         // Setup: ATTACHED → BUFFERING → BACKGROUND
-        stateMachine.processEvent(PlaybackEvent.BufferingStarted(testTimestamp))
+        // Note: BufferingStarted also marks meaningful activity and sets isPlaying context
+        stateMachine.processEvent(PlaybackEvent.IsPlayingChanged(testTimestamp, isPlaying = true))
+        stateMachine.processEvent(PlaybackEvent.BufferingStarted(testTimestamp + 50))
         stateMachine.processEvent(PlaybackEvent.AppBackgrounded(testTimestamp + 100))
         assertEquals(SessionState.BACKGROUND, stateMachine.getState())
 
-        // Return to foreground
+        // Return to foreground - per spec goes to PLAYING (isPlaying is still true)
         stateMachine.processEvent(PlaybackEvent.AppForegrounded(testTimestamp + 200))
 
-        assertEquals(SessionState.BUFFERING, stateMachine.getState())
+        assertEquals(SessionState.PLAYING, stateMachine.getState())
     }
 
     @Test
-    @DisplayName("SEEKING → BACKGROUND → foreground → returns to SEEKING")
+    @DisplayName("SEEKING → BACKGROUND → foreground → returns to PLAYING (per spec)")
     fun test_background_memory_from_seeking() {
         // Setup: ATTACHED → PLAYING → SEEKING → BACKGROUND
         stateMachine.processEvent(PlaybackEvent.IsPlayingChanged(testTimestamp, isPlaying = true))
@@ -557,10 +589,10 @@ class SessionStateMachineTest {
         stateMachine.processEvent(PlaybackEvent.AppBackgrounded(testTimestamp + 200))
         assertEquals(SessionState.BACKGROUND, stateMachine.getState())
 
-        // Return to foreground
+        // Return to foreground - per spec goes to PLAYING (isPlaying is still true)
         stateMachine.processEvent(PlaybackEvent.AppForegrounded(testTimestamp + 300))
 
-        assertEquals(SessionState.SEEKING, stateMachine.getState())
+        assertEquals(SessionState.PLAYING, stateMachine.getState())
     }
 
     @Test
@@ -1004,44 +1036,12 @@ class SessionStateMachineTest {
     }
 
     // ======================
-    // Thread Safety: Documentation Tests
-    // ======================
-
-    @Test
-    @DisplayName("Thread-safety: Single-threaded contract is documented (not thread-safe)")
-    fun test_single_threaded_contract_documented() {
-        // This test documents the single-threaded contract of SessionStateMachine.
-        // As documented in SessionStateMachine.kt:
-        // "Thread-safety: Not thread-safe. Caller must synchronize access if needed."
-        //
-        // This is an acceptable MVP design decision because:
-        // 1. Media3 Player callbacks run on a single thread (main thread by default)
-        // 2. The state machine will be called from Media3 adapter callbacks sequentially
-        // 3. Adding synchronization adds complexity without benefit in the expected usage
-        //
-        // If concurrent access is needed in the future, the caller should:
-        // - Wrap calls in synchronized blocks
-        // - Use a serial executor/dispatcher
-        // - Add @Synchronized annotations to public methods
-
-        // Demonstration: Sequential access works correctly
-        stateMachine.processEvent(PlaybackEvent.IsPlayingChanged(testTimestamp, isPlaying = true))
-        assertEquals(SessionState.PLAYING, stateMachine.getState())
-
-        stateMachine.processEvent(PlaybackEvent.IsPlayingChanged(testTimestamp + 100, isPlaying = false))
-        assertEquals(SessionState.PAUSED, stateMachine.getState())
-
-        // Note: Concurrent access is not tested as it would require implementation changes.
-        // The contract explicitly states the class is not thread-safe.
-    }
-
-    // ======================
-    // Parameterized Tests: All End Reasons
+    // Parameterized Tests: End Reasons
     // ======================
 
     @ParameterizedTest(name = "End trigger: {0}")
     @MethodSource("endReasonScenarios")
-    @DisplayName("Parameterized test for all 5 end triggers")
+    @DisplayName("Parameterized test for 4 event-based end triggers")
     fun test_all_end_reasons(
         endReason: EndReason,
         setupEvents: List<PlaybackEvent>,

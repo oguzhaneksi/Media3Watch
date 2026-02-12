@@ -39,8 +39,8 @@ class SessionStateMachine(
     private var playbackState: Int = STATE_IDLE
     private var isPlaying: Boolean = false
 
-    // State change listeners
-    private val stateChangeListeners = mutableListOf<StateChangeListener>()
+    // State change listeners (CopyOnWriteArrayList to avoid allocation on state change)
+    private val stateChangeListeners = java.util.concurrent.CopyOnWriteArrayList<StateChangeListener>()
 
     /**
      * Returns current session state.
@@ -226,16 +226,9 @@ class SessionStateMachine(
 
     private fun handleAppForegrounded(event: PlaybackEvent.AppForegrounded) {
         if (currentState == SessionState.BACKGROUND) {
-            // Restore to previous state, but respect current playback state
-            val targetState =
-                when (stateBeforeBackground) {
-                    SessionState.ATTACHED -> SessionState.ATTACHED
-                    SessionState.PLAYING -> if (isPlaying) SessionState.PLAYING else SessionState.PAUSED
-                    SessionState.PAUSED -> if (isPlaying) SessionState.PLAYING else SessionState.PAUSED
-                    SessionState.BUFFERING -> SessionState.BUFFERING
-                    SessionState.SEEKING -> SessionState.SEEKING
-                    else -> if (isPlaying) SessionState.PLAYING else SessionState.PAUSED
-                }
+            // Per spec: BACKGROUND can only transition to PLAYING or PAUSED on foreground
+            // Derive target state from current playback state (isPlaying)
+            val targetState = if (isPlaying) SessionState.PLAYING else SessionState.PAUSED
             stateBeforeBackground = null
             transitionTo(targetState)
         }
@@ -257,8 +250,13 @@ class SessionStateMachine(
     }
 
     private fun handleMediaItemTransition(event: PlaybackEvent.MediaItemTransition) {
-        // Content switch ends current session if we have meaningful activity
-        if (hasMeaningfulActivity) {
+        // Per spec: CONTENT_SWITCH should only end from PLAYING/PAUSED/BUFFERING states
+        if (
+            hasMeaningfulActivity &&
+            (currentState == SessionState.PLAYING ||
+                currentState == SessionState.PAUSED ||
+                currentState == SessionState.BUFFERING)
+        ) {
             transitionToEnded(EndReason.CONTENT_SWITCH)
         }
     }
@@ -282,8 +280,8 @@ class SessionStateMachine(
         oldState: SessionState,
         newState: SessionState,
     ) {
-        val listeners = stateChangeListeners.toList() // Copy to avoid concurrent modification
-        listeners.forEach { listener ->
+        // CopyOnWriteArrayList allows safe iteration without copying
+        stateChangeListeners.forEach { listener ->
             try {
                 listener.onStateChanged(sessionId, oldState, newState)
             } catch (e: Exception) {
