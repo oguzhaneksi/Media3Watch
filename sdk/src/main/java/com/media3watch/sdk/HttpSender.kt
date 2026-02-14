@@ -30,12 +30,12 @@ internal class HttpSender(
                 requestBuilder.addHeader("Authorization", "Bearer $apiKey")
             }
 
-            val response = client.newCall(requestBuilder.build()).execute()
-
-            if (response.isSuccessful) {
-                Result.success(Unit)
-            } else {
-                Result.failure(IOException("HTTP ${response.code}: ${response.message}"))
+            client.newCall(requestBuilder.build()).execute().use { response ->
+                if (response.isSuccessful) {
+                    Result.success(Unit)
+                } else {
+                    Result.failure(IOException("HTTP ${response.code}: ${response.message}"))
+                }
             }
         } catch (e: IOException) {
             Result.failure(e)
