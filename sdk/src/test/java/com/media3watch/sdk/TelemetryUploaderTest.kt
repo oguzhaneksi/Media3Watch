@@ -7,7 +7,7 @@ import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -192,6 +192,6 @@ class TelemetryUploaderTest {
         // Verify no timeout error was logged
         val logs = ShadowLog.getLogsForTag(LogUtils.TAG)
         val timeoutLog = logs?.find { it.msg.contains("(timeout)") }
-        assertTrue("Should not log timeout", timeoutLog == null)
+        assertNull("Should not log timeout", timeoutLog)
     }
 }
