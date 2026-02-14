@@ -12,6 +12,31 @@ import java.util.TimeZone
 internal object LogUtils {
     const val TAG = "Media3WatchAnalytics"
 
+    fun buildSessionSummary(
+        sessionId: Long,
+        sessionStartWallClockMs: Long,
+        sessionStartTs: Long,
+        now: Long,
+        startupTimeMs: Long?,
+        sessionEndStats: PlaybackStats?
+    ): SessionSummary {
+        return SessionSummary(
+            sessionId = sessionId,
+            sessionStartDateIso = toIsoDateTime(sessionStartWallClockMs),
+            sessionDurationMs = now - sessionStartTs,
+            startupTimeMs = startupTimeMs,
+            rebufferTimeMs = sessionEndStats?.totalRebufferTimeMs,
+            rebufferCount = sessionEndStats?.totalRebufferCount,
+            playTimeMs = sessionEndStats?.totalPlayTimeMs,
+            rebufferRatio = sessionEndStats?.rebufferTimeRatio,
+            totalDroppedFrames = sessionEndStats?.totalDroppedFrames,
+            totalSeekCount = sessionEndStats?.totalSeekCount,
+            totalSeekTimeMs = sessionEndStats?.totalSeekTimeMs,
+            meanVideoFormatBitrate = sessionEndStats?.meanVideoFormatBitrate,
+            errorCount = sessionEndStats?.fatalErrorCount
+        )
+    }
+
     fun logSessionEnd(
         sessionId: Long,
         sessionStartWallClockMs: Long,
@@ -20,37 +45,16 @@ internal object LogUtils {
         startupTimeMs: Long?,
         sessionEndStats: PlaybackStats?
     ) {
-        val sessionStartDateIso = toIsoDateTime(sessionStartWallClockMs)
-        val startupStr = startupTimeMs?.toString() ?: "null"
-        val rebufferTimeStr = sessionEndStats?.totalRebufferTimeMs?.toString() ?: "null"
-        val rebufferCountStr = sessionEndStats?.totalRebufferCount?.toString() ?: "null"
-        val playTimeStr = sessionEndStats?.totalPlayTimeMs?.toString() ?: "null"
-        val rebufferRatioStr = sessionEndStats?.rebufferTimeRatio?.toString() ?: "null"
-        val errorCountStr = sessionEndStats?.fatalErrorCount?.toString() ?: "null"
-        val droppedFramesStr = sessionEndStats?.totalDroppedFrames?.toString() ?: "null"
-        val seekCountStr = sessionEndStats?.totalSeekCount?.toString() ?: "null"
-        val seekTimeMsStr = sessionEndStats?.totalSeekTimeMs?.toString() ?: "null"
-        val meanVideoFormatBitrateStr = sessionEndStats?.meanVideoFormatBitrate?.toString() ?: "null"
-        val sessionDuration = now - sessionStartTs
+        val summary = buildSessionSummary(
+            sessionId = sessionId,
+            sessionStartWallClockMs = sessionStartWallClockMs,
+            sessionStartTs = sessionStartTs,
+            now = now,
+            startupTimeMs = startupTimeMs,
+            sessionEndStats = sessionEndStats
+        )
 
-        val message = buildString {
-            appendLine("session_end")
-            appendLine("  sessionId: $sessionId")
-            appendLine("  sessionStartDateIso: $sessionStartDateIso")
-            appendLine("  sessionDurationMs: $sessionDuration")
-            appendLine("  startupTimeMs: $startupStr")
-            appendLine("  rebufferTimeMs: $rebufferTimeStr")
-            appendLine("  rebufferCount: $rebufferCountStr")
-            appendLine("  playTimeMs: $playTimeStr")
-            appendLine("  rebufferRatio: $rebufferRatioStr")
-            appendLine("  totalDroppedFrames: $droppedFramesStr")
-            appendLine("  totalSeekCount: $seekCountStr")
-            appendLine("  totalSeekTimeMs: $seekTimeMsStr")
-            appendLine("  meanVideoFormatBitrate: $meanVideoFormatBitrateStr")
-            appendLine("  errorCount: $errorCountStr")
-        }
-
-        Log.d(TAG, message)
+        Log.d(TAG, summary.toPrettyLog())
     }
 
     fun toIsoDateTime(epochMillis: Long): String {
