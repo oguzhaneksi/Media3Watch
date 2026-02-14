@@ -6,9 +6,12 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
+import org.jetbrains.annotations.TestOnly
 
 @androidx.annotation.OptIn(UnstableApi::class)
-class Media3WatchAnalytics {
+class Media3WatchAnalytics(
+    private val config: Media3WatchConfig = Media3WatchConfig(),
+) {
 
     private var player: ExoPlayer? = null
     private var sessionId: Long = 0L
@@ -19,6 +22,15 @@ class Media3WatchAnalytics {
     private var startupTimeMs: Long? = null
 
     private var firstFrameRendered: Boolean = false
+    private val httpSender: HttpSender? = config.backendUrl?.let {
+        HttpSender(endpointUrl = it, apiKey = config.apiKey)
+    }
+
+    private val uploader: TelemetryUploader? = httpSender?.let {
+        TelemetryUploader(
+            sender = httpSender
+        )
+    }
 
     private val playbackStatsListener = PlaybackStatsListener(false) { _, _ ->
 
@@ -78,6 +90,7 @@ class Media3WatchAnalytics {
     fun detach() {
         val activePlayer = player ?: return
         val now = SystemClock.elapsedRealtime()
+        val currentSessionId = sessionId
 
         val sessionEndStats = playbackStatsListener.playbackStats
 
@@ -85,16 +98,30 @@ class Media3WatchAnalytics {
         activePlayer.removeAnalyticsListener(playbackStatsListener)
         player = null
 
-        LogUtils.logSessionEnd(
-            sessionId = sessionId,
+        val summary = LogUtils.buildSessionSummary(
+            sessionId = currentSessionId,
             sessionStartWallClockMs = sessionStartWallClockMs,
             sessionStartTs = sessionStartTs,
             now = now,
             startupTimeMs = startupTimeMs,
             sessionEndStats = sessionEndStats
         )
+        Log.d(LogUtils.TAG, summary.toPrettyLog())
 
+        if (uploader != null) {
+            val payload = summary.toJson()
+            uploader.upload(
+                sessionId = currentSessionId,
+                payload = payload
+            )
+        }
         resetSession()
+    }
+
+    @TestOnly
+    internal fun release() {
+        detach()
+        uploader?.shutdown()
     }
 
     private fun resetSession() {
@@ -104,5 +131,4 @@ class Media3WatchAnalytics {
         startupTimeMs = null
         firstFrameRendered = false
     }
-
 }

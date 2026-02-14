@@ -6,6 +6,9 @@ import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
+import kotlinx.coroutines.test.runTest
+import okhttp3.mockwebserver.MockResponse
+import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
@@ -15,7 +18,6 @@ import org.junit.runner.RunWith
 import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.mock
-import org.mockito.Mockito.`when`
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowLog
@@ -234,6 +236,46 @@ class Media3WatchAnalyticsTest {
         val endLog = lastSessionEndLog()!!
         assertMetricIsNullOrNonNegativeLong(endLog, "errorCount")
     }
+
+    @Test
+    fun detachWithBackend_followedByRelease_uploadsSessionDespiteCancellation() = runTest {
+        val server = MockWebServer()
+        server.start()
+
+        // Slow response (200ms delay) to simulate network latency
+        server.enqueue(MockResponse().setResponseCode(200).setBodyDelay(200, TimeUnit.MILLISECONDS))
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/sessions").toString(),
+            apiKey = "test-key"
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        analytics.playRequested()
+        advanceMs(100)
+        harness.emitFirstFrame()
+        analytics.detach()
+
+        // Immediately release (cancels scope) - upload should still complete
+        analytics.release()
+
+        // Wait for upload to complete (MockWebServer blocks until request arrives or timeout)
+        val request = server.takeRequest(1, TimeUnit.SECONDS)
+        assertNotNull("Request should have been sent despite immediate release()", request)
+        assertEquals("POST", request!!.method)
+        assertEquals("Bearer test-key", request.getHeader("Authorization"))
+
+        val body = request.body.readUtf8()
+        assertTrue(body.contains("\"sessionId\":1"))
+        assertTrue(body.contains("\"startupTimeMs\":100"))
+
+        server.shutdown()
+    }
+
+    // Note: Timeout behavior is tested manually/integration testing
+    // Unit testing async timeout in Robolectric proves unreliable due to thread scheduling
 
     private fun lastSessionEndLog(): String? {
         return ShadowLog.getLogsForTag(TAG)
