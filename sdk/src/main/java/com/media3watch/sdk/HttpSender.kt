@@ -37,13 +37,11 @@ internal class HttpSender(
             } else {
                 Result.failure(IOException("HTTP ${response.code}: ${response.message}"))
             }
-        } catch (e: IOException) {
-            Result.failure(e)
-        } catch (e: IllegalArgumentException) {
-            Result.failure(e)
-        } catch (e: IllegalStateException) {
-            Result.failure(e)
-        } catch (e: SecurityException) {
+        } catch (e: Exception) {
+            // Catch all exceptions to prevent crashes in fire-and-forget coroutine context.
+            // Expected exceptions: IOException (network errors), IllegalArgumentException (malformed URL),
+            // IllegalStateException (OkHttp state issues), SecurityException (permission denied).
+            // URL validation occurs at Media3WatchConfig initialization, but we catch here as a safety net.
             Result.failure(e)
         }
     }
