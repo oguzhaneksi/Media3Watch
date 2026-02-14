@@ -30,7 +30,7 @@ You ship a video app with Media3. Works great in development. Then production hi
 
 - **Android SDK**
 - **Session summary in Logcat** (plain text format, generated on session end)
-- **No backend upload yet**
+- **Optional backend upload** (HTTP POST with JSON payload)
 - **No dashboards yet**
 
 ---
@@ -79,8 +79,15 @@ To integrate the Media3Watch SDK into your Android project:
 
 2. **Initialize and attach** the analytics in your Player implementation (e.g., ViewModel):
    ```kotlin
-   // 1. Create the analytics instance
-   private val analytics = Media3WatchAnalytics()
+   // 1. Create the analytics instance (with optional backend upload)
+   private val analytics = Media3WatchAnalytics(
+       config = Media3WatchConfig(
+           backendUrl = "https://your-backend.com/api/sessions", // optional
+           apiKey = "your-api-key" // optional
+       )
+   )
+   // Or use default config for Logcat-only mode:
+   // private val analytics = Media3WatchAnalytics()
 
    fun initializePlayer() {
        player = ExoPlayer.Builder(context).build().apply {
