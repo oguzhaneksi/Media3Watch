@@ -6,19 +6,11 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
+import org.jetbrains.annotations.TestOnly
 
 @androidx.annotation.OptIn(UnstableApi::class)
 class Media3WatchAnalytics(
     private val config: Media3WatchConfig = Media3WatchConfig(),
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 ) {
 
     private var player: ExoPlayer? = null
@@ -32,6 +24,12 @@ class Media3WatchAnalytics(
     private var firstFrameRendered: Boolean = false
     private val httpSender: HttpSender? = config.backendUrl?.let {
         HttpSender(endpointUrl = it, apiKey = config.apiKey)
+    }
+
+    private val uploader: TelemetryUploader? = httpSender?.let {
+        TelemetryUploader(
+            sender = httpSender
+        )
     }
 
     private val playbackStatsListener = PlaybackStatsListener(false) { _, _ ->
@@ -110,21 +108,20 @@ class Media3WatchAnalytics(
         )
         Log.d(LogUtils.TAG, summary.toPrettyLog())
 
-        val sender = httpSender
-        if (sender != null) {
+        if (uploader != null) {
             val payload = summary.toJson()
-            scope.launch {
-                withContext(NonCancellable) {
-                    withTimeout(15_000) {
-                        sender.send(payload).onFailure {
-                            Log.w(LogUtils.TAG, "session_upload_failed sessionId=$sessionId", it)
-                        }
-                    }
-                }
-            }
+            uploader.upload(
+                sessionId = currentSessionId,
+                payload = payload
+            )
         }
-
         resetSession()
+    }
+
+    @TestOnly
+    internal fun release() {
+        detach()
+        uploader?.shutdown()
     }
 
     private fun resetSession() {

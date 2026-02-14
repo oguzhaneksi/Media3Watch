@@ -10,6 +10,7 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import com.media3watch.sdk.Media3WatchAnalytics
+import com.media3watch.sdk.Media3WatchConfig
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,7 +21,12 @@ import kotlinx.coroutines.launch
 
 class PlayerViewModel(application: Application) : AndroidViewModel(application) {
 
-    private val analytics = Media3WatchAnalytics()
+    private val analytics = Media3WatchAnalytics(
+        config = Media3WatchConfig(
+            backendUrl = "http://localhost:8081/",
+            apiKey = "asdfafafddas"
+        )
+    )
 
     var player: ExoPlayer? by mutableStateOf(null)
         private set
