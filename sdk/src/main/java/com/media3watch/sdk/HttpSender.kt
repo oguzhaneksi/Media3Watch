@@ -1,5 +1,6 @@
 package com.media3watch.sdk
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -37,7 +38,20 @@ internal class HttpSender(
                     Result.failure(IOException("HTTP ${response.code}: ${response.message}"))
                 }
             }
+        } catch (e: CancellationException) {
+            // Rethrow CancellationException to allow proper coroutine cancellation
+            throw e
         } catch (e: IOException) {
+            // Network and I/O errors
+            Result.failure(e)
+        } catch (e: IllegalArgumentException) {
+            // Malformed URL (though validated earlier in Media3WatchConfig)
+            Result.failure(e)
+        } catch (e: IllegalStateException) {
+            // OkHttp internal state issues
+            Result.failure(e)
+        } catch (e: SecurityException) {
+            // Permission denied
             Result.failure(e)
         }
     }
