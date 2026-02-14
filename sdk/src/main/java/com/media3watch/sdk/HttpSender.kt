@@ -24,7 +24,6 @@ internal class HttpSender(
 
             val requestBuilder = Request.Builder()
                 .url(endpointUrl)
-                .header("Content-Type", "application/json")
                 .post(body)
 
             if (!apiKey.isNullOrEmpty()) {
