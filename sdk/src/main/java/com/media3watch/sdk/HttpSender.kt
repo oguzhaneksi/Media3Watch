@@ -37,7 +37,7 @@ internal class HttpSender(
             } else {
                 Result.failure(IOException("HTTP ${response.code}: ${response.message}"))
             }
-        } catch (e: IOException) {
+        } catch (e: Exception) {
             Result.failure(e)
         }
     }
