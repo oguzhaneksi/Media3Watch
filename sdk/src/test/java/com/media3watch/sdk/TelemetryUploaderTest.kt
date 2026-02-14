@@ -1,7 +1,6 @@
 package com.media3watch.sdk
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
