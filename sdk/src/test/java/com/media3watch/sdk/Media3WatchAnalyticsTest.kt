@@ -262,10 +262,7 @@ class Media3WatchAnalyticsTest {
         // Immediately release (cancels scope) - upload should still complete
         analytics.release()
 
-        // Wait for upload to complete
-        advanceMs(500)
-        testScheduler.advanceUntilIdle()
-
+        // Wait for upload to complete (MockWebServer blocks until request arrives or timeout)
         val request = server.takeRequest(1, TimeUnit.SECONDS)
         assertNotNull("Request should have been sent despite immediate release()", request)
         assertEquals("POST", request!!.method)
