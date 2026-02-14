@@ -8,9 +8,12 @@ import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeout
 
 @androidx.annotation.OptIn(UnstableApi::class)
 class Media3WatchAnalytics(
@@ -111,8 +114,12 @@ class Media3WatchAnalytics(
         if (sender != null) {
             val payload = summary.toJson()
             scope.launch {
-                sender.send(payload).onFailure {
-                    Log.w(LogUtils.TAG, "session_upload_failed sessionId=$currentSessionId", it)
+                withContext(NonCancellable) {
+                    withTimeout(15_000) {
+                        sender.send(payload).onFailure {
+                            Log.w(LogUtils.TAG, "session_upload_failed sessionId=$sessionId", it)
+                        }
+                    }
                 }
             }
         }
