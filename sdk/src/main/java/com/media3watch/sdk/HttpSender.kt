@@ -19,21 +19,27 @@ internal class HttpSender(
         .build()
 
     suspend fun send(json: String): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatching {
+        try {
+            val body = json.toRequestBody(JSON_MEDIA_TYPE)
+
             val requestBuilder = Request.Builder()
                 .url(endpointUrl)
                 .header("Content-Type", "application/json")
-                .post(json.toRequestBody(JSON_MEDIA_TYPE))
+                .post(body)
 
-            if (!apiKey.isNullOrBlank()) {
-                requestBuilder.header("Authorization", "Bearer $apiKey")
+            if (!apiKey.isNullOrEmpty()) {
+                requestBuilder.addHeader("Authorization", "Bearer $apiKey")
             }
 
-            client.newCall(requestBuilder.build()).execute().use { response ->
-                if (!response.isSuccessful) {
-                    throw IOException("HTTP ${response.code}")
-                }
+            val response = client.newCall(requestBuilder.build()).execute()
+
+            if (response.isSuccessful) {
+                Result.success(Unit)
+            } else {
+                Result.failure(IOException("HTTP ${response.code}: ${response.message}"))
             }
+        } catch (e: IOException) {
+            Result.failure(e)
         }
     }
 

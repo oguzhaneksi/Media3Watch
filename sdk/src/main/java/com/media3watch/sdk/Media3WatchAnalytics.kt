@@ -120,11 +120,6 @@ class Media3WatchAnalytics(
         resetSession()
     }
 
-    fun release() {
-        detach()
-        scope.cancel()
-    }
-
     private fun resetSession() {
         sessionStartTs = 0L
         sessionStartWallClockMs = 0L
