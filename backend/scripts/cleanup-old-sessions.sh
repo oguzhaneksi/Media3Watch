@@ -27,7 +27,7 @@ echo ""
 # Count records to be deleted
 echo "Checking records to delete..."
 COUNT=$(PGPASSWORD="$DATABASE_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DATABASE_USER" -d "$DB_NAME" -t -c \
-    "SELECT COUNT(*) FROM sessions WHERE timestamp < NOW() - INTERVAL '$RETENTION_DAYS days';")
+    "SELECT COUNT(*) FROM sessions WHERE to_timestamp(timestamp / 1000.0) < NOW() - INTERVAL '$RETENTION_DAYS days';")
 
 COUNT=$(echo "$COUNT" | tr -d ' ')
 echo "Found $COUNT records older than $RETENTION_DAYS days"
@@ -49,7 +49,7 @@ fi
 # Perform deletion
 echo "Deleting old records..."
 DELETED=$(PGPASSWORD="$DATABASE_PASSWORD" psql -h "$DB_HOST" -p "$DB_PORT" -U "$DATABASE_USER" -d "$DB_NAME" -t -c \
-    "DELETE FROM sessions WHERE timestamp < NOW() - INTERVAL '$RETENTION_DAYS days' RETURNING 1;" | wc -l)
+    "DELETE FROM sessions WHERE to_timestamp(timestamp / 1000.0) < NOW() - INTERVAL '$RETENTION_DAYS days' RETURNING 1;" | wc -l)
 
 echo "Deleted $DELETED records"
 
