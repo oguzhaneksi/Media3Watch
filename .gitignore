@@ -13,3 +13,8 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Backend build artifacts
+backend/build/
+backend/bin/
+backend/.gradle/
