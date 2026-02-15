@@ -16,6 +16,7 @@ This backend exists to:
 - **Language**: Kotlin 2.3.10 (JVM 21)
 - **Framework**: Ktor 3.4.0
 - **Database**: PostgreSQL 16
+- **Visualization**: Grafana 11.4.0
 - **Migrations**: Flyway
 - **Build Tool**: Gradle (Kotlin DSL)
 
@@ -48,12 +49,12 @@ From the `backend/` directory:
 
 **Verify it's running:**
 ```bash
+# Backend Health
 curl http://localhost:8080/health
-```
+# {"status":"healthy"}
 
-Expected response:
-```json
-{"status":"healthy"}
+# Grafana Dashboard
+# Open http://localhost:3000 (admin / admin)
 ```
 
 ## 🔧 Configuration
@@ -100,6 +101,19 @@ The backend reads from environment variables. All sensitive values must be set i
 - Rotate credentials regularly
 - Use secret management tools (e.g., AWS Secrets Manager, HashiCorp Vault)
 - Never expose credentials in docker-compose.yml or commit them to git
+
+## 📊 Grafana Dashboards
+
+The stack comes with **pre-configured dashboards** automatically provisioned from local files.
+
+* **URL**: [http://localhost:3000](http://localhost:3000)
+* **Default Credentials**: `admin` / `admin`
+* **Provisioning Path**: `backend/grafana/dashboards/`
+
+### Available Dashboards:
+1. **Media3Watch Overview**: High-level metrics like Total Sessions, Startup Time, Rebuffer Ratio, and Error Rates.
+
+Changes to JSON files in `backend/grafana/dashboards/` are reflected on container restart.
 
 ## 📡 API Endpoints
 

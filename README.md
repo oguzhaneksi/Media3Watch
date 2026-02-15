@@ -2,8 +2,8 @@
 
 **Debug video sessions fast. Get a session summary in Logcat.**
 
-> Status: **Android SDK (alpha)** ✅  
-> Backend + Grafana: **planned** 🧭 (not shipped yet)
+> Status: **Android SDK (Alpha)** ✅  
+> Backend + Grafana: **Alpha** ✅
 
 ## Requirements
 
@@ -11,6 +11,7 @@
 * **Compile SDK:** 36+
 * **Java:** 11+
 * **Media3:** 1.5.0+ (ExoPlayer based)
+* **Docker:** (Optional, for Backend & Grafana)
 
 ## Why This Exists
 
@@ -31,7 +32,7 @@ You ship a video app with Media3. Works great in development. Then production hi
 - **Android SDK**
 - **Session summary in Logcat** (plain text format, generated on session end)
 - **Optional backend upload** (HTTP POST with JSON payload)
-- **No dashboards yet**
+- **Grafana Dashboards** (Visualize trends & sessions)
 
 ---
 
@@ -49,8 +50,8 @@ The SDK automatically tracks and summarizes:
 
 ## Roadmap (Planned)
 
-- Self-hostable backend (store session summaries)
-- Grafana dashboards (QoE trends + session drill-down)
+- [x] Self-hostable backend (store session summaries)
+- [x] Grafana dashboards (QoE trends + session drill-down)
 - JSON export format (file / clipboard)
 - Optional debug overlay (offline-friendly)
 
@@ -61,6 +62,7 @@ The SDK automatically tracks and summarizes:
 1. The **Android SDK** attaches to your player.
 2. It aggregates playback metrics during the session.
 3. When the session ends, it prints a **formatted summary** to **Logcat**.
+4. (Optional) It **uploads the session** to your backend for analysis.
 
 **When does a session end?**
 - Explicitly calling `analytics.detach()`
@@ -139,37 +141,45 @@ session_end
 
 ---
 
-## Testing with Local Backend
+## Backend & Grafana Setup
 
-Want to test backend uploads instead of just viewing Logcat?
+Want to visualize your sessions?
 
-**1. Start the backend:**
+**1. Start the stack:**
 ```bash
 cd backend
-docker-compose up -d
+cp .env.example .env
+docker-compose up -d --build
 ```
 
-**2. Update your SDK config** (in your app):
+**2. Access the Dashboard:**
+* Open **[http://localhost:3000](http://localhost:3000)**
+* Login: `admin` / `admin`
+* Go to **Dashboards** → **Media3Watch Overview**
+
+**3. Configure the SDK:**
+Update your `Media3WatchAnalytics` config to point to your local machine:
+
 ```kotlin
 private val analytics = Media3WatchAnalytics(
     config = Media3WatchConfig(
-        backendUrl = "http://10.0.2.2:8080/v1/sessions", // Android emulator
-        // backendUrl = "http://localhost:8080/v1/sessions", // Physical device on same network
+        backendUrl = "http://10.0.2.2:8080/v1/sessions", // Android Emulator -> Host
+        // backendUrl = "http://localhost:8080/v1/sessions", // Physical Device on same Wi-Fi
         apiKey = "dev-key"
     )
 )
 ```
 
-**3. Play a video** and check the backend received it:
-```bash
-# From backend/ directory
-docker exec -it backend-postgres-1 psql -U m3w -d media3watch -c "SELECT * FROM sessions ORDER BY created_at DESC LIMIT 5;"
-```
+**4. Verify Data Flow:**
+1. Play a video in your app.
+2. Wait for the session to end (detach or background app).
+3. Check the logs: `adb logcat -s Media3WatchAnalytics` (look for "Upload success").
+4. Refresh the Grafana dashboard to see the new data.
 
 **Cleanup:**
 ```bash
 cd backend
-docker-compose down -v  # Stops backend + deletes data
+docker-compose down -v  # Stops containers + deletes data
 ```
 
 See `backend/README.md` for full API details and troubleshooting.
