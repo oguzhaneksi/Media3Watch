@@ -33,7 +33,7 @@ fun Route.sessionsRoutes(
                 val session = call.receive<SessionSummary>()
 
                 // Validate required fields
-                if (session.sessionId.isEmpty() || session.sessionId.isBlank()) {
+                if (session.sessionId.isBlank()) {
                     call.respond(
                         HttpStatusCode.BadRequest,
                         ErrorResponse(
@@ -72,7 +72,7 @@ fun Route.sessionsRoutes(
                     return@post
                 }
                 
-                if (session.sessionStartDateIso.isEmpty() || session.sessionStartDateIso.isBlank()) {
+                if (session.sessionStartDateIso.isBlank()) {
                     call.respond(
                         HttpStatusCode.BadRequest,
                         ErrorResponse(

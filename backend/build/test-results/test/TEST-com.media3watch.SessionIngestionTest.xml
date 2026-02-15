@@ -1,97 +1,97 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.media3watch.SessionIngestionTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-02-15T10:47:09.788Z" hostname="runnervmjduv7" time="2.469">
+<testsuite name="com.media3watch.SessionIngestionTest" tests="10" skipped="0" failures="0" errors="0" timestamp="2026-02-15T10:49:04.318Z" hostname="runnervmjduv7" time="2.351">
   <properties/>
-  <testcase name="test malformed ISO date is rejected()" classname="com.media3watch.SessionIngestionTest" time="1.649"/>
-  <testcase name="test session is persisted to database()" classname="com.media3watch.SessionIngestionTest" time="0.109"/>
-  <testcase name="test multiple sessions are persisted independently()" classname="com.media3watch.SessionIngestionTest" time="0.125"/>
-  <testcase name="test zero timestamp is rejected()" classname="com.media3watch.SessionIngestionTest" time="0.081"/>
-  <testcase name="test invalid session is rejected and not persisted()" classname="com.media3watch.SessionIngestionTest" time="0.108"/>
-  <testcase name="test negative timestamp is rejected()" classname="com.media3watch.SessionIngestionTest" time="0.085"/>
-  <testcase name="test invalid ISO date format is rejected()" classname="com.media3watch.SessionIngestionTest" time="0.073"/>
-  <testcase name="test negative sessionDurationMs is rejected()" classname="com.media3watch.SessionIngestionTest" time="0.074"/>
-  <testcase name="test zero sessionDurationMs is rejected()" classname="com.media3watch.SessionIngestionTest" time="0.078"/>
-  <testcase name="test empty sessionStartDateIso is rejected()" classname="com.media3watch.SessionIngestionTest" time="0.081"/>
-  <system-out><![CDATA[2026-02-15 10:47:10,504 [DefaultDispatcher-worker-1 @call-context#3] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
-2026-02-15 10:47:10,514 [DefaultDispatcher-worker-1 @coroutine#4] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
-2026-02-15 10:47:10,531 [DefaultDispatcher-worker-1 @coroutine#4] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
-2026-02-15 10:47:10,723 [DefaultDispatcher-worker-1 @coroutine#4] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@1f537c12
-2026-02-15 10:47:10,725 [DefaultDispatcher-worker-1 @coroutine#4] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
-2026-02-15 10:47:10,725 [DefaultDispatcher-worker-1 @coroutine#4] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
-2026-02-15 10:47:11,014 [DefaultDispatcher-worker-1 @coroutine#4] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
-2026-02-15 10:47:11,112 [DefaultDispatcher-worker-1 @coroutine#4] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.037s)
-2026-02-15 10:47:11,131 [DefaultDispatcher-worker-1 @coroutine#4] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
-2026-02-15 10:47:11,139 [DefaultDispatcher-worker-1 @coroutine#4] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
-2026-02-15 10:47:11,154 [DefaultDispatcher-worker-1 @coroutine#4] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
-2026-02-15 10:47:11,290 [DefaultDispatcher-worker-1 @coroutine#4] INFO  Application - Application started successfully
-2026-02-15 10:47:11,291 [DefaultDispatcher-worker-1 @call-context#3] INFO  io.ktor.test - Application started in 0.802 seconds.
-2026-02-15 10:47:11,293 [DefaultDispatcher-worker-3 @coroutine#5] INFO  io.ktor.test - Responding at http://localhost:80
-2026-02-15 10:47:11,293 [DefaultDispatcher-worker-3 @coroutine#5] INFO  io.ktor.test - Responding at https://localhost:443
-2026-02-15 10:47:11,393 [DefaultDispatcher-worker-1 @request#3] INFO  io.ktor.test - POST /v1/sessions - 400 Bad Request (81ms)
-2026-02-15 10:47:11,444 [DefaultDispatcher-worker-1 @call-context#16] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
-2026-02-15 10:47:11,445 [DefaultDispatcher-worker-1 @coroutine#17] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
-2026-02-15 10:47:11,445 [DefaultDispatcher-worker-1 @coroutine#17] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-2 - Starting...
-2026-02-15 10:47:11,454 [DefaultDispatcher-worker-1 @coroutine#17] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-2 - Added connection org.postgresql.jdbc.PgConnection@7fbfecf0
-2026-02-15 10:47:11,455 [DefaultDispatcher-worker-1 @coroutine#17] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-2 - Start completed.
-2026-02-15 10:47:11,455 [DefaultDispatcher-worker-1 @coroutine#17] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
-2026-02-15 10:47:11,472 [DefaultDispatcher-worker-1 @coroutine#17] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
-2026-02-15 10:47:11,494 [DefaultDispatcher-worker-1 @coroutine#17] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.007s)
-2026-02-15 10:47:11,511 [DefaultDispatcher-worker-1 @coroutine#17] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
-2026-02-15 10:47:11,512 [DefaultDispatcher-worker-1 @coroutine#17] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
-2026-02-15 10:47:11,515 [DefaultDispatcher-worker-1 @coroutine#17] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
-2026-02-15 10:47:11,520 [DefaultDispatcher-worker-1 @coroutine#17] INFO  Application - Application started successfully
-2026-02-15 10:47:11,520 [DefaultDispatcher-worker-1 @call-context#16] INFO  io.ktor.test - Application started in 0.076 seconds.
-2026-02-15 10:47:11,521 [DefaultDispatcher-worker-5 @coroutine#18] INFO  io.ktor.test - Responding at http://localhost:80
-2026-02-15 10:47:11,521 [DefaultDispatcher-worker-5 @coroutine#18] INFO  io.ktor.test - Responding at https://localhost:443
-2026-02-15 10:47:11,530 [DefaultDispatcher-worker-1 @request#16] INFO  io.ktor.test - POST /v1/sessions - 200 OK (8ms)
-2026-02-15 10:47:11,555 [DefaultDispatcher-worker-6 @call-context#29] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
-2026-02-15 10:47:11,555 [DefaultDispatcher-worker-6 @coroutine#30] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
-2026-02-15 10:47:11,556 [DefaultDispatcher-worker-6 @coroutine#30] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-3 - Starting...
-2026-02-15 10:47:11,569 [DefaultDispatcher-worker-6 @coroutine#30] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-3 - Added connection org.postgresql.jdbc.PgConnection@1efc76e6
-2026-02-15 10:47:11,569 [DefaultDispatcher-worker-6 @coroutine#30] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-3 - Start completed.
-2026-02-15 10:47:11,570 [DefaultDispatcher-worker-6 @coroutine#30] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
-2026-02-15 10:47:11,586 [DefaultDispatcher-worker-6 @coroutine#30] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
-2026-02-15 10:47:11,610 [DefaultDispatcher-worker-6 @coroutine#30] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.009s)
-2026-02-15 10:47:11,631 [DefaultDispatcher-worker-6 @coroutine#30] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
-2026-02-15 10:47:11,632 [DefaultDispatcher-worker-6 @coroutine#30] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
-2026-02-15 10:47:11,635 [DefaultDispatcher-worker-6 @coroutine#30] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
-2026-02-15 10:47:11,642 [DefaultDispatcher-worker-6 @coroutine#30] INFO  Application - Application started successfully
-2026-02-15 10:47:11,642 [DefaultDispatcher-worker-6 @call-context#29] INFO  io.ktor.test - Application started in 0.088 seconds.
-2026-02-15 10:47:11,642 [DefaultDispatcher-worker-4 @coroutine#31] INFO  io.ktor.test - Responding at http://localhost:80
-2026-02-15 10:47:11,642 [DefaultDispatcher-worker-4 @coroutine#31] INFO  io.ktor.test - Responding at https://localhost:443
-2026-02-15 10:47:11,650 [DefaultDispatcher-worker-4 @request#29] INFO  io.ktor.test - POST /v1/sessions - 200 OK (7ms)
-2026-02-15 10:47:11,656 [DefaultDispatcher-worker-3 @request#39] INFO  io.ktor.test - POST /v1/sessions - 200 OK (3ms)
-2026-02-15 10:47:11,681 [DefaultDispatcher-worker-4 @call-context#47] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
-2026-02-15 10:47:11,682 [DefaultDispatcher-worker-4 @coroutine#48] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
-2026-02-15 10:47:11,682 [DefaultDispatcher-worker-4 @coroutine#48] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-4 - Starting...
-2026-02-15 10:47:11,690 [DefaultDispatcher-worker-4 @coroutine#48] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-4 - Added connection org.postgresql.jdbc.PgConnection@3a73e59e
-2026-02-15 10:47:11,691 [DefaultDispatcher-worker-4 @coroutine#48] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-4 - Start completed.
-2026-02-15 10:47:11,691 [DefaultDispatcher-worker-4 @coroutine#48] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
-2026-02-15 10:47:11,701 [DefaultDispatcher-worker-4 @coroutine#48] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
-2026-02-15 10:47:11,724 [DefaultDispatcher-worker-4 @coroutine#48] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.007s)
-2026-02-15 10:47:11,741 [DefaultDispatcher-worker-4 @coroutine#48] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
-2026-02-15 10:47:11,741 [DefaultDispatcher-worker-4 @coroutine#48] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
-2026-02-15 10:47:11,744 [DefaultDispatcher-worker-4 @coroutine#48] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
-2026-02-15 10:47:11,749 [DefaultDispatcher-worker-4 @coroutine#48] INFO  Application - Application started successfully
-2026-02-15 10:47:11,749 [DefaultDispatcher-worker-4 @call-context#47] INFO  io.ktor.test - Application started in 0.068 seconds.
-2026-02-15 10:47:11,749 [DefaultDispatcher-worker-3 @coroutine#49] INFO  io.ktor.test - Responding at http://localhost:80
-2026-02-15 10:47:11,750 [DefaultDispatcher-worker-3 @coroutine#49] INFO  io.ktor.test - Responding at https://localhost:443
-2026-02-15 10:47:11,753 [DefaultDispatcher-worker-4 @request#47] INFO  io.ktor.test - POST /v1/sessions - 400 Bad Request (3ms)
-2026-02-15 10:47:11,761 [DefaultDispatcher-worker-4 @call-context#60] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
-2026-02-15 10:47:11,761 [DefaultDispatcher-worker-4 @coroutine#61] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
-2026-02-15 10:47:11,762 [DefaultDispatcher-worker-4 @coroutine#61] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-5 - Starting...
-2026-02-15 10:47:11,770 [DefaultDispatcher-worker-4 @coroutine#61] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-5 - Added connection org.postgresql.jdbc.PgConnection@32848dc6
-2026-02-15 10:47:11,770 [DefaultDispatcher-worker-4 @coroutine#61] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-5 - Start completed.
-2026-02-15 10:47:11,770 [DefaultDispatcher-worker-4 @coroutine#61] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
-2026-02-15 10:47:11,783 [DefaultDispatcher-worker-4 @coroutine#61] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
-2026-02-15 10:47:11,812 [DefaultDispatcher-worker-4 @coroutine#61] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.007s)
-2026-02-15 10:47:11,830 [DefaultDispatcher-worker-4 @coroutine#61] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
-2026-02-15 10:47:11,831 [DefaultDispatcher-worker-4 @coroutine#61] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
-2026-02-15 10:47:11,833 [DefaultDispatcher-worker-4 @coroutine#61] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
-2026-02-15 10:47:11,838 [DefaultDispatcher-worker-4 @coroutine#61] INFO  Application - Application started successfully
-2026-02-15 10:47:11,838 [DefaultDispatcher-worker-4 @call-context#60] INFO  io.ktor.test - Application started in 0.077 seconds.
-2026-02-15 10:47:11,838 [DefaultDispatcher-worker-3 @coroutine#62] INFO  io.ktor.test - Responding at http://localhost:80
-2026-02-15 10:47:11,839 [DefaultDispatcher-worker-3 @coroutine#62] INFO  io.ktor.test - Responding at https://localhost:443
-2026-02-15 10:47:11,842 [DefaultDispatcher-worker-4 @request#60] ERROR SessionsRoutes - Error processing session request
+  <testcase name="test malformed ISO date is rejected()" classname="com.media3watch.SessionIngestionTest" time="1.519"/>
+  <testcase name="test session is persisted to database()" classname="com.media3watch.SessionIngestionTest" time="0.121"/>
+  <testcase name="test multiple sessions are persisted independently()" classname="com.media3watch.SessionIngestionTest" time="0.115"/>
+  <testcase name="test zero timestamp is rejected()" classname="com.media3watch.SessionIngestionTest" time="0.09"/>
+  <testcase name="test invalid session is rejected and not persisted()" classname="com.media3watch.SessionIngestionTest" time="0.114"/>
+  <testcase name="test negative timestamp is rejected()" classname="com.media3watch.SessionIngestionTest" time="0.084"/>
+  <testcase name="test invalid ISO date format is rejected()" classname="com.media3watch.SessionIngestionTest" time="0.074"/>
+  <testcase name="test negative sessionDurationMs is rejected()" classname="com.media3watch.SessionIngestionTest" time="0.073"/>
+  <testcase name="test zero sessionDurationMs is rejected()" classname="com.media3watch.SessionIngestionTest" time="0.073"/>
+  <testcase name="test empty sessionStartDateIso is rejected()" classname="com.media3watch.SessionIngestionTest" time="0.079"/>
+  <system-out><![CDATA[2026-02-15 10:49:04,951 [DefaultDispatcher-worker-2 @call-context#3] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
+2026-02-15 10:49:04,961 [DefaultDispatcher-worker-2 @coroutine#4] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
+2026-02-15 10:49:04,977 [DefaultDispatcher-worker-2 @coroutine#4] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Starting...
+2026-02-15 10:49:05,170 [DefaultDispatcher-worker-2 @coroutine#4] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@790ab28c
+2026-02-15 10:49:05,172 [DefaultDispatcher-worker-2 @coroutine#4] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-1 - Start completed.
+2026-02-15 10:49:05,172 [DefaultDispatcher-worker-2 @coroutine#4] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
+2026-02-15 10:49:05,416 [DefaultDispatcher-worker-2 @coroutine#4] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
+2026-02-15 10:49:05,500 [DefaultDispatcher-worker-2 @coroutine#4] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.031s)
+2026-02-15 10:49:05,517 [DefaultDispatcher-worker-2 @coroutine#4] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
+2026-02-15 10:49:05,520 [DefaultDispatcher-worker-2 @coroutine#4] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2026-02-15 10:49:05,534 [DefaultDispatcher-worker-2 @coroutine#4] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
+2026-02-15 10:49:05,670 [DefaultDispatcher-worker-2 @coroutine#4] INFO  Application - Application started successfully
+2026-02-15 10:49:05,672 [DefaultDispatcher-worker-2 @call-context#3] INFO  io.ktor.test - Application started in 0.732 seconds.
+2026-02-15 10:49:05,674 [DefaultDispatcher-worker-3 @coroutine#5] INFO  io.ktor.test - Responding at http://localhost:80
+2026-02-15 10:49:05,675 [DefaultDispatcher-worker-3 @coroutine#5] INFO  io.ktor.test - Responding at https://localhost:443
+2026-02-15 10:49:05,785 [DefaultDispatcher-worker-1 @request#3] INFO  io.ktor.test - POST /v1/sessions - 400 Bad Request (88ms)
+2026-02-15 10:49:05,845 [DefaultDispatcher-worker-3 @call-context#16] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
+2026-02-15 10:49:05,846 [DefaultDispatcher-worker-3 @coroutine#17] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
+2026-02-15 10:49:05,847 [DefaultDispatcher-worker-3 @coroutine#17] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-2 - Starting...
+2026-02-15 10:49:05,856 [DefaultDispatcher-worker-3 @coroutine#17] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-2 - Added connection org.postgresql.jdbc.PgConnection@a7d2039
+2026-02-15 10:49:05,857 [DefaultDispatcher-worker-3 @coroutine#17] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-2 - Start completed.
+2026-02-15 10:49:05,857 [DefaultDispatcher-worker-3 @coroutine#17] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
+2026-02-15 10:49:05,873 [DefaultDispatcher-worker-3 @coroutine#17] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
+2026-02-15 10:49:05,896 [DefaultDispatcher-worker-3 @coroutine#17] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.007s)
+2026-02-15 10:49:05,918 [DefaultDispatcher-worker-3 @coroutine#17] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
+2026-02-15 10:49:05,919 [DefaultDispatcher-worker-3 @coroutine#17] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2026-02-15 10:49:05,922 [DefaultDispatcher-worker-3 @coroutine#17] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
+2026-02-15 10:49:05,928 [DefaultDispatcher-worker-3 @coroutine#17] INFO  Application - Application started successfully
+2026-02-15 10:49:05,929 [DefaultDispatcher-worker-3 @call-context#16] INFO  io.ktor.test - Application started in 0.084 seconds.
+2026-02-15 10:49:05,929 [DefaultDispatcher-worker-4 @coroutine#18] INFO  io.ktor.test - Responding at http://localhost:80
+2026-02-15 10:49:05,930 [DefaultDispatcher-worker-4 @coroutine#18] INFO  io.ktor.test - Responding at https://localhost:443
+2026-02-15 10:49:05,939 [DefaultDispatcher-worker-3 @request#16] INFO  io.ktor.test - POST /v1/sessions - 200 OK (9ms)
+2026-02-15 10:49:05,969 [DefaultDispatcher-worker-5 @call-context#29] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
+2026-02-15 10:49:05,970 [DefaultDispatcher-worker-5 @coroutine#30] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
+2026-02-15 10:49:05,970 [DefaultDispatcher-worker-5 @coroutine#30] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-3 - Starting...
+2026-02-15 10:49:05,980 [DefaultDispatcher-worker-5 @coroutine#30] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-3 - Added connection org.postgresql.jdbc.PgConnection@7b9092fb
+2026-02-15 10:49:05,981 [DefaultDispatcher-worker-5 @coroutine#30] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-3 - Start completed.
+2026-02-15 10:49:05,981 [DefaultDispatcher-worker-5 @coroutine#30] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
+2026-02-15 10:49:05,995 [DefaultDispatcher-worker-5 @coroutine#30] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
+2026-02-15 10:49:06,018 [DefaultDispatcher-worker-5 @coroutine#30] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.007s)
+2026-02-15 10:49:06,036 [DefaultDispatcher-worker-5 @coroutine#30] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
+2026-02-15 10:49:06,037 [DefaultDispatcher-worker-5 @coroutine#30] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2026-02-15 10:49:06,039 [DefaultDispatcher-worker-5 @coroutine#30] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
+2026-02-15 10:49:06,046 [DefaultDispatcher-worker-5 @coroutine#30] INFO  Application - Application started successfully
+2026-02-15 10:49:06,046 [DefaultDispatcher-worker-5 @call-context#29] INFO  io.ktor.test - Application started in 0.078 seconds.
+2026-02-15 10:49:06,046 [DefaultDispatcher-worker-6 @coroutine#31] INFO  io.ktor.test - Responding at http://localhost:80
+2026-02-15 10:49:06,047 [DefaultDispatcher-worker-6 @coroutine#31] INFO  io.ktor.test - Responding at https://localhost:443
+2026-02-15 10:49:06,054 [DefaultDispatcher-worker-3 @request#29] INFO  io.ktor.test - POST /v1/sessions - 200 OK (6ms)
+2026-02-15 10:49:06,060 [DefaultDispatcher-worker-4 @request#39] INFO  io.ktor.test - POST /v1/sessions - 200 OK (3ms)
+2026-02-15 10:49:06,081 [DefaultDispatcher-worker-7 @call-context#47] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
+2026-02-15 10:49:06,081 [DefaultDispatcher-worker-7 @coroutine#48] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
+2026-02-15 10:49:06,082 [DefaultDispatcher-worker-7 @coroutine#48] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-4 - Starting...
+2026-02-15 10:49:06,093 [DefaultDispatcher-worker-7 @coroutine#48] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-4 - Added connection org.postgresql.jdbc.PgConnection@766e62
+2026-02-15 10:49:06,093 [DefaultDispatcher-worker-7 @coroutine#48] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-4 - Start completed.
+2026-02-15 10:49:06,093 [DefaultDispatcher-worker-7 @coroutine#48] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
+2026-02-15 10:49:06,108 [DefaultDispatcher-worker-7 @coroutine#48] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
+2026-02-15 10:49:06,132 [DefaultDispatcher-worker-7 @coroutine#48] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.008s)
+2026-02-15 10:49:06,149 [DefaultDispatcher-worker-7 @coroutine#48] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
+2026-02-15 10:49:06,149 [DefaultDispatcher-worker-7 @coroutine#48] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2026-02-15 10:49:06,152 [DefaultDispatcher-worker-7 @coroutine#48] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
+2026-02-15 10:49:06,157 [DefaultDispatcher-worker-7 @coroutine#48] INFO  Application - Application started successfully
+2026-02-15 10:49:06,158 [DefaultDispatcher-worker-7 @call-context#47] INFO  io.ktor.test - Application started in 0.078 seconds.
+2026-02-15 10:49:06,158 [DefaultDispatcher-worker-4 @coroutine#49] INFO  io.ktor.test - Responding at http://localhost:80
+2026-02-15 10:49:06,158 [DefaultDispatcher-worker-4 @coroutine#49] INFO  io.ktor.test - Responding at https://localhost:443
+2026-02-15 10:49:06,161 [DefaultDispatcher-worker-7 @request#47] INFO  io.ktor.test - POST /v1/sessions - 400 Bad Request (2ms)
+2026-02-15 10:49:06,173 [DefaultDispatcher-worker-6 @call-context#60] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
+2026-02-15 10:49:06,173 [DefaultDispatcher-worker-6 @coroutine#61] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
+2026-02-15 10:49:06,174 [DefaultDispatcher-worker-6 @coroutine#61] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-5 - Starting...
+2026-02-15 10:49:06,182 [DefaultDispatcher-worker-6 @coroutine#61] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-5 - Added connection org.postgresql.jdbc.PgConnection@7315664e
+2026-02-15 10:49:06,183 [DefaultDispatcher-worker-6 @coroutine#61] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-5 - Start completed.
+2026-02-15 10:49:06,183 [DefaultDispatcher-worker-6 @coroutine#61] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
+2026-02-15 10:49:06,195 [DefaultDispatcher-worker-6 @coroutine#61] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
+2026-02-15 10:49:06,227 [DefaultDispatcher-worker-6 @coroutine#61] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.007s)
+2026-02-15 10:49:06,246 [DefaultDispatcher-worker-6 @coroutine#61] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
+2026-02-15 10:49:06,246 [DefaultDispatcher-worker-6 @coroutine#61] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2026-02-15 10:49:06,249 [DefaultDispatcher-worker-6 @coroutine#61] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
+2026-02-15 10:49:06,252 [DefaultDispatcher-worker-6 @coroutine#61] INFO  Application - Application started successfully
+2026-02-15 10:49:06,253 [DefaultDispatcher-worker-6 @call-context#60] INFO  io.ktor.test - Application started in 0.082 seconds.
+2026-02-15 10:49:06,253 [DefaultDispatcher-worker-5 @coroutine#62] INFO  io.ktor.test - Responding at http://localhost:80
+2026-02-15 10:49:06,253 [DefaultDispatcher-worker-5 @coroutine#62] INFO  io.ktor.test - Responding at https://localhost:443
+2026-02-15 10:49:06,256 [DefaultDispatcher-worker-6 @request#60] ERROR SessionsRoutes - Error processing session request
 io.ktor.server.plugins.BadRequestException: Failed to convert request body to class com.media3watch.domain.SessionSummary
 	at io.ktor.server.plugins.contentnegotiation.RequestConverterKt.convertBody(RequestConverter.kt:69)
 	at io.ktor.server.plugins.contentnegotiation.RequestConverterKt.access$convertBody(RequestConverter.kt:1)
@@ -234,87 +234,87 @@ Caused by: kotlinx.serialization.MissingFieldException: Fields [timestamp, sessi
 	at com.media3watch.domain.SessionSummary$$serializer.deserialize(SessionSummary.kt:5)
 	at kotlinx.serialization.json.internal.StreamingJsonDecoder.decodeSerializableValue(StreamingJsonDecoder.kt:69)
 	... 127 common frames omitted
-2026-02-15 10:47:11,849 [DefaultDispatcher-worker-4 @request#60] INFO  io.ktor.test - POST /v1/sessions - 400 Bad Request (9ms)
-2026-02-15 10:47:11,869 [DefaultDispatcher-worker-2 @call-context#73] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
-2026-02-15 10:47:11,869 [DefaultDispatcher-worker-2 @coroutine#74] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
-2026-02-15 10:47:11,870 [DefaultDispatcher-worker-2 @coroutine#74] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-6 - Starting...
-2026-02-15 10:47:11,881 [DefaultDispatcher-worker-2 @coroutine#74] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-6 - Added connection org.postgresql.jdbc.PgConnection@2350b3d1
-2026-02-15 10:47:11,881 [DefaultDispatcher-worker-2 @coroutine#74] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-6 - Start completed.
-2026-02-15 10:47:11,881 [DefaultDispatcher-worker-2 @coroutine#74] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
-2026-02-15 10:47:11,893 [DefaultDispatcher-worker-2 @coroutine#74] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
-2026-02-15 10:47:11,918 [DefaultDispatcher-worker-2 @coroutine#74] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.009s)
-2026-02-15 10:47:11,936 [DefaultDispatcher-worker-2 @coroutine#74] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
-2026-02-15 10:47:11,936 [DefaultDispatcher-worker-2 @coroutine#74] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
-2026-02-15 10:47:11,939 [DefaultDispatcher-worker-2 @coroutine#74] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
-2026-02-15 10:47:11,944 [DefaultDispatcher-worker-2 @coroutine#74] INFO  Application - Application started successfully
-2026-02-15 10:47:11,944 [DefaultDispatcher-worker-2 @call-context#73] INFO  io.ktor.test - Application started in 0.075 seconds.
-2026-02-15 10:47:11,944 [DefaultDispatcher-worker-6 @coroutine#75] INFO  io.ktor.test - Responding at http://localhost:80
-2026-02-15 10:47:11,944 [DefaultDispatcher-worker-6 @coroutine#75] INFO  io.ktor.test - Responding at https://localhost:443
-2026-02-15 10:47:11,947 [DefaultDispatcher-worker-2 @request#73] INFO  io.ktor.test - POST /v1/sessions - 400 Bad Request (2ms)
-2026-02-15 10:47:11,955 [DefaultDispatcher-worker-6 @call-context#86] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
-2026-02-15 10:47:11,956 [DefaultDispatcher-worker-6 @coroutine#87] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
-2026-02-15 10:47:11,956 [DefaultDispatcher-worker-6 @coroutine#87] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-7 - Starting...
-2026-02-15 10:47:11,964 [DefaultDispatcher-worker-6 @coroutine#87] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-7 - Added connection org.postgresql.jdbc.PgConnection@34d74cf3
-2026-02-15 10:47:11,964 [DefaultDispatcher-worker-6 @coroutine#87] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-7 - Start completed.
-2026-02-15 10:47:11,964 [DefaultDispatcher-worker-6 @coroutine#87] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
-2026-02-15 10:47:11,975 [DefaultDispatcher-worker-6 @coroutine#87] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
-2026-02-15 10:47:11,996 [DefaultDispatcher-worker-6 @coroutine#87] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.006s)
-2026-02-15 10:47:12,011 [DefaultDispatcher-worker-6 @coroutine#87] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
-2026-02-15 10:47:12,011 [DefaultDispatcher-worker-6 @coroutine#87] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
-2026-02-15 10:47:12,014 [DefaultDispatcher-worker-6 @coroutine#87] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
-2026-02-15 10:47:12,017 [DefaultDispatcher-worker-6 @coroutine#87] INFO  Application - Application started successfully
-2026-02-15 10:47:12,017 [DefaultDispatcher-worker-6 @call-context#86] INFO  io.ktor.test - Application started in 0.062 seconds.
-2026-02-15 10:47:12,018 [DefaultDispatcher-worker-3 @coroutine#88] INFO  io.ktor.test - Responding at http://localhost:80
-2026-02-15 10:47:12,018 [DefaultDispatcher-worker-3 @coroutine#88] INFO  io.ktor.test - Responding at https://localhost:443
-2026-02-15 10:47:12,020 [DefaultDispatcher-worker-6 @request#86] INFO  io.ktor.test - POST /v1/sessions - 400 Bad Request (2ms)
-2026-02-15 10:47:12,028 [DefaultDispatcher-worker-3 @call-context#99] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
-2026-02-15 10:47:12,029 [DefaultDispatcher-worker-3 @coroutine#100] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
-2026-02-15 10:47:12,029 [DefaultDispatcher-worker-3 @coroutine#100] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-8 - Starting...
-2026-02-15 10:47:12,037 [DefaultDispatcher-worker-3 @coroutine#100] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-8 - Added connection org.postgresql.jdbc.PgConnection@3b702246
-2026-02-15 10:47:12,037 [DefaultDispatcher-worker-3 @coroutine#100] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-8 - Start completed.
-2026-02-15 10:47:12,037 [DefaultDispatcher-worker-3 @coroutine#100] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
-2026-02-15 10:47:12,048 [DefaultDispatcher-worker-3 @coroutine#100] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
-2026-02-15 10:47:12,068 [DefaultDispatcher-worker-3 @coroutine#100] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.007s)
-2026-02-15 10:47:12,084 [DefaultDispatcher-worker-3 @coroutine#100] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
-2026-02-15 10:47:12,085 [DefaultDispatcher-worker-3 @coroutine#100] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
-2026-02-15 10:47:12,088 [DefaultDispatcher-worker-3 @coroutine#100] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
-2026-02-15 10:47:12,091 [DefaultDispatcher-worker-3 @coroutine#100] INFO  Application - Application started successfully
-2026-02-15 10:47:12,092 [DefaultDispatcher-worker-3 @call-context#99] INFO  io.ktor.test - Application started in 0.064 seconds.
-2026-02-15 10:47:12,092 [DefaultDispatcher-worker-6 @coroutine#101] INFO  io.ktor.test - Responding at http://localhost:80
-2026-02-15 10:47:12,092 [DefaultDispatcher-worker-6 @coroutine#101] INFO  io.ktor.test - Responding at https://localhost:443
-2026-02-15 10:47:12,095 [DefaultDispatcher-worker-3 @request#99] INFO  io.ktor.test - POST /v1/sessions - 400 Bad Request (2ms)
-2026-02-15 10:47:12,101 [DefaultDispatcher-worker-1 @call-context#112] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
-2026-02-15 10:47:12,102 [DefaultDispatcher-worker-1 @coroutine#113] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
-2026-02-15 10:47:12,102 [DefaultDispatcher-worker-1 @coroutine#113] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-9 - Starting...
-2026-02-15 10:47:12,111 [DefaultDispatcher-worker-1 @coroutine#113] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-9 - Added connection org.postgresql.jdbc.PgConnection@55440b43
-2026-02-15 10:47:12,112 [DefaultDispatcher-worker-1 @coroutine#113] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-9 - Start completed.
-2026-02-15 10:47:12,112 [DefaultDispatcher-worker-1 @coroutine#113] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
-2026-02-15 10:47:12,123 [DefaultDispatcher-worker-1 @coroutine#113] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
-2026-02-15 10:47:12,146 [DefaultDispatcher-worker-1 @coroutine#113] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.009s)
-2026-02-15 10:47:12,165 [DefaultDispatcher-worker-1 @coroutine#113] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
-2026-02-15 10:47:12,165 [DefaultDispatcher-worker-1 @coroutine#113] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
-2026-02-15 10:47:12,168 [DefaultDispatcher-worker-1 @coroutine#113] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
-2026-02-15 10:47:12,170 [DefaultDispatcher-worker-1 @coroutine#113] INFO  Application - Application started successfully
-2026-02-15 10:47:12,171 [DefaultDispatcher-worker-1 @call-context#112] INFO  io.ktor.test - Application started in 0.07 seconds.
-2026-02-15 10:47:12,171 [DefaultDispatcher-worker-3 @coroutine#114] INFO  io.ktor.test - Responding at http://localhost:80
-2026-02-15 10:47:12,171 [DefaultDispatcher-worker-3 @coroutine#114] INFO  io.ktor.test - Responding at https://localhost:443
-2026-02-15 10:47:12,173 [DefaultDispatcher-worker-1 @request#112] INFO  io.ktor.test - POST /v1/sessions - 400 Bad Request (1ms)
-2026-02-15 10:47:12,180 [DefaultDispatcher-worker-3 @call-context#125] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
-2026-02-15 10:47:12,181 [DefaultDispatcher-worker-3 @coroutine#126] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
-2026-02-15 10:47:12,181 [DefaultDispatcher-worker-3 @coroutine#126] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-10 - Starting...
-2026-02-15 10:47:12,190 [DefaultDispatcher-worker-3 @coroutine#126] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-10 - Added connection org.postgresql.jdbc.PgConnection@21ea21e0
-2026-02-15 10:47:12,191 [DefaultDispatcher-worker-3 @coroutine#126] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-10 - Start completed.
-2026-02-15 10:47:12,191 [DefaultDispatcher-worker-3 @coroutine#126] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
-2026-02-15 10:47:12,201 [DefaultDispatcher-worker-3 @coroutine#126] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
-2026-02-15 10:47:12,223 [DefaultDispatcher-worker-3 @coroutine#126] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.008s)
-2026-02-15 10:47:12,241 [DefaultDispatcher-worker-3 @coroutine#126] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
-2026-02-15 10:47:12,242 [DefaultDispatcher-worker-3 @coroutine#126] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
-2026-02-15 10:47:12,244 [DefaultDispatcher-worker-3 @coroutine#126] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
-2026-02-15 10:47:12,248 [DefaultDispatcher-worker-3 @coroutine#126] INFO  Application - Application started successfully
-2026-02-15 10:47:12,249 [DefaultDispatcher-worker-3 @call-context#125] INFO  io.ktor.test - Application started in 0.069 seconds.
-2026-02-15 10:47:12,249 [DefaultDispatcher-worker-2 @coroutine#127] INFO  io.ktor.test - Responding at http://localhost:80
-2026-02-15 10:47:12,249 [DefaultDispatcher-worker-2 @coroutine#127] INFO  io.ktor.test - Responding at https://localhost:443
-2026-02-15 10:47:12,252 [DefaultDispatcher-worker-3 @request#125] INFO  io.ktor.test - POST /v1/sessions - 400 Bad Request (2ms)
+2026-02-15 10:49:06,264 [DefaultDispatcher-worker-6 @request#60] INFO  io.ktor.test - POST /v1/sessions - 400 Bad Request (10ms)
+2026-02-15 10:49:06,286 [DefaultDispatcher-worker-6 @call-context#73] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
+2026-02-15 10:49:06,287 [DefaultDispatcher-worker-6 @coroutine#74] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
+2026-02-15 10:49:06,288 [DefaultDispatcher-worker-6 @coroutine#74] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-6 - Starting...
+2026-02-15 10:49:06,295 [DefaultDispatcher-worker-6 @coroutine#74] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-6 - Added connection org.postgresql.jdbc.PgConnection@72e790c3
+2026-02-15 10:49:06,295 [DefaultDispatcher-worker-6 @coroutine#74] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-6 - Start completed.
+2026-02-15 10:49:06,295 [DefaultDispatcher-worker-6 @coroutine#74] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
+2026-02-15 10:49:06,309 [DefaultDispatcher-worker-6 @coroutine#74] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
+2026-02-15 10:49:06,333 [DefaultDispatcher-worker-6 @coroutine#74] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.008s)
+2026-02-15 10:49:06,353 [DefaultDispatcher-worker-6 @coroutine#74] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
+2026-02-15 10:49:06,354 [DefaultDispatcher-worker-6 @coroutine#74] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2026-02-15 10:49:06,357 [DefaultDispatcher-worker-6 @coroutine#74] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
+2026-02-15 10:49:06,360 [DefaultDispatcher-worker-6 @coroutine#74] INFO  Application - Application started successfully
+2026-02-15 10:49:06,360 [DefaultDispatcher-worker-6 @call-context#73] INFO  io.ktor.test - Application started in 0.074 seconds.
+2026-02-15 10:49:06,360 [DefaultDispatcher-worker-5 @coroutine#75] INFO  io.ktor.test - Responding at http://localhost:80
+2026-02-15 10:49:06,360 [DefaultDispatcher-worker-5 @coroutine#75] INFO  io.ktor.test - Responding at https://localhost:443
+2026-02-15 10:49:06,363 [DefaultDispatcher-worker-3 @request#73] INFO  io.ktor.test - POST /v1/sessions - 400 Bad Request (2ms)
+2026-02-15 10:49:06,372 [DefaultDispatcher-worker-3 @call-context#86] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
+2026-02-15 10:49:06,372 [DefaultDispatcher-worker-3 @coroutine#87] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
+2026-02-15 10:49:06,373 [DefaultDispatcher-worker-3 @coroutine#87] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-7 - Starting...
+2026-02-15 10:49:06,381 [DefaultDispatcher-worker-3 @coroutine#87] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-7 - Added connection org.postgresql.jdbc.PgConnection@41a6c2ff
+2026-02-15 10:49:06,381 [DefaultDispatcher-worker-3 @coroutine#87] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-7 - Start completed.
+2026-02-15 10:49:06,381 [DefaultDispatcher-worker-3 @coroutine#87] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
+2026-02-15 10:49:06,392 [DefaultDispatcher-worker-3 @coroutine#87] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
+2026-02-15 10:49:06,412 [DefaultDispatcher-worker-3 @coroutine#87] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.006s)
+2026-02-15 10:49:06,427 [DefaultDispatcher-worker-3 @coroutine#87] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
+2026-02-15 10:49:06,428 [DefaultDispatcher-worker-3 @coroutine#87] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2026-02-15 10:49:06,430 [DefaultDispatcher-worker-3 @coroutine#87] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
+2026-02-15 10:49:06,433 [DefaultDispatcher-worker-3 @coroutine#87] INFO  Application - Application started successfully
+2026-02-15 10:49:06,434 [DefaultDispatcher-worker-3 @call-context#86] INFO  io.ktor.test - Application started in 0.062 seconds.
+2026-02-15 10:49:06,434 [DefaultDispatcher-worker-1 @coroutine#88] INFO  io.ktor.test - Responding at http://localhost:80
+2026-02-15 10:49:06,434 [DefaultDispatcher-worker-1 @coroutine#88] INFO  io.ktor.test - Responding at https://localhost:443
+2026-02-15 10:49:06,439 [DefaultDispatcher-worker-3 @request#86] INFO  io.ktor.test - POST /v1/sessions - 400 Bad Request (4ms)
+2026-02-15 10:49:06,446 [DefaultDispatcher-worker-1 @call-context#99] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
+2026-02-15 10:49:06,446 [DefaultDispatcher-worker-1 @coroutine#100] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
+2026-02-15 10:49:06,446 [DefaultDispatcher-worker-1 @coroutine#100] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-8 - Starting...
+2026-02-15 10:49:06,454 [DefaultDispatcher-worker-1 @coroutine#100] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-8 - Added connection org.postgresql.jdbc.PgConnection@6040b2dc
+2026-02-15 10:49:06,455 [DefaultDispatcher-worker-1 @coroutine#100] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-8 - Start completed.
+2026-02-15 10:49:06,455 [DefaultDispatcher-worker-1 @coroutine#100] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
+2026-02-15 10:49:06,464 [DefaultDispatcher-worker-1 @coroutine#100] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
+2026-02-15 10:49:06,485 [DefaultDispatcher-worker-1 @coroutine#100] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.006s)
+2026-02-15 10:49:06,503 [DefaultDispatcher-worker-1 @coroutine#100] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
+2026-02-15 10:49:06,503 [DefaultDispatcher-worker-1 @coroutine#100] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2026-02-15 10:49:06,506 [DefaultDispatcher-worker-1 @coroutine#100] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
+2026-02-15 10:49:06,510 [DefaultDispatcher-worker-1 @coroutine#100] INFO  Application - Application started successfully
+2026-02-15 10:49:06,510 [DefaultDispatcher-worker-1 @call-context#99] INFO  io.ktor.test - Application started in 0.065 seconds.
+2026-02-15 10:49:06,511 [DefaultDispatcher-worker-4 @coroutine#101] INFO  io.ktor.test - Responding at http://localhost:80
+2026-02-15 10:49:06,511 [DefaultDispatcher-worker-4 @coroutine#101] INFO  io.ktor.test - Responding at https://localhost:443
+2026-02-15 10:49:06,513 [DefaultDispatcher-worker-1 @request#99] INFO  io.ktor.test - POST /v1/sessions - 400 Bad Request (2ms)
+2026-02-15 10:49:06,520 [DefaultDispatcher-worker-4 @call-context#112] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
+2026-02-15 10:49:06,521 [DefaultDispatcher-worker-4 @coroutine#113] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
+2026-02-15 10:49:06,521 [DefaultDispatcher-worker-4 @coroutine#113] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-9 - Starting...
+2026-02-15 10:49:06,529 [DefaultDispatcher-worker-4 @coroutine#113] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-9 - Added connection org.postgresql.jdbc.PgConnection@2e8590e3
+2026-02-15 10:49:06,529 [DefaultDispatcher-worker-4 @coroutine#113] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-9 - Start completed.
+2026-02-15 10:49:06,529 [DefaultDispatcher-worker-4 @coroutine#113] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
+2026-02-15 10:49:06,540 [DefaultDispatcher-worker-4 @coroutine#113] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
+2026-02-15 10:49:06,561 [DefaultDispatcher-worker-4 @coroutine#113] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.009s)
+2026-02-15 10:49:06,577 [DefaultDispatcher-worker-4 @coroutine#113] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
+2026-02-15 10:49:06,578 [DefaultDispatcher-worker-4 @coroutine#113] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2026-02-15 10:49:06,580 [DefaultDispatcher-worker-4 @coroutine#113] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
+2026-02-15 10:49:06,583 [DefaultDispatcher-worker-4 @coroutine#113] INFO  Application - Application started successfully
+2026-02-15 10:49:06,584 [DefaultDispatcher-worker-4 @call-context#112] INFO  io.ktor.test - Application started in 0.064 seconds.
+2026-02-15 10:49:06,584 [DefaultDispatcher-worker-6 @coroutine#114] INFO  io.ktor.test - Responding at http://localhost:80
+2026-02-15 10:49:06,584 [DefaultDispatcher-worker-6 @coroutine#114] INFO  io.ktor.test - Responding at https://localhost:443
+2026-02-15 10:49:06,586 [DefaultDispatcher-worker-4 @request#112] INFO  io.ktor.test - POST /v1/sessions - 400 Bad Request (1ms)
+2026-02-15 10:49:06,594 [DefaultDispatcher-worker-1 @call-context#125] INFO  io.ktor.test - No ktor.deployment.watch patterns specified, automatic reload is not active.
+2026-02-15 10:49:06,594 [DefaultDispatcher-worker-1 @coroutine#126] INFO  com.media3watch.db.DatabaseFactory - Initializing HikariCP connection pool
+2026-02-15 10:49:06,594 [DefaultDispatcher-worker-1 @coroutine#126] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-10 - Starting...
+2026-02-15 10:49:06,603 [DefaultDispatcher-worker-1 @coroutine#126] INFO  com.zaxxer.hikari.pool.HikariPool - HikariPool-10 - Added connection org.postgresql.jdbc.PgConnection@65f6dfe7
+2026-02-15 10:49:06,603 [DefaultDispatcher-worker-1 @coroutine#126] INFO  com.zaxxer.hikari.HikariDataSource - HikariPool-10 - Start completed.
+2026-02-15 10:49:06,603 [DefaultDispatcher-worker-1 @coroutine#126] INFO  com.media3watch.db.DatabaseFactory - Running Flyway database migrations
+2026-02-15 10:49:06,615 [DefaultDispatcher-worker-1 @coroutine#126] INFO  org.flywaydb.core.FlywayExecutor - Database: jdbc:postgresql://localhost:5433/media3watch (PostgreSQL 16.12)
+2026-02-15 10:49:06,640 [DefaultDispatcher-worker-1 @coroutine#126] INFO  o.f.core.internal.command.DbValidate - Successfully validated 2 migrations (execution time 00:00.010s)
+2026-02-15 10:49:06,656 [DefaultDispatcher-worker-1 @coroutine#126] INFO  o.f.core.internal.command.DbMigrate - Current version of schema "public": 2
+2026-02-15 10:49:06,657 [DefaultDispatcher-worker-1 @coroutine#126] INFO  o.f.core.internal.command.DbMigrate - Schema "public" is up to date. No migration necessary.
+2026-02-15 10:49:06,660 [DefaultDispatcher-worker-1 @coroutine#126] INFO  com.media3watch.db.DatabaseFactory - Applied 0 migrations successfully
+2026-02-15 10:49:06,663 [DefaultDispatcher-worker-1 @coroutine#126] INFO  Application - Application started successfully
+2026-02-15 10:49:06,663 [DefaultDispatcher-worker-1 @call-context#125] INFO  io.ktor.test - Application started in 0.07 seconds.
+2026-02-15 10:49:06,663 [DefaultDispatcher-worker-6 @coroutine#127] INFO  io.ktor.test - Responding at http://localhost:80
+2026-02-15 10:49:06,664 [DefaultDispatcher-worker-6 @coroutine#127] INFO  io.ktor.test - Responding at https://localhost:443
+2026-02-15 10:49:06,666 [DefaultDispatcher-worker-1 @request#125] INFO  io.ktor.test - POST /v1/sessions - 400 Bad Request (2ms)
 ]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>
