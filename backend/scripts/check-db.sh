@@ -1,7 +1,7 @@
 #!/bin/bash
-# PostgreSQL veritabanındaki session verilerini kontrol eder
+# Checks session data in PostgreSQL database
 
-echo "🔍 Sessions tablosundaki verileri kontrol ediliyor..."
+echo "🔍 Checking data in sessions table..."
 echo ""
 
 docker exec -it m3w-postgres psql -U m3w -d media3watch -c "
@@ -18,5 +18,5 @@ LIMIT 10;
 "
 
 echo ""
-echo "📊 Toplam session sayısı:"
+echo "📊 Total session count:"
 docker exec -it m3w-postgres psql -U m3w -d media3watch -c "SELECT COUNT(*) FROM sessions;"
