@@ -33,13 +33,13 @@ fun Route.sessionsRoutes(
                 val session = call.receive<SessionSummary>()
 
                 // Validate required fields
-                if (session.sessionId.isBlank()) {
+                if (session.sessionId.isEmpty() || session.sessionId.isBlank()) {
                     call.respond(
                         HttpStatusCode.BadRequest,
                         ErrorResponse(
                             ErrorDetail(
                                 code = ErrorCodes.INVALID_SCHEMA,
-                                message = "Missing required field: sessionId"
+                                message = "Missing or empty required field: sessionId"
                             )
                         )
                     )

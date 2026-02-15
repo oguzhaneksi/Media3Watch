@@ -6,13 +6,16 @@ import kotlinx.serialization.Serializable
 data class SessionSummary(
     val sessionId: String,
     val timestamp: Long,
-    val schemaVersion: Int = 1,
-    val contentId: String? = null,
-    val streamType: String? = null,
-    val playerStartupMs: Int? = null,
-    val rebufferTimeMs: Int? = null,
+    val sessionStartDateIso: String,
+    val sessionDurationMs: Long,
+    val startupTimeMs: Long? = null,
+    val rebufferTimeMs: Long? = null,
     val rebufferCount: Int? = null,
-    val errorCount: Int? = null,
-    val payload: String? = null // Raw JSON payload
+    val playTimeMs: Long? = null,
+    val rebufferRatio: Float? = null,
+    val totalDroppedFrames: Long? = null,
+    val totalSeekCount: Int? = null,
+    val totalSeekTimeMs: Long? = null,
+    val meanVideoFormatBitrate: Int? = null,
+    val errorCount: Int? = null
 )
-

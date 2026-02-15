@@ -1,5 +1,8 @@
 package com.media3watch.security
 
+import com.media3watch.observability.ErrorCodes
+import com.media3watch.observability.ErrorDetail
+import com.media3watch.observability.ErrorResponse
 import io.ktor.http.*
 import io.ktor.server.auth.*
 import io.ktor.server.response.*
@@ -25,13 +28,15 @@ class ApiKeyAuthenticationProvider internal constructor(
             context.principal(ApiKeyPrincipal(apiKey))
         } else {
             context.challenge("ApiKeyAuth", AuthenticationFailedCause.InvalidCredentials) { challenge, call ->
-                call.respond(HttpStatusCode.Unauthorized, mapOf(
-                    "error" to mapOf(
-                        "code" to "INVALID_API_KEY",
-                        "message" to "Invalid or missing API Key",
-                        "timestamp" to System.currentTimeMillis()
+                call.respond(
+                    HttpStatusCode.Unauthorized,
+                    ErrorResponse(
+                        ErrorDetail(
+                            code = ErrorCodes.INVALID_API_KEY,
+                            message = "Invalid or missing API Key"
+                        )
                     )
-                ))
+                )
                 challenge.complete()
             }
         }
@@ -45,5 +50,4 @@ fun AuthenticationConfig.apiKey(
     val provider = ApiKeyAuthenticationProvider.Config(name).apply(configure).build()
     register(provider)
 }
-
 

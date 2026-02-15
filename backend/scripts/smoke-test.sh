@@ -99,7 +99,7 @@ echo ""
 # Test 4: Sessions Endpoint - Valid Request
 # ----------------------------------------
 echo "4. Sessions Endpoint - Valid Request"
-SESSION_ID="smoke-test-$(date +%s)"
+SESSION_ID="smoke-test-$(uuidgen 2>/dev/null || cat /proc/sys/kernel/random/uuid 2>/dev/null || echo $(date +%s)-$$)"
 VALID_REQUEST_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
     -X POST "$BASE_URL/v1/sessions" \
     -H "Content-Type: application/json" \
@@ -107,12 +107,17 @@ VALID_REQUEST_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
     -d "{
         \"sessionId\": \"$SESSION_ID\",
         \"timestamp\": $(date +%s)000,
-        \"schemaVersion\": 1,
-        \"contentId\": \"test-content-123\",
-        \"streamType\": \"VOD\",
-        \"playerStartupMs\": 1500,
-        \"rebufferTimeMs\": 200,
-        \"rebufferCount\": 1,
+        \"sessionStartDateIso\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\",
+        \"sessionDurationMs\": 45000,
+        \"startupTimeMs\": 450,
+        \"rebufferTimeMs\": 1200,
+        \"rebufferCount\": 2,
+        \"playTimeMs\": 42000,
+        \"rebufferRatio\": 0.028,
+        \"totalDroppedFrames\": 12,
+        \"totalSeekCount\": 1,
+        \"totalSeekTimeMs\": 300,
+        \"meanVideoFormatBitrate\": 2500000,
         \"errorCount\": 0
     }")
 run_test "POST /v1/sessions with valid data returns 200" "200" "$VALID_REQUEST_STATUS"
@@ -130,12 +135,17 @@ UPSERT_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
     -d "{
         \"sessionId\": \"$SESSION_ID\",
         \"timestamp\": $(date +%s)000,
-        \"schemaVersion\": 1,
-        \"contentId\": \"test-content-123\",
-        \"streamType\": \"VOD\",
-        \"playerStartupMs\": 1600,
+        \"sessionStartDateIso\": \"$(date -u +%Y-%m-%dT%H:%M:%S.000Z)\",
+        \"sessionDurationMs\": 50000,
+        \"startupTimeMs\": 500,
         \"rebufferTimeMs\": 100,
         \"rebufferCount\": 0,
+        \"playTimeMs\": 48000,
+        \"rebufferRatio\": 0.002,
+        \"totalDroppedFrames\": 5,
+        \"totalSeekCount\": 2,
+        \"totalSeekTimeMs\": 600,
+        \"meanVideoFormatBitrate\": 3000000,
         \"errorCount\": 0
     }")
 run_test "POST /v1/sessions with same sessionId (upsert) returns 200" "200" "$UPSERT_STATUS"
@@ -150,7 +160,7 @@ INVALID_SCHEMA_STATUS=$(curl -s -o /dev/null -w "%{http_code}" \
     -X POST "$BASE_URL/v1/sessions" \
     -H "Content-Type: application/json" \
     -H "X-API-Key: $API_KEY" \
-    -d '{"sessionId":"","timestamp":0}')
+    -d '{"sessionId":"","timestamp":0,"sessionStartDateIso":"","sessionDurationMs":0}')
 run_test "POST /v1/sessions with empty sessionId returns 400" "400" "$INVALID_SCHEMA_STATUS"
 
 echo ""

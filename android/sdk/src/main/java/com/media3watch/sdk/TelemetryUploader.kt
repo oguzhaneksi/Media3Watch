@@ -24,7 +24,7 @@ internal class TelemetryUploader(
     }
 
     @OptIn(UnstableApi::class)
-    fun upload(sessionId: Long, payload: String) {
+    fun upload(sessionId: String, payload: String) {
         scope.launch {
             try {
                 withContext(NonCancellable) {

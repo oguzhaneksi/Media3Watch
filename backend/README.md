@@ -85,17 +85,16 @@ POST /v1/sessions
 
 **Headers:**
 ```
-Authorization: Bearer dev-key
+X-API-Key: dev-key
 Content-Type: application/json
 ```
-
-⚠️ **IMPORTANT:** The Android SDK currently sends `Authorization: Bearer <apiKey>`, but the backend expects `X-API-Key: <apiKey>`. This is a known mismatch and will be fixed in the next SDK version.
 
 **Request Body** (from Android SDK):
 ```json
 {
-  "sessionId": 1,
-  "sessionStartDateIso": "2026-02-14T10:30:00.000Z",
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000",
+  "timestamp": 1708000000000,
+  "sessionStartDateIso": "2026-02-15T10:00:00.000Z",
   "sessionDurationMs": 45000,
   "startupTimeMs": 450,
   "rebufferTimeMs": 1200,
@@ -110,28 +109,11 @@ Content-Type: application/json
 }
 ```
 
-⚠️ **Schema Mismatch:** The backend currently expects a different schema:
-```json
-{
-  "sessionId": "sess_12345",
-  "timestamp": 1698402000000,
-  "contentId": "media_xyz",
-  "streamType": "dash",
-  "playerStartupMs": 1200,
-  "rebufferTimeMs": 0,
-  "rebufferCount": 0,
-  "errorCount": 0,
-  "payload": "{\"custom_event\":\"started\"}"
-}
-```
-
-**This will be unified in the next iteration.**
-
 **Success Response** (`200 OK`):
 ```json
 {
   "status": "success",
-  "sessionId": "sess_12345"
+  "sessionId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
 
@@ -140,7 +122,7 @@ Content-Type: application/json
 {
   "error": {
     "code": "INVALID_SCHEMA",
-    "message": "Missing required field: sessionId",
+    "message": "Missing or empty required field: sessionId",
     "timestamp": 1698402000000
   }
 }
@@ -196,9 +178,3 @@ docker-compose down -v
 
 The `-v` flag deletes the PostgreSQL volume, giving you a fresh database on next startup.
 
-## 🚧 Known Issues
-
-1. **Authentication header mismatch**: SDK sends `Authorization: Bearer`, backend expects `X-API-Key`.
-2. **JSON schema mismatch**: SDK and backend use different `SessionSummary` models.
-
-**Both will be resolved** by aligning the backend schema to match the SDK's output.

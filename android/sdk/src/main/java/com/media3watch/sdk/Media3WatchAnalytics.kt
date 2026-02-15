@@ -7,6 +7,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
 import org.jetbrains.annotations.TestOnly
+import java.util.UUID
 
 @androidx.annotation.OptIn(UnstableApi::class)
 class Media3WatchAnalytics(
@@ -14,7 +15,7 @@ class Media3WatchAnalytics(
 ) {
 
     private var player: ExoPlayer? = null
-    private var sessionId: Long = 0L
+    private var sessionId: String = ""
 
     private var sessionStartTs: Long = 0L
     private var sessionStartWallClockMs: Long = 0L
@@ -64,7 +65,7 @@ class Media3WatchAnalytics(
         }
 
         resetSession()
-        sessionId += 1
+        sessionId = UUID.randomUUID().toString()
         sessionStartTs = SystemClock.elapsedRealtime()
         sessionStartWallClockMs = System.currentTimeMillis()
 
@@ -125,6 +126,7 @@ class Media3WatchAnalytics(
     }
 
     private fun resetSession() {
+        sessionId = ""
         sessionStartTs = 0L
         sessionStartWallClockMs = 0L
         playCommandTs = null
