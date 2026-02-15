@@ -1,5 +1,5 @@
 #!/bin/bash
-# API'ye veri gönderir ve PostgreSQL'de doğrular
+# Sends data to the API and verifies it in PostgreSQL
 
 set -e
 
@@ -7,7 +7,7 @@ API_KEY="dev-key"
 BASE_URL="http://localhost:8080"
 TEST_SESSION_ID="test-$(date +%s)-$(uuidgen)"
 
-echo "🚀 Test başlatılıyor..."
+echo "🚀 Starting test..."
 echo "Session ID: $TEST_SESSION_ID"
 echo ""
 
@@ -16,8 +16,8 @@ echo "1️⃣ Health check..."
 curl -s "$BASE_URL/health" | jq .
 echo ""
 
-# 2. Session gönder
-echo "2️⃣ Session verisi gönderiliyor..."
+# 2. Send session
+echo "2️⃣ Sending session data..."
 RESPONSE=$(curl -s -X POST "$BASE_URL/v1/sessions" \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
@@ -41,9 +41,9 @@ RESPONSE=$(curl -s -X POST "$BASE_URL/v1/sessions" \
 echo "$RESPONSE" | jq .
 echo ""
 
-# 3. PostgreSQL'de kontrol et
-echo "3️⃣ PostgreSQL'de veri kontrol ediliyor..."
-sleep 1  # DB'ye yazılması için kısa bir bekleme
+# 3. Check in PostgreSQL
+echo "3️⃣ Checking data in PostgreSQL..."
+sleep 1  # Short wait for data to be written to DB
 
 DB_RESULT=$(docker exec m3w-postgres psql -U m3w -d media3watch -t -A -c \
   "SELECT session_id, session_duration_ms, rebuffer_count, created_at 
@@ -51,12 +51,12 @@ DB_RESULT=$(docker exec m3w-postgres psql -U m3w -d media3watch -t -A -c \
    WHERE session_id = '$TEST_SESSION_ID';")
 
 if [ -z "$DB_RESULT" ]; then
-  echo "❌ HATA: Veri PostgreSQL'de bulunamadı!"
+  echo "❌ ERROR: Data not found in PostgreSQL!"
   exit 1
 else
-  echo "✅ Veri başarıyla PostgreSQL'e yazıldı:"
+  echo "✅ Data successfully written to PostgreSQL:"
   docker exec m3w-postgres psql -U m3w -d media3watch -c \
     "SELECT * FROM sessions WHERE session_id = '$TEST_SESSION_ID';"
   echo ""
-  echo "🎉 Test BAŞARILI!"
+  echo "🎉 Test SUCCESSFUL!"
 fi
