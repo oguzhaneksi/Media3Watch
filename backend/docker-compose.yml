@@ -6,15 +6,18 @@ services:
     image: postgres:16-alpine
     container_name: m3w-postgres
     environment:
-      POSTGRES_DB: media3watch
-      POSTGRES_USER: m3w
-      POSTGRES_PASSWORD: m3w
+      # SECURITY WARNING: These credentials are loaded from environment variables.
+      # Never commit actual credentials to version control.
+      # For local development, copy .env.example to .env and set your credentials there.
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U m3w -d media3watch"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -28,10 +31,12 @@ services:
       dockerfile: Dockerfile
     container_name: m3w-backend
     environment:
+      # SECURITY WARNING: Load sensitive credentials from .env file, not from this file.
+      # See .env.example for required environment variables.
       M3W_API_KEY: ${M3W_API_KEY:-dev-key}
-      DATABASE_URL: jdbc:postgresql://postgres:5432/media3watch
-      DATABASE_USER: m3w
-      DATABASE_PASSWORD: m3w
+      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_USER: ${DATABASE_USER}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD}
       PORT: 8080
       RATE_LIMIT_REQUESTS: 100
       RATE_LIMIT_WINDOW_SEC: 60
@@ -59,8 +64,10 @@ services:
     image: grafana/grafana:11.4.0
     container_name: m3w-grafana
     environment:
-      GF_SECURITY_ADMIN_USER: admin
-      GF_SECURITY_ADMIN_PASSWORD: admin
+      # SECURITY WARNING: Change default admin credentials for any shared environment.
+      # For local development only. Set via environment variables for production.
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
       GF_USERS_ALLOW_SIGN_UP: "false"
     ports:
       - "3000:3000"

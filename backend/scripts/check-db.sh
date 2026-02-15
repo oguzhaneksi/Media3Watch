@@ -1,7 +1,7 @@
 #!/bin/bash
-# Checks session data in the PostgreSQL database
+# Check session data in the PostgreSQL database
 
-echo "🔍 Checking data in sessions table..."
+echo "🔍 Checking data in the sessions table..."
 echo ""
 
 docker exec -it m3w-postgres psql -U m3w -d media3watch -c "
@@ -18,5 +18,5 @@ LIMIT 10;
 "
 
 echo ""
-echo "📊 Total number of sessions:"
+echo "📊 Total session count:"
 docker exec -it m3w-postgres psql -U m3w -d media3watch -c "SELECT COUNT(*) FROM sessions;"

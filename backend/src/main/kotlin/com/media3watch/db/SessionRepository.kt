@@ -33,9 +33,8 @@ class SessionRepository(private val dataSource: DataSource) {
                         total_seek_count = EXCLUDED.total_seek_count,
                         total_seek_time_ms = EXCLUDED.total_seek_time_ms,
                         mean_video_format_bitrate = EXCLUDED.mean_video_format_bitrate,
-                        error_count = EXCLUDED.error_count,
-                        created_at = EXCLUDED.created_at
-                    WHERE sessions.created_at <= EXCLUDED.created_at
+                        error_count = EXCLUDED.error_count
+                    WHERE sessions.timestamp >= EXCLUDED.timestamp
                 """.trimIndent()
 
                 connection.prepareStatement(sql).use { stmt ->

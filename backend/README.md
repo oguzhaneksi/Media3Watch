@@ -29,14 +29,22 @@ That's it. No JDK installation required if you're just running the backend.
 
 From the `backend/` directory:
 
-```bash
-docker-compose up -d --build
-```
+1. **Set up environment variables:**
+   ```bash
+   cp .env.example .env
+   # Edit .env if needed (defaults work for local development)
+   ```
+
+2. **Start the services:**
+   ```bash
+   docker-compose up -d --build
+   ```
 
 **What this does:**
-- Spins up PostgreSQL (port `5432`)
+- Spins up PostgreSQL (port `5433`)
 - Runs database migrations (creates `sessions` table)
 - Starts the backend API (port `8080`)
+- Starts Grafana dashboard (port `3000`)
 
 **Verify it's running:**
 ```bash
@@ -50,17 +58,48 @@ Expected response:
 
 ## 🔧 Configuration
 
-The backend reads from environment variables. Defaults are set for local development — **you don't need to change anything** to get started.
+**SECURITY NOTICE:** This backend is designed for local development. Database credentials and API keys must be configured via environment variables and should **never be hardcoded** in docker-compose.yml.
 
-| Variable | Description | Default |
-| :--- | :--- | :--- |
-| `M3W_API_KEY` | API key for authentication | `dev-key` |
-| `DATABASE_URL` | PostgreSQL JDBC URL | `jdbc:postgresql://postgres:5432/media3watch` |
-| `DATABASE_USER` | Database username | `m3w` |
-| `DATABASE_PASSWORD` | Database password | `m3w` |
-| `PORT` | Server port | `8080` |
+### Setting Up Environment Variables
 
-**To override:** Create a `.env` file in `backend/` or set them in `docker-compose.yml`.
+1. **Copy the example environment file:**
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Edit `.env` with your credentials:**
+   ```bash
+   # For local development, you can use the default credentials:
+   POSTGRES_USER=m3w
+   POSTGRES_PASSWORD=m3w
+   
+   # For shared or production-like environments, use strong credentials:
+   POSTGRES_USER=your_secure_username
+   POSTGRES_PASSWORD=your_strong_password_here
+   ```
+
+3. **Never commit `.env` to version control** — it's already in `.gitignore`.
+
+### Environment Variables Reference
+
+The backend reads from environment variables. All sensitive values must be set in your `.env` file.
+
+| Variable | Description | Required | Example/Default |
+| :--- | :--- | :--- | :--- |
+| `M3W_API_KEY` | API key for authentication | No | `dev-key` |
+| `POSTGRES_DB` | PostgreSQL database name | **Yes** | `media3watch` |
+| `POSTGRES_USER` | PostgreSQL username | **Yes** | `m3w` (dev), customize for production |
+| `POSTGRES_PASSWORD` | PostgreSQL password | **Yes** | `m3w` (dev), use strong password for production |
+| `DATABASE_URL` | PostgreSQL JDBC URL | **Yes** | `jdbc:postgresql://postgres:5432/media3watch` |
+| `DATABASE_USER` | Database username (must match POSTGRES_USER) | **Yes** | Same as `POSTGRES_USER` |
+| `DATABASE_PASSWORD` | Database password (must match POSTGRES_PASSWORD) | **Yes** | Same as `POSTGRES_PASSWORD` |
+| `PORT` | Server port | No | `8080` |
+
+**For production or shared environments:**
+- Use strong, unique passwords
+- Rotate credentials regularly
+- Use secret management tools (e.g., AWS Secrets Manager, HashiCorp Vault)
+- Never expose credentials in docker-compose.yml or commit them to git
 
 ## 📡 API Endpoints
 
