@@ -84,15 +84,15 @@ Expected response:
 
 The backend reads from environment variables. All sensitive values must be set in your `.env` file.
 
-| Variable | Description | Required | Default |
+| Variable | Description | Required | Example/Default |
 | :--- | :--- | :--- | :--- |
 | `M3W_API_KEY` | API key for authentication | No | `dev-key` |
-| `POSTGRES_DB` | PostgreSQL database name | **Yes** | — |
-| `POSTGRES_USER` | PostgreSQL username | **Yes** | — |
-| `POSTGRES_PASSWORD` | PostgreSQL password | **Yes** | — |
-| `DATABASE_URL` | PostgreSQL JDBC URL | **Yes** | — |
-| `DATABASE_USER` | Database username (same as POSTGRES_USER) | **Yes** | — |
-| `DATABASE_PASSWORD` | Database password (same as POSTGRES_PASSWORD) | **Yes** | — |
+| `POSTGRES_DB` | PostgreSQL database name | **Yes** | `media3watch` |
+| `POSTGRES_USER` | PostgreSQL username | **Yes** | `m3w` (dev), customize for production |
+| `POSTGRES_PASSWORD` | PostgreSQL password | **Yes** | `m3w` (dev), use strong password for production |
+| `DATABASE_URL` | PostgreSQL JDBC URL | **Yes** | `jdbc:postgresql://postgres:5432/media3watch` |
+| `DATABASE_USER` | Database username (must match POSTGRES_USER) | **Yes** | Same as `POSTGRES_USER` |
+| `DATABASE_PASSWORD` | Database password (must match POSTGRES_PASSWORD) | **Yes** | Same as `POSTGRES_PASSWORD` |
 | `PORT` | Server port | No | `8080` |
 
 **For production or shared environments:**
