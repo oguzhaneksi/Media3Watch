@@ -45,6 +45,61 @@ fun Route.sessionsRoutes(
                     )
                     return@post
                 }
+                
+                if (session.sessionDurationMs <= 0) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(
+                            ErrorDetail(
+                                code = ErrorCodes.INVALID_SCHEMA,
+                                message = "Invalid sessionDurationMs: must be positive"
+                            )
+                        )
+                    )
+                    return@post
+                }
+                
+                if (session.timestamp <= 0) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(
+                            ErrorDetail(
+                                code = ErrorCodes.INVALID_SCHEMA,
+                                message = "Invalid timestamp: must be positive"
+                            )
+                        )
+                    )
+                    return@post
+                }
+                
+                if (session.sessionStartDateIso.isEmpty() || session.sessionStartDateIso.isBlank()) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(
+                            ErrorDetail(
+                                code = ErrorCodes.INVALID_SCHEMA,
+                                message = "Missing or empty required field: sessionStartDateIso"
+                            )
+                        )
+                    )
+                    return@post
+                }
+                
+                // Validate ISO 8601 date format
+                try {
+                    java.time.Instant.parse(session.sessionStartDateIso)
+                } catch (e: Exception) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(
+                            ErrorDetail(
+                                code = ErrorCodes.INVALID_SCHEMA,
+                                message = "Invalid sessionStartDateIso: must be a valid ISO 8601 date format"
+                            )
+                        )
+                    )
+                    return@post
+                }
 
                 val result = repository.upsertSession(session)
 
