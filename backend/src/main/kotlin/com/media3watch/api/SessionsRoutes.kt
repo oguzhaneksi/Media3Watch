@@ -46,6 +46,48 @@ fun Route.sessionsRoutes(
                     return@post
                 }
 
+                // Validate sessionDurationMs
+                if (session.sessionDurationMs <= 0) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(
+                            ErrorDetail(
+                                code = ErrorCodes.INVALID_SCHEMA,
+                                message = "Invalid value for sessionDurationMs: must be positive"
+                            )
+                        )
+                    )
+                    return@post
+                }
+
+                // Validate timestamp
+                if (session.timestamp <= 0) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(
+                            ErrorDetail(
+                                code = ErrorCodes.INVALID_SCHEMA,
+                                message = "Invalid value for timestamp: must be positive"
+                            )
+                        )
+                    )
+                    return@post
+                }
+
+                // Validate sessionStartDateIso
+                if (session.sessionStartDateIso.isBlank()) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(
+                            ErrorDetail(
+                                code = ErrorCodes.INVALID_SCHEMA,
+                                message = "Missing or empty required field: sessionStartDateIso"
+                            )
+                        )
+                    )
+                    return@post
+                }
+
                 val result = repository.upsertSession(session)
 
                 result.onSuccess {
