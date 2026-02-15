@@ -8,6 +8,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlin.test.*
+import org.junit.jupiter.api.BeforeEach
 import java.util.UUID
 import java.sql.Connection
 import java.sql.DriverManager
@@ -16,6 +17,15 @@ import com.media3watch.module
 class SessionIngestionTest {
     
     private val testApiKey = "dev-key"
+    
+    @BeforeEach
+    fun cleanupTestSessions() {
+        // Clean up any sessions with session_id starting with "test-" before each test
+        getDbConnection().use { conn ->
+            val stmt = conn.prepareStatement("DELETE FROM sessions WHERE session_id LIKE 'test-%'")
+            stmt.executeUpdate()
+        }
+    }
     
     private fun getDbConnection(): Connection {
         val jdbcUrl = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5433/media3watch"
@@ -141,9 +151,9 @@ class SessionIngestionTest {
         // Assert error response
         assertEquals(HttpStatusCode.BadRequest, response.status)
         
-        // Verify nothing was written to database
+        // Verify nothing was written to database (count only test sessions)
         getDbConnection().use { conn ->
-            val stmt = conn.prepareStatement("SELECT COUNT(*) as count FROM sessions")
+            val stmt = conn.prepareStatement("SELECT COUNT(*) as count FROM sessions WHERE session_id LIKE 'test-%'")
             val rs = stmt.executeQuery()
             
             assertTrue(rs.next())
