@@ -66,4 +66,8 @@ kotlin {
 
 tasks.test {
     useJUnitPlatform()
+    environment("M3W_API_KEY", "dev-key")
+    environment("DATABASE_URL", "jdbc:postgresql://localhost:5433/media3watch")
+    environment("DATABASE_USER", "m3w")
+    environment("DATABASE_PASSWORD", "m3w")
 }
