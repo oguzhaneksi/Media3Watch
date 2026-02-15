@@ -23,7 +23,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     private val analytics = Media3WatchAnalytics(
         config = Media3WatchConfig(
-            backendUrl = "http://10.0.2.2:8080/",
+            backendUrl = "http://10.0.2.2:8080/v1/sessions",
             apiKey = "dev-key"
         )
     )
