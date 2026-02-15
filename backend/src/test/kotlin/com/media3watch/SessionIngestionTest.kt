@@ -17,12 +17,14 @@ import com.media3watch.module
 class SessionIngestionTest {
     
     private val testApiKey = "dev-key"
+    private val testSessionPrefix = "test-"
     
     @BeforeEach
     fun cleanupTestSessions() {
-        // Clean up any sessions with session_id starting with "test-" before each test
+        // Clean up any sessions with session_id starting with test prefix before each test
         getDbConnection().use { conn ->
-            val stmt = conn.prepareStatement("DELETE FROM sessions WHERE session_id LIKE 'test-%'")
+            val stmt = conn.prepareStatement("DELETE FROM sessions WHERE session_id LIKE ?")
+            stmt.setString(1, "$testSessionPrefix%")
             stmt.executeUpdate()
         }
     }
@@ -40,7 +42,7 @@ class SessionIngestionTest {
             module()
         }
         
-        val testSessionId = "test-${UUID.randomUUID()}"
+        val testSessionId = "${testSessionPrefix}${UUID.randomUUID()}"
         val currentTime = System.currentTimeMillis()
         
         // Prepare test payload
@@ -99,8 +101,8 @@ class SessionIngestionTest {
             module()
         }
         
-        val session1Id = "test-${UUID.randomUUID()}"
-        val session2Id = "test-${UUID.randomUUID()}"
+        val session1Id = "${testSessionPrefix}${UUID.randomUUID()}"
+        val session2Id = "${testSessionPrefix}${UUID.randomUUID()}"
         
         // Send two sessions
         listOf(session1Id, session2Id).forEach { sessionId ->
@@ -153,7 +155,8 @@ class SessionIngestionTest {
         
         // Verify nothing was written to database (count only test sessions)
         getDbConnection().use { conn ->
-            val stmt = conn.prepareStatement("SELECT COUNT(*) as count FROM sessions WHERE session_id LIKE 'test-%'")
+            val stmt = conn.prepareStatement("SELECT COUNT(*) as count FROM sessions WHERE session_id LIKE ?")
+            stmt.setString(1, "$testSessionPrefix%")
             val rs = stmt.executeQuery()
             
             assertTrue(rs.next())
