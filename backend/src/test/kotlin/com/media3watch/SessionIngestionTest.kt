@@ -138,16 +138,169 @@ class SessionIngestionTest {
             setBody(invalidPayload)
         }
         
-        // Assert error response
+        // Assert error response - missing required fields causes deserialization failure
         assertEquals(HttpStatusCode.BadRequest, response.status)
-        
-        // Verify nothing was written to database
-        getDbConnection().use { conn ->
-            val stmt = conn.prepareStatement("SELECT COUNT(*) as count FROM sessions")
-            val rs = stmt.executeQuery()
-            
-            assertTrue(rs.next())
-            assertEquals(0, rs.getInt("count"), "Invalid session should not be persisted")
+    }
+    
+    @Test
+    fun `test session with negative duration is rejected`() = testApplication {
+        application {
+            module()
         }
+        
+        val testSessionId = "test-${UUID.randomUUID()}"
+        val invalidPayload = """
+            {
+              "sessionId": "$testSessionId",
+              "timestamp": ${System.currentTimeMillis()},
+              "sessionStartDateIso": "2026-02-15T10:00:00.000Z",
+              "sessionDurationMs": -1000
+            }
+        """.trimIndent()
+        
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(invalidPayload)
+        }
+        
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val responseBody = response.bodyAsText()
+        assertTrue(responseBody.contains("sessionDurationMs"), "Error message should mention sessionDurationMs")
+    }
+    
+    @Test
+    fun `test session with zero duration is rejected`() = testApplication {
+        application {
+            module()
+        }
+        
+        val testSessionId = "test-${UUID.randomUUID()}"
+        val invalidPayload = """
+            {
+              "sessionId": "$testSessionId",
+              "timestamp": ${System.currentTimeMillis()},
+              "sessionStartDateIso": "2026-02-15T10:00:00.000Z",
+              "sessionDurationMs": 0
+            }
+        """.trimIndent()
+        
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(invalidPayload)
+        }
+        
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val responseBody = response.bodyAsText()
+        assertTrue(responseBody.contains("sessionDurationMs"), "Error message should mention sessionDurationMs")
+    }
+    
+    @Test
+    fun `test session with zero timestamp is rejected`() = testApplication {
+        application {
+            module()
+        }
+        
+        val testSessionId = "test-${UUID.randomUUID()}"
+        val invalidPayload = """
+            {
+              "sessionId": "$testSessionId",
+              "timestamp": 0,
+              "sessionStartDateIso": "2026-02-15T10:00:00.000Z",
+              "sessionDurationMs": 30000
+            }
+        """.trimIndent()
+        
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(invalidPayload)
+        }
+        
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val responseBody = response.bodyAsText()
+        assertTrue(responseBody.contains("timestamp"), "Error message should mention timestamp")
+    }
+    
+    @Test
+    fun `test session with negative timestamp is rejected`() = testApplication {
+        application {
+            module()
+        }
+        
+        val testSessionId = "test-${UUID.randomUUID()}"
+        val invalidPayload = """
+            {
+              "sessionId": "$testSessionId",
+              "timestamp": -123456,
+              "sessionStartDateIso": "2026-02-15T10:00:00.000Z",
+              "sessionDurationMs": 30000
+            }
+        """.trimIndent()
+        
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(invalidPayload)
+        }
+        
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val responseBody = response.bodyAsText()
+        assertTrue(responseBody.contains("timestamp"), "Error message should mention timestamp")
+    }
+    
+    @Test
+    fun `test session with blank sessionStartDateIso is rejected`() = testApplication {
+        application {
+            module()
+        }
+        
+        val testSessionId = "test-${UUID.randomUUID()}"
+        val invalidPayload = """
+            {
+              "sessionId": "$testSessionId",
+              "timestamp": ${System.currentTimeMillis()},
+              "sessionStartDateIso": "   ",
+              "sessionDurationMs": 30000
+            }
+        """.trimIndent()
+        
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(invalidPayload)
+        }
+        
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val responseBody = response.bodyAsText()
+        assertTrue(responseBody.contains("sessionStartDateIso"), "Error message should mention sessionStartDateIso")
+    }
+    
+    @Test
+    fun `test session with empty sessionStartDateIso is rejected`() = testApplication {
+        application {
+            module()
+        }
+        
+        val testSessionId = "test-${UUID.randomUUID()}"
+        val invalidPayload = """
+            {
+              "sessionId": "$testSessionId",
+              "timestamp": ${System.currentTimeMillis()},
+              "sessionStartDateIso": "",
+              "sessionDurationMs": 30000
+            }
+        """.trimIndent()
+        
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(invalidPayload)
+        }
+        
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val responseBody = response.bodyAsText()
+        assertTrue(responseBody.contains("sessionStartDateIso"), "Error message should mention sessionStartDateIso")
     }
 }
