@@ -23,14 +23,22 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null }
+              {
+                "color": "green",
+                "value": null
+              }
             ]
           },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 0, "y": 0 },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 0,
+        "y": 0
+      },
       "id": 1,
       "options": {
         "colorMode": "value",
@@ -38,7 +46,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -48,11 +58,14 @@
       "type": "stat",
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "PostgreSQL"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) as count FROM sessions WHERE timestamp > NOW() - INTERVAL '24 hours'",
+          "rawSql": "SELECT COUNT(*) as count FROM sessions WHERE to_timestamp(timestamp / 1000.0) > NOW() - INTERVAL '24 hours'",
           "refId": "A"
         }
       ]
@@ -71,16 +84,30 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 2000 },
-              { "color": "red", "value": 5000 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 2000
+              },
+              {
+                "color": "red",
+                "value": 5000
+              }
             ]
           },
           "unit": "ms"
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 6, "y": 0 },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 4,
+        "y": 0
+      },
       "id": 2,
       "options": {
         "colorMode": "value",
@@ -88,21 +115,26 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["mean"],
+          "calcs": [
+            "mean"
+          ],
           "fields": "",
           "values": false
         },
         "textMode": "auto"
       },
-      "title": "Avg Player Startup Time",
+      "title": "Avg Startup Time",
       "type": "stat",
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "PostgreSQL"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT AVG(player_startup_ms) as avg_startup FROM sessions WHERE timestamp > NOW() - INTERVAL '24 hours' AND player_startup_ms IS NOT NULL",
+          "rawSql": "SELECT AVG(startup_time_ms) as avg_startup FROM sessions WHERE to_timestamp(timestamp / 1000.0) > NOW() - INTERVAL '24 hours' AND startup_time_ms IS NOT NULL",
           "refId": "A"
         }
       ]
@@ -121,16 +153,30 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 0.01 },
-              { "color": "red", "value": 0.05 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.01
+              },
+              {
+                "color": "red",
+                "value": 0.05
+              }
             ]
           },
           "unit": "percentunit"
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 12, "y": 0 },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 8,
+        "y": 0
+      },
       "id": 3,
       "options": {
         "colorMode": "value",
@@ -138,7 +184,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["lastNotNull"],
+          "calcs": [
+            "lastNotNull"
+          ],
           "fields": "",
           "values": false
         },
@@ -148,11 +196,14 @@
       "type": "stat",
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "PostgreSQL"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT COALESCE(SUM(CASE WHEN error_count > 0 THEN 1 ELSE 0 END)::float / NULLIF(COUNT(*), 0), 0) as error_rate FROM sessions WHERE timestamp > NOW() - INTERVAL '24 hours'",
+          "rawSql": "SELECT COALESCE(SUM(CASE WHEN error_count > 0 THEN 1 ELSE 0 END)::float / NULLIF(COUNT(*), 0), 0) as error_rate FROM sessions WHERE to_timestamp(timestamp / 1000.0) > NOW() - INTERVAL '24 hours'",
           "refId": "A"
         }
       ]
@@ -171,16 +222,30 @@
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 1 },
-              { "color": "red", "value": 3 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 3
+              }
             ]
           },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 4, "w": 6, "x": 18, "y": 0 },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 20,
+        "y": 0
+      },
       "id": 4,
       "options": {
         "colorMode": "value",
@@ -188,7 +253,9 @@
         "justifyMode": "auto",
         "orientation": "auto",
         "reduceOptions": {
-          "calcs": ["mean"],
+          "calcs": [
+            "mean"
+          ],
           "fields": "",
           "values": false
         },
@@ -198,11 +265,14 @@
       "type": "stat",
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "PostgreSQL"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT AVG(rebuffer_count) as avg_rebuffer FROM sessions WHERE timestamp > NOW() - INTERVAL '24 hours' AND rebuffer_count IS NOT NULL",
+          "rawSql": "SELECT AVG(rebuffer_count) as avg_rebuffer FROM sessions WHERE to_timestamp(timestamp / 1000.0) > NOW() - INTERVAL '24 hours' AND rebuffer_count IS NOT NULL",
           "refId": "A"
         }
       ]
@@ -227,41 +297,73 @@
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
             "insertNulls": false,
             "lineInterpolation": "smooth",
             "lineWidth": 2,
             "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
+            "scaleDistribution": {
+              "type": "linear"
+            },
             "showPoints": "auto",
             "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }]
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
           },
           "unit": "short"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 4 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 0,
+        "y": 4
+      },
       "id": 5,
       "options": {
-        "legend": { "calcs": [], "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "single", "sort": "none" }
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       },
       "title": "Sessions Over Time",
       "type": "timeseries",
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "PostgreSQL"
+          },
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT date_trunc('hour', timestamp) as time, COUNT(*) as sessions FROM sessions WHERE timestamp > NOW() - INTERVAL '7 days' GROUP BY 1 ORDER BY 1",
+          "rawSql": "SELECT date_trunc('hour', to_timestamp(timestamp / 1000.0)) as time, COUNT(*) as sessions FROM sessions WHERE to_timestamp(timestamp / 1000.0) > NOW() - INTERVAL '7 days' GROUP BY 1 ORDER BY 1",
           "refId": "A"
         }
       ]
@@ -286,41 +388,76 @@
             "drawStyle": "line",
             "fillOpacity": 10,
             "gradientMode": "none",
-            "hideFrom": { "legend": false, "tooltip": false, "viz": false },
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
             "insertNulls": false,
             "lineInterpolation": "smooth",
             "lineWidth": 2,
             "pointSize": 5,
-            "scaleDistribution": { "type": "linear" },
+            "scaleDistribution": {
+              "type": "linear"
+            },
             "showPoints": "auto",
             "spanNulls": false,
-            "stacking": { "group": "A", "mode": "none" },
-            "thresholdsStyle": { "mode": "off" }
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }]
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
           },
           "unit": "ms"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 4 },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 4
+      },
       "id": 6,
       "options": {
-        "legend": { "calcs": ["mean", "max"], "displayMode": "list", "placement": "bottom", "showLegend": true },
-        "tooltip": { "mode": "single", "sort": "none" }
+        "legend": {
+          "calcs": [
+            "mean",
+            "max"
+          ],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
       },
-      "title": "Player Startup Time Over Time",
+      "title": "Startup Time Distribution",
       "type": "timeseries",
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "PostgreSQL"
+          },
           "editorMode": "code",
           "format": "time_series",
           "rawQuery": true,
-          "rawSql": "SELECT date_trunc('hour', timestamp) as time, AVG(player_startup_ms) as avg_startup, percentile_cont(0.95) WITHIN GROUP (ORDER BY player_startup_ms) as p95_startup FROM sessions WHERE timestamp > NOW() - INTERVAL '7 days' AND player_startup_ms IS NOT NULL GROUP BY 1 ORDER BY 1",
+          "rawSql": "SELECT date_trunc('hour', to_timestamp(timestamp / 1000.0)) as time, AVG(startup_time_ms) as avg_startup, percentile_cont(0.95) WITHIN GROUP (ORDER BY startup_time_ms) as p95_startup FROM sessions WHERE to_timestamp(timestamp / 1000.0) > NOW() - INTERVAL '7 days' AND startup_time_ms IS NOT NULL GROUP BY 1 ORDER BY 1",
           "refId": "A"
         }
       ]
@@ -332,73 +469,121 @@
       },
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "palette-classic" },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": { "h": 8, "w": 8, "x": 0, "y": 12 },
-      "id": 7,
-      "options": {
-        "legend": { "displayMode": "list", "placement": "right", "showLegend": true },
-        "pieType": "pie",
-        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false },
-        "tooltip": { "mode": "single", "sort": "none" }
-      },
-      "title": "Sessions by Stream Type",
-      "type": "piechart",
-      "targets": [
-        {
-          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "SELECT COALESCE(stream_type, 'unknown') as stream_type, COUNT(*) as count FROM sessions WHERE timestamp > NOW() - INTERVAL '7 days' GROUP BY stream_type ORDER BY count DESC",
-          "refId": "A"
-        }
-      ]
-    },
-    {
-      "datasource": {
-        "type": "postgres",
-        "uid": "PostgreSQL"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": { "mode": "thresholds" },
-          "custom": {
-            "align": "auto",
-            "cellOptions": { "type": "auto" },
-            "inspect": false
+          "color": {
+            "mode": "palette-classic"
           },
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
-            "steps": [{ "color": "green", "value": null }]
-          }
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "unit": "percentunit"
         },
         "overrides": []
       },
-      "gridPos": { "h": 8, "w": 16, "x": 8, "y": 12 },
-      "id": 8,
-      "options": {
-        "cellHeight": "sm",
-        "footer": { "countRows": false, "fields": "", "reducer": ["sum"], "show": false },
-        "showHeader": true
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 12,
+        "y": 0
       },
-      "title": "Top Content by Sessions",
-      "type": "table",
+      "id": 7,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "title": "Avg Rebuffer Ratio",
+      "type": "stat",
       "targets": [
         {
-          "datasource": { "type": "postgres", "uid": "PostgreSQL" },
+          "datasource": {
+            "type": "postgres",
+            "uid": "PostgreSQL"
+          },
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT content_id, COUNT(*) as sessions, AVG(player_startup_ms)::int as avg_startup_ms, AVG(rebuffer_count)::numeric(10,2) as avg_rebuffers, SUM(CASE WHEN error_count > 0 THEN 1 ELSE 0 END) as error_sessions FROM sessions WHERE timestamp > NOW() - INTERVAL '7 days' AND content_id IS NOT NULL GROUP BY content_id ORDER BY sessions DESC LIMIT 10",
+          "rawSql": "SELECT AVG(rebuffer_ratio) as val FROM sessions WHERE to_timestamp(timestamp / 1000.0) > NOW() - INTERVAL '24 hours' AND rebuffer_ratio IS NOT NULL",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "PostgreSQL"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          },
+          "unit": "bps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 4,
+        "x": 16,
+        "y": 0
+      },
+      "id": 8,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "mean"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "textMode": "auto"
+      },
+      "title": "Avg Bitrate",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "PostgreSQL"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT AVG(mean_video_format_bitrate) as val FROM sessions WHERE to_timestamp(timestamp / 1000.0) > NOW() - INTERVAL '24 hours' AND mean_video_format_bitrate IS NOT NULL",
           "refId": "A"
         }
       ]
@@ -406,14 +591,22 @@
   ],
   "refresh": "30s",
   "schemaVersion": 39,
-  "tags": ["media3watch", "video", "analytics"],
-  "templating": { "list": [] },
-  "time": { "from": "now-7d", "to": "now" },
+  "tags": [
+    "media3watch",
+    "video",
+    "analytics"
+  ],
+  "templating": {
+    "list": []
+  },
+  "time": {
+    "from": "now-7d",
+    "to": "now"
+  },
   "timepicker": {},
   "timezone": "browser",
   "title": "Media3Watch Overview",
   "uid": "m3w-overview",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }
-
