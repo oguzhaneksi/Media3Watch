@@ -82,8 +82,8 @@ To integrate the Media3Watch SDK into your Android project:
    // 1. Create the analytics instance (with optional backend upload)
    private val analytics = Media3WatchAnalytics(
        config = Media3WatchConfig(
-           backendUrl = "https://your-backend.com/api/sessions", // optional
-           apiKey = "your-api-key" // optional
+           backendUrl = "http://localhost:8080/v1/sessions", // optional, use this for local testing
+           apiKey = "dev-key" // optional, matches backend default
        )
    )
    // Or use default config for Logcat-only mode:
@@ -136,6 +136,43 @@ session_end
   meanVideoFormatBitrate: 2500000
   errorCount: 0
 ```
+
+---
+
+## Testing with Local Backend
+
+Want to test backend uploads instead of just viewing Logcat?
+
+**1. Start the backend:**
+```bash
+cd backend
+docker-compose up -d
+```
+
+**2. Update your SDK config** (in your app):
+```kotlin
+private val analytics = Media3WatchAnalytics(
+    config = Media3WatchConfig(
+        backendUrl = "http://10.0.2.2:8080/v1/sessions", // Android emulator
+        // backendUrl = "http://localhost:8080/v1/sessions", // Physical device on same network
+        apiKey = "dev-key"
+    )
+)
+```
+
+**3. Play a video** and check the backend received it:
+```bash
+# From backend/ directory
+docker exec -it backend-postgres-1 psql -U m3w -d media3watch -c "SELECT * FROM sessions ORDER BY created_at DESC LIMIT 5;"
+```
+
+**Cleanup:**
+```bash
+cd backend
+docker-compose down -v  # Stops backend + deletes data
+```
+
+See `backend/README.md` for full API details and troubleshooting.
 
 ---
 

@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: m3w-postgres
+    environment:
+      POSTGRES_DB: media3watch
+      POSTGRES_USER: m3w
+      POSTGRES_PASSWORD: m3w
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U m3w -d media3watch"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - m3w-network
+
+  # Media3Watch Backend
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: m3w-backend
+    environment:
+      M3W_API_KEY: ${M3W_API_KEY:-dev-key}
+      DATABASE_URL: jdbc:postgresql://postgres:5432/media3watch
+      DATABASE_USER: m3w
+      DATABASE_PASSWORD: m3w
+      PORT: 8080
+      RATE_LIMIT_REQUESTS: 100
+      RATE_LIMIT_WINDOW_SEC: 60
+      RETENTION_DAYS: 90
+      HIKARI_MAX_POOL_SIZE: 20
+      HIKARI_MIN_IDLE: 5
+      LOG_LEVEL: INFO
+      ENABLE_METRICS: "true"
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    networks:
+      - m3w-network
+
+  # Grafana Dashboard
+  grafana:
+    image: grafana/grafana:11.4.0
+    container_name: m3w-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      - postgres
+    networks:
+      - m3w-network
+
+volumes:
+  postgres_data:
+  grafana_data:
+
+networks:
+  m3w-network:
+    driver: bridge
+
