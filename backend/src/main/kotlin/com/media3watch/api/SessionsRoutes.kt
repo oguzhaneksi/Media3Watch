@@ -75,7 +75,7 @@ fun Route.sessionsRoutes(
                 }
 
                 // Validate sessionStartDateIso
-                if (session.sessionStartDateIso.isBlank()) {
+                if (session.sessionStartDateIso.isBlank() || session.sessionStartDateIso.isEmpty()) {
                     call.respond(
                         HttpStatusCode.BadRequest,
                         ErrorResponse(
