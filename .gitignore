@@ -13,3 +13,7 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Environment files with sensitive data
+.env
+backend/.env
