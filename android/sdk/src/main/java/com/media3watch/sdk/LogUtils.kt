@@ -13,7 +13,7 @@ internal object LogUtils {
     const val TAG = "Media3WatchAnalytics"
 
     fun buildSessionSummary(
-        sessionId: Long,
+        sessionId: String,
         sessionStartWallClockMs: Long,
         sessionStartTs: Long,
         now: Long,
@@ -22,6 +22,7 @@ internal object LogUtils {
     ): SessionSummary {
         return SessionSummary(
             sessionId = sessionId,
+            timestamp = System.currentTimeMillis(),
             sessionStartDateIso = toIsoDateTime(sessionStartWallClockMs),
             sessionDurationMs = (now - sessionStartTs).coerceAtLeast(0L),
             startupTimeMs = startupTimeMs,
@@ -38,7 +39,7 @@ internal object LogUtils {
     }
 
     fun logSessionEnd(
-        sessionId: Long,
+        sessionId: String,
         sessionStartWallClockMs: Long,
         sessionStartTs: Long,
         now: Long,

@@ -28,7 +28,7 @@ internal class HttpSender(
                 .post(body)
 
             if (!apiKey.isNullOrEmpty()) {
-                requestBuilder.addHeader("Authorization", "Bearer $apiKey")
+                requestBuilder.addHeader("X-API-Key", apiKey)
             }
 
             client.newCall(requestBuilder.build()).execute().use { response ->

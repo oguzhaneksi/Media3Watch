@@ -24,14 +24,18 @@ internal class TelemetryUploader(
     }
 
     @OptIn(UnstableApi::class)
-    fun upload(sessionId: Long, payload: String) {
+    fun upload(sessionId: String, payload: String) {
         scope.launch {
             try {
                 withContext(NonCancellable) {
                     withTimeout(uploadTimeoutMs) {
-                        sender.send(payload).onFailure {
-                            Log.w(LogUtils.TAG, "session_upload_failed sessionId=$sessionId", it)
-                        }
+                        sender.send(payload)
+                            .onSuccess {
+                                Log.d(LogUtils.TAG, "session_upload_success sessionId=$sessionId")
+                            }
+                            .onFailure {
+                                Log.w(LogUtils.TAG, "session_upload_failed sessionId=$sessionId", it)
+                            }
                     }
                 }
             } catch (e: TimeoutCancellationException) {

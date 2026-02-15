@@ -6,7 +6,8 @@ import kotlinx.serialization.json.Json
 
 @Serializable
 internal data class SessionSummary(
-    val sessionId: Long,
+    val sessionId: String,
+    val timestamp: Long,
     val sessionStartDateIso: String,
     val sessionDurationMs: Long,
     val startupTimeMs: Long?,
@@ -42,6 +43,7 @@ internal fun SessionSummary.toPrettyLog(): String {
     return buildString {
         appendLine("session_end")
         appendLine("  sessionId: $sessionId")
+        appendLine("  timestamp: $timestamp")
         appendLine("  sessionStartDateIso: $sessionStartDateIso")
         appendLine("  sessionDurationMs: $sessionDurationMs")
         appendLine("  startupTimeMs: $startupStr")
