@@ -33,7 +33,7 @@ services:
     environment:
       # SECURITY WARNING: Load sensitive credentials from .env file, not from this file.
       # See .env.example for required environment variables.
-      # 
+      #
       # !!! CRITICAL SECURITY WARNING !!!
       # The default "dev-key" is ONLY for local development.
       # You MUST set a strong, unique M3W_API_KEY in your .env file before deploying
