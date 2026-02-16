@@ -110,7 +110,12 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
         if (state.durationMs > 0L) {
             player?.seekTo(state.scrubPositionMs)
         }
-        _uiState.update { it.copy(isScrubbing = false) }
+        _uiState.update {
+            it.copy(
+                isScrubbing = false,
+                positionMs = state.scrubPositionMs
+            )
+        }
     }
 
     override fun onCleared() {
