@@ -57,6 +57,18 @@ fun PlayerController(
         0f
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (uiState.isBuffering) {
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .size(56.dp)
+                    .align(Alignment.Center),
+                color = Color.White,
+                strokeWidth = 3.dp
+            )
+        }
+    }
+
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(),
@@ -96,16 +108,6 @@ fun PlayerController(
                         onUserInteraction()
                         onSeekForward()
                     }
-                )
-            }
-
-            if (uiState.isBuffering) {
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .align(Alignment.Center),
-                    color = Color.White,
-                    strokeWidth = 3.dp
                 )
             }
 
