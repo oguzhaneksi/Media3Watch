@@ -8,6 +8,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import com.media3watch.sdk.Media3WatchAnalytics
 import com.media3watch.sdk.Media3WatchConfig
@@ -58,6 +59,7 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
                             durationMs = if (p.duration == C.TIME_UNSET) 0L else p.duration,
                             bufferedPositionMs = p.bufferedPosition,
                             isPlaying = p.isPlaying,
+                            isBuffering = p.playbackState == Player.STATE_BUFFERING,
                         )
                     }
                 }
