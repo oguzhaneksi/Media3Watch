@@ -1,6 +1,5 @@
 package com.media3watch.sample.ui
 
-import android.R
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -9,30 +8,36 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.media3.ui.compose.material3.R as Media3Material3R
 import com.media3watch.sample.PlayerUiState
 import java.util.concurrent.TimeUnit
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PlayerController(
     uiState: PlayerUiState,
@@ -52,6 +57,18 @@ fun PlayerController(
         0f
     }
 
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (uiState.isBuffering) {
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .size(56.dp)
+                    .align(Alignment.Center),
+                color = Color.White,
+                strokeWidth = 3.dp
+            )
+        }
+    }
+
     AnimatedVisibility(
         visible = visible,
         enter = fadeIn(),
@@ -67,7 +84,7 @@ fun PlayerController(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 CenterActionButton(
-                    iconRes = R.drawable.ic_media_rew,
+                    iconRes = Media3Material3R.drawable.media3_icon_skip_back_10,
                     contentDescription = "Seek back 10 seconds",
                     onClick = {
                         onUserInteraction()
@@ -76,7 +93,7 @@ fun PlayerController(
                 )
 
                 CenterActionButton(
-                    iconRes = if (uiState.isPlaying) R.drawable.ic_media_pause else R.drawable.ic_media_play,
+                    iconRes = if (uiState.isPlaying) Media3Material3R.drawable.media3_icon_pause else Media3Material3R.drawable.media3_icon_play,
                     contentDescription = if (uiState.isPlaying) "Pause" else "Play",
                     onClick = {
                         onUserInteraction()
@@ -85,7 +102,7 @@ fun PlayerController(
                 )
 
                 CenterActionButton(
-                    iconRes = R.drawable.ic_media_ff,
+                    iconRes = Media3Material3R.drawable.media3_icon_skip_forward_10,
                     contentDescription = "Seek forward 10 seconds",
                     onClick = {
                         onUserInteraction()
@@ -108,15 +125,6 @@ fun PlayerController(
                     )
                     .padding(horizontal = 16.dp, vertical = 14.dp)
             ) {
-                LinearProgressIndicator(
-                    progress = { bufferedFraction },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 2.dp),
-                    color = Color.White.copy(alpha = 0.35f),
-                    trackColor = Color.White.copy(alpha = 0.15f)
-                )
-
                 Slider(
                     value = sliderValue.toFloat(),
                     onValueChange = { value ->
@@ -128,11 +136,44 @@ fun PlayerController(
                         onScrubFinished()
                     },
                     valueRange = 0f..durationMs.toFloat().coerceAtLeast(1f),
-                    colors = SliderDefaults.colors(
-                        thumbColor = Color.White,
-                        activeTrackColor = Color.White,
-                        inactiveTrackColor = Color.White.copy(alpha = 0.25f)
-                    )
+                    thumb = {
+                        Box(
+                            modifier = Modifier
+                                .size(15.dp)
+                                .clip(CircleShape)
+                                .shadow(elevation = 4.dp, CircleShape)
+                                .background(Color.White)
+                        )
+                    },
+                    track = { sliderState ->
+                        val playedFraction = if (durationMs > 0L) {
+                            (sliderState.value / durationMs.toFloat()).coerceIn(0f, 1f)
+                        } else {
+                            0f
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(bufferedFraction)
+                                    .fillMaxHeight()
+                                    .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f))
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth(playedFraction)
+                                    .fillMaxHeight()
+                                    .background(MaterialTheme.colorScheme.primary)
+                            )
+                        }
+                    }
                 )
 
                 Row(
