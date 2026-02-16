@@ -103,10 +103,6 @@ fun PlayerController(
                 CircularProgressIndicator(
                     modifier = Modifier
                         .size(56.dp)
-                        .background(
-                            color = Color.Transparent,
-                            shape = CircleShape
-                        )
                         .align(Alignment.Center),
                     color = Color.White,
                     strokeWidth = 3.dp
