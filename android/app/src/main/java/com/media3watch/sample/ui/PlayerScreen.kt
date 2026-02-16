@@ -2,6 +2,7 @@ package com.media3watch.sample.ui
 
 import android.os.Build
 import androidx.activity.compose.LocalActivity
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
@@ -14,11 +15,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LifecycleStartEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.media3.ui.compose.PlayerSurface
+import androidx.media3.ui.compose.ContentFrame
 import com.media3watch.sample.PlayerViewModel
 import kotlinx.coroutines.delay
 
@@ -62,13 +64,14 @@ fun PlayerScreen(viewModel: PlayerViewModel = viewModel()) {
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .background(Color.Black)
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = { controlsVisible = !controlsVisible }
             )
     ) {
-        PlayerSurface(
+        ContentFrame(
             player = player,
             modifier = Modifier.fillMaxSize()
         )
