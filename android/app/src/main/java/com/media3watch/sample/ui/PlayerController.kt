@@ -58,7 +58,7 @@ fun PlayerController(
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        if (uiState.isBuffering && !visible) {
+        if (uiState.isBuffering) {
             CircularProgressIndicator(
                 modifier = Modifier
                     .size(56.dp)
