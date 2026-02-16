@@ -99,21 +99,15 @@ fun PlayerController(
                 )
             }
 
-            AnimatedVisibility(
-                visible = uiState.isBuffering,
-                enter = fadeIn(),
-                exit = fadeOut(),
-                modifier = Modifier.align(Alignment.Center)
-            ) {
+            if (uiState.isBuffering) {
                 CircularProgressIndicator(
                     modifier = Modifier
                         .size(56.dp)
-                        .shadow(elevation = 4.dp, CircleShape)
                         .background(
-                            color = Color.Black.copy(alpha = 0.40f),
+                            color = Color.Transparent,
                             shape = CircleShape
                         )
-                        .padding(12.dp),
+                        .align(Alignment.Center),
                     color = Color.White,
                     strokeWidth = 3.dp
                 )
