@@ -61,6 +61,7 @@ class SessionReporterTest {
 
         // Manual trigger
         reporter.reportNow()
+        runCurrent() // Process the launched coroutine
         assertEquals(1, reportCount)
         
         reporter.stop()
@@ -79,17 +80,20 @@ class SessionReporterTest {
 
         // First call goes through
         reporter.reportNow()
+        runCurrent() // Process the launched coroutine
         assertEquals(1, reportCount)
 
         // Immediate subsequent calls should be throttled (within 1s)
         reporter.reportNow()
         reporter.reportNow()
         reporter.reportNow()
+        runCurrent() // Process the launched coroutines
         assertEquals(1, reportCount)
 
         // After minInterval, it should accept again
         advanceTimeBy(1_001)
         reporter.reportNow()
+        runCurrent() // Process the launched coroutine
         assertEquals(2, reportCount)
         
         reporter.stop()
@@ -129,6 +133,7 @@ class SessionReporterTest {
         // Trigger manual report at 9s (just before periodic 10s)
         advanceTimeBy(9_000)
         reporter.reportNow()
+        runCurrent() // Process the launched coroutine
         assertEquals(1, reportCount)
 
         // The periodic timer should have reset. 
@@ -158,6 +163,7 @@ class SessionReporterTest {
         reporter.stop()
 
         reporter.reportNow()
+        runCurrent() // Process the launched coroutine
         assertEquals(0, reportCount)
     }
 

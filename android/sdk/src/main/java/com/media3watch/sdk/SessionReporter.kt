@@ -8,6 +8,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 internal class SessionReporter(
     private val intervalMs: Long = 15_000L,
@@ -32,16 +33,19 @@ internal class SessionReporter(
     }
 
     fun reportNow() {
-        // If stopped, do not report
-        if (reportingJob == null) return
+        // Launch on Main dispatcher to ensure thread-safe access to mutable state
+        coroutineScope.launch {
+            // If stopped, do not report
+            if (reportingJob == null) return@launch
 
-        val now = nowMsProvider()
-        val timeSinceLastReport = now - lastReportTimeMs
+            val now = nowMsProvider()
+            val timeSinceLastReport = now - lastReportTimeMs
 
-        if (lastReportTimeMs <= 0L || timeSinceLastReport >= minIntervalMs) {
-            triggerReport(now)
-            // Restart periodic timer to avoid reporting immediately after a manual report
-            startPeriodicReporting()
+            if (lastReportTimeMs <= 0L || timeSinceLastReport >= minIntervalMs) {
+                triggerReport(now)
+                // Restart periodic timer to avoid reporting immediately after a manual report
+                startPeriodicReporting()
+            }
         }
     }
 
