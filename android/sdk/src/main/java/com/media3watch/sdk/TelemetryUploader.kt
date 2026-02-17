@@ -10,7 +10,7 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.InterruptedIOException
+import java.net.SocketTimeoutException
 
 internal class TelemetryUploader(
     private val sender: HttpSender,
@@ -31,7 +31,7 @@ internal class TelemetryUploader(
                             Log.d(LogUtils.TAG, "session_report_success sessionId=$sessionId")
                         }
                         .onFailure {
-                            if (it is InterruptedIOException && it.message?.contains("timeout", ignoreCase = true) == true) {
+                            if (it is SocketTimeoutException) {
                                 Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (timeout)", it)
                             } else {
                                 Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId", it)
