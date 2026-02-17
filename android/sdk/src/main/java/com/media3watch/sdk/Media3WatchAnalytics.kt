@@ -142,8 +142,8 @@ class Media3WatchAnalytics(
 
         Log.d(LogUtils.TAG, "session_start sessionId=$sessionId")
         
-        // Start real-time reporting if enabled
-        if (config.enableRealTimeReporting) {
+        // Start real-time reporting if enabled and uploader is configured
+        if (config.enableRealTimeReporting && uploader != null) {
             reporter = SessionReporter(
                 intervalMs = config.reportingIntervalMs,
                 isActiveCheck = { 

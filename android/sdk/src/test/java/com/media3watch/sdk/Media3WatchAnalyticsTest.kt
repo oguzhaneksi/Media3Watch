@@ -437,6 +437,35 @@ class Media3WatchAnalyticsTest {
     }
 
     @Test
+    fun enableRealTimeReporting_withoutBackendUrl_doesNotStartReporter() = runTest {
+        val config = Media3WatchConfig(
+            backendUrl = null, // No backend configured
+            enableRealTimeReporting = true,
+            reportingIntervalMs = 100
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        harness.emitIsPlayingChanged(true)
+        harness.setPlaybackState(Player.STATE_READY)
+        
+        // Advance past the reporting interval
+        advanceMs(200)
+        
+        // No reports should be sent/logged since uploader is null
+        // Verify by checking that no "Uploading session summary" logs were created
+        val uploadLogs = ShadowLog.getLogsForTag(TAG)
+            .orEmpty()
+            .map { it.msg }
+            .filter { it.contains("Uploading session summary") }
+        
+        assertEquals("No upload logs should exist when backendUrl is null", 0, uploadLogs.size)
+        
+        analytics.detach()
+    }
+
+    @Test
     fun onSeek_triggersImmediateReport() = runTest {
         val server = MockWebServer()
         server.start()
