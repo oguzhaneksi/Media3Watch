@@ -13,6 +13,7 @@ internal class SessionReporter(
     private val minIntervalMs: Long = 1_000L,
     private val isActiveCheck: () -> Boolean,
     private val onReport: () -> Unit,
+    private val nowMsProvider: () -> Long = { System.currentTimeMillis() },
     // Injectable scope for testing, defaults to IO + SupervisorJob
     private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 ) {
@@ -33,10 +34,10 @@ internal class SessionReporter(
         // If stopped, do not report
         if (reportingJob == null) return
 
-        val now = System.currentTimeMillis()
+        val now = nowMsProvider()
         val timeSinceLastReport = now - lastReportTimeMs
 
-        if (timeSinceLastReport >= minIntervalMs) {
+        if (lastReportTimeMs <= 0L || timeSinceLastReport >= minIntervalMs) {
             triggerReport(now)
             // Restart periodic timer to avoid reporting immediately after a manual report
             startPeriodicReporting()
@@ -49,7 +50,7 @@ internal class SessionReporter(
             while (isActive) {
                 delay(intervalMs)
                 if (isActiveCheck()) {
-                    triggerReport(System.currentTimeMillis())
+                    triggerReport(nowMsProvider())
                 }
             }
         }

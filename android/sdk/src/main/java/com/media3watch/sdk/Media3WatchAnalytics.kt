@@ -3,6 +3,7 @@ package com.media3watch.sdk
 import android.os.SystemClock
 import android.util.Log
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
@@ -105,10 +106,15 @@ class Media3WatchAnalytics(
             reporter?.reportNow()
         }
         
-        override fun onSeekStarted(
-            eventTime: AnalyticsListener.EventTime
+        override fun onPositionDiscontinuity(
+            eventTime: AnalyticsListener.EventTime,
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+            reason: Int
         ) {
-            reporter?.reportNow()
+            if (reason == Player.DISCONTINUITY_REASON_SEEK) {
+                reporter?.reportNow()
+            }
         }
     }
 
@@ -136,7 +142,7 @@ class Media3WatchAnalytics(
                 intervalMs = config.reportingIntervalMs,
                 isActiveCheck = { 
                     this.player?.let { p ->
-                        p.isPlaying && p.playbackState == androidx.media3.common.Player.STATE_READY
+                        p.isPlaying && p.playbackState == Player.STATE_READY
                     } ?: false
                 },
                 onReport = { buildAndUploadSummary() }
@@ -212,8 +218,8 @@ class Media3WatchAnalytics(
         player ?: return
         val now = SystemClock.elapsedRealtime()
         val sessionDurationMs = (now - sessionStartTs).coerceAtLeast(0L)
-        
-        // sessionDurationMs <= 0 ise report gönderme
+
+        // Do not send report if sessionDurationMs <= 0
         if (sessionDurationMs <= 0) return
         
         val stats = playbackStatsListener.playbackStats

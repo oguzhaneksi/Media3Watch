@@ -173,6 +173,7 @@ class SessionReporterTest {
             minIntervalMs = minIntervalMs,
             isActiveCheck = isActiveCheck,
             onReport = onReport,
+            nowMsProvider = { scope.testScheduler.currentTime + 1L },
             coroutineScope = scope
         )
     }
