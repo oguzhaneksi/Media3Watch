@@ -70,7 +70,7 @@ class TelemetryUploaderTest {
 
     @Test
     fun upload_timeout_logsTimeoutWarning() = runBlocking {
-        // Never respond so coroutine-level timeout is guaranteed to trigger.
+        // Never respond so the HTTP call/upload timeout is guaranteed to trigger.
         server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         val uploader = TelemetryUploader(sender, uploadTimeoutMs = 100)
