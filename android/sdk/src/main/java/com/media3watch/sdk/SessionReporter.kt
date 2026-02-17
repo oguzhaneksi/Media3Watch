@@ -32,9 +32,14 @@ internal class SessionReporter(
         reportingJob = null
     }
 
+    /**
+     * Triggers an immediate report if the minimum interval has elapsed.
+     * This method is safe to call from any thread - it dispatches to the Main thread internally.
+     * Note: This is a fire-and-forget operation that returns immediately before execution.
+     */
     fun reportNow() {
-        // Launch on Main dispatcher to ensure thread-safe access to mutable state
-        coroutineScope.launch {
+        // Explicitly launch on Main dispatcher to ensure thread-safe access to mutable state
+        coroutineScope.launch(Dispatchers.Main) {
             // If stopped, do not report
             if (reportingJob == null) return@launch
 
