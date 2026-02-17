@@ -16,16 +16,15 @@ import kotlinx.coroutines.withTimeout
 internal class TelemetryUploader(
     private val sender: HttpSender,
     private val uploadTimeoutMs: Long = 15_000,
+    private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
 ) {
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
     fun shutdown() {
-        scope.cancel() // call when SDK is disposed, if ever
+        coroutineScope.cancel() // call when SDK is disposed, if ever
     }
 
     @OptIn(UnstableApi::class)
     fun upload(sessionId: String, payload: String) {
-        scope.launch {
+        coroutineScope.launch {
             try {
                 withContext(NonCancellable) {
                     withTimeout(uploadTimeoutMs) {

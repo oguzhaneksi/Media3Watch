@@ -7,6 +7,9 @@ import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import org.jetbrains.annotations.TestOnly
 import java.util.UUID
 
@@ -14,6 +17,8 @@ import java.util.UUID
 class Media3WatchAnalytics(
     private val config: Media3WatchConfig = Media3WatchConfig(),
 ) {
+
+    private val analyticsScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
     private var player: ExoPlayer? = null
     private var sessionId: String = ""
@@ -31,7 +36,8 @@ class Media3WatchAnalytics(
 
     private val uploader: TelemetryUploader? = httpSender?.let {
         TelemetryUploader(
-            sender = httpSender
+            sender = httpSender,
+            coroutineScope = analyticsScope
         )
     }
 
@@ -145,7 +151,9 @@ class Media3WatchAnalytics(
                         p.isPlaying && p.playbackState == Player.STATE_READY
                     } ?: false
                 },
-                onReport = { buildAndUploadSummary() }
+                onReport = { buildAndUploadSummary() },
+                nowMsProvider = { SystemClock.elapsedRealtime() },
+                coroutineScope = analyticsScope
             )
             reporter?.start()
         }

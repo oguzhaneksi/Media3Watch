@@ -1,5 +1,6 @@
 package com.media3watch.sdk
 
+import android.os.SystemClock
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -13,7 +14,7 @@ internal class SessionReporter(
     private val minIntervalMs: Long = 1_000L,
     private val isActiveCheck: () -> Boolean,
     private val onReport: () -> Unit,
-    private val nowMsProvider: () -> Long = { System.currentTimeMillis() },
+    private val nowMsProvider: () -> Long = { SystemClock.elapsedRealtime() },
     // Injectable scope for testing, defaults to IO + SupervisorJob
     private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 ) {
