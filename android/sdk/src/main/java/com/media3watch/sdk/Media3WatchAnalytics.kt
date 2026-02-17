@@ -3,9 +3,13 @@ package com.media3watch.sdk
 import android.os.SystemClock
 import android.util.Log
 import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import org.jetbrains.annotations.TestOnly
 import java.util.UUID
 
@@ -14,6 +18,8 @@ class Media3WatchAnalytics(
     private val config: Media3WatchConfig = Media3WatchConfig(),
 ) {
 
+    private val analyticsScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
     private var player: ExoPlayer? = null
     private var sessionId: String = ""
 
@@ -21,6 +27,7 @@ class Media3WatchAnalytics(
     private var sessionStartWallClockMs: Long = 0L
     private var playCommandTs: Long? = null
     private var startupTimeMs: Long? = null
+    private var reporter: SessionReporter? = null
 
     private var firstFrameRendered: Boolean = false
     private val httpSender: HttpSender? = config.backendUrl?.let {
@@ -29,7 +36,8 @@ class Media3WatchAnalytics(
 
     private val uploader: TelemetryUploader? = httpSender?.let {
         TelemetryUploader(
-            sender = httpSender
+            sender = httpSender,
+            coroutineScope = analyticsScope
         )
     }
 
@@ -55,6 +63,64 @@ class Media3WatchAnalytics(
                 startupTimeMs = (renderTimeMs - commandTs).coerceAtLeast(0L)
                 playCommandTs = null
             }
+            
+            reporter?.reportNow()
+        }
+        
+        override fun onIsPlayingChanged(
+            eventTime: AnalyticsListener.EventTime,
+            isPlaying: Boolean
+        ) {
+            reporter?.reportNow()
+        }
+        
+        override fun onPlaybackStateChanged(
+            eventTime: AnalyticsListener.EventTime,
+            state: Int
+        ) {
+            reporter?.reportNow()
+        }
+        
+        override fun onPlayWhenReadyChanged(
+            eventTime: AnalyticsListener.EventTime,
+            playWhenReady: Boolean,
+            reason: Int
+        ) {
+            reporter?.reportNow()
+        }
+        
+        override fun onVideoInputFormatChanged(
+            eventTime: AnalyticsListener.EventTime,
+            format: androidx.media3.common.Format,
+            decoderReuseEvaluation: androidx.media3.exoplayer.DecoderReuseEvaluation?
+        ) {
+            reporter?.reportNow()
+        }
+        
+        override fun onPlayerError(
+            eventTime: AnalyticsListener.EventTime,
+            error: androidx.media3.common.PlaybackException
+        ) {
+            reporter?.reportNow()
+        }
+        
+        override fun onDroppedVideoFrames(
+            eventTime: AnalyticsListener.EventTime,
+            droppedFrames: Int,
+            elapsedMs: Long
+        ) {
+            reporter?.reportNow()
+        }
+        
+        override fun onPositionDiscontinuity(
+            eventTime: AnalyticsListener.EventTime,
+            oldPosition: Player.PositionInfo,
+            newPosition: Player.PositionInfo,
+            reason: Int
+        ) {
+            if (reason == Player.DISCONTINUITY_REASON_SEEK) {
+                reporter?.reportNow()
+            }
         }
     }
 
@@ -75,6 +141,22 @@ class Media3WatchAnalytics(
         player.addAnalyticsListener(playbackStatsListener)
 
         Log.d(LogUtils.TAG, "session_start sessionId=$sessionId")
+        
+        // Start real-time reporting if enabled and uploader is configured
+        if (config.enableRealTimeReporting && uploader != null) {
+            reporter = SessionReporter(
+                intervalMs = config.reportingIntervalMs,
+                isActiveCheck = { 
+                    this.player?.let { p ->
+                        p.isPlaying && p.playbackState == Player.STATE_READY
+                    } ?: false
+                },
+                onReport = { buildAndUploadSummary() },
+                nowMsProvider = { SystemClock.elapsedRealtime() },
+                coroutineScope = analyticsScope
+            )
+            reporter?.start()
+        }
     }
 
     fun playRequested() {
@@ -89,38 +171,44 @@ class Media3WatchAnalytics(
     }
 
     fun detach() {
+        reporter?.stop()
+        reporter = null
+        
         val activePlayer = player ?: return
-        val now = SystemClock.elapsedRealtime()
         val currentSessionId = sessionId
-
-        val sessionEndStats = playbackStatsListener.playbackStats
 
         activePlayer.removeAnalyticsListener(analyticsListener)
         activePlayer.removeAnalyticsListener(playbackStatsListener)
         player = null
 
+        // Always build summary for logging
+        val now = SystemClock.elapsedRealtime()
         val summary = LogUtils.buildSessionSummary(
             sessionId = currentSessionId,
             sessionStartWallClockMs = sessionStartWallClockMs,
             sessionStartTs = sessionStartTs,
             now = now,
             startupTimeMs = startupTimeMs,
-            sessionEndStats = sessionEndStats
+            sessionEndStats = playbackStatsListener.playbackStats
         )
         Log.d(LogUtils.TAG, summary.toPrettyLog())
-
-        if (uploader != null) {
+        
+        // Only upload if sessionDurationMs > 0
+        val sessionDurationMs = (now - sessionStartTs).coerceAtLeast(0L)
+        if (uploader != null && sessionDurationMs > 0) {
             val payload = summary.toJson()
             uploader.upload(
                 sessionId = currentSessionId,
                 payload = payload
             )
         }
+        
         resetSession()
     }
 
     @TestOnly
     internal fun release() {
+        reporter?.stop()
         detach()
         uploader?.shutdown()
     }
@@ -132,5 +220,30 @@ class Media3WatchAnalytics(
         playCommandTs = null
         startupTimeMs = null
         firstFrameRendered = false
+    }
+    
+    private fun buildAndUploadSummary() {
+        player ?: return
+        val now = SystemClock.elapsedRealtime()
+        val sessionDurationMs = (now - sessionStartTs).coerceAtLeast(0L)
+
+        // Do not send report if sessionDurationMs <= 0
+        if (sessionDurationMs <= 0) return
+        
+        val stats = playbackStatsListener.playbackStats
+        val summary = LogUtils.buildSessionSummary(
+            sessionId = sessionId,
+            sessionStartWallClockMs = sessionStartWallClockMs,
+            sessionStartTs = sessionStartTs,
+            now = now,
+            startupTimeMs = startupTimeMs,
+            sessionEndStats = stats
+        )
+        Log.d(
+            LogUtils.TAG,
+            "Uploading session summary (sessionId=$sessionId, durationMs=$sessionDurationMs)"
+        )
+        
+        uploader?.upload(sessionId = sessionId, payload = summary.toJson())
     }
 }

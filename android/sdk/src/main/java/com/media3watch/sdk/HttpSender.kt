@@ -19,7 +19,7 @@ internal class HttpSender(
         .readTimeout(10, TimeUnit.SECONDS)
         .build()
 
-    suspend fun send(json: String): Result<Unit> = withContext(Dispatchers.IO) {
+    suspend fun send(json: String, callTimeoutMs: Long? = null): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val body = json.toRequestBody(JSON_MEDIA_TYPE)
 
@@ -31,7 +31,12 @@ internal class HttpSender(
                 requestBuilder.addHeader("X-API-Key", apiKey)
             }
 
-            client.newCall(requestBuilder.build()).execute().use { response ->
+            val call = client.newCall(requestBuilder.build())
+            if (callTimeoutMs != null && callTimeoutMs > 0L) {
+                call.timeout().timeout(callTimeoutMs, TimeUnit.MILLISECONDS)
+            }
+
+            call.execute().use { response ->
                 if (response.isSuccessful) {
                     Result.success(Unit)
                 } else {

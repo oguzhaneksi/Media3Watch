@@ -7,41 +7,40 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
+import java.io.InterruptedIOException
+import java.net.SocketTimeoutException
 
 internal class TelemetryUploader(
     private val sender: HttpSender,
     private val uploadTimeoutMs: Long = 15_000,
+    private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
 ) {
-    private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
-
     fun shutdown() {
-        scope.cancel() // call when SDK is disposed, if ever
+        coroutineScope.cancel() // call when SDK is disposed, if ever
     }
 
     @OptIn(UnstableApi::class)
     fun upload(sessionId: String, payload: String) {
-        scope.launch {
+        coroutineScope.launch(Dispatchers.IO) {
             try {
                 withContext(NonCancellable) {
-                    withTimeout(uploadTimeoutMs) {
-                        sender.send(payload)
-                            .onSuccess {
-                                Log.d(LogUtils.TAG, "session_upload_success sessionId=$sessionId")
+                    sender.send(payload, callTimeoutMs = uploadTimeoutMs)
+                        .onSuccess {
+                            Log.d(LogUtils.TAG, "session_report_success sessionId=$sessionId")
+                        }
+                        .onFailure {
+                            if (it is SocketTimeoutException || it is InterruptedIOException) {
+                                Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (timeout)", it)
+                            } else {
+                                Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId", it)
                             }
-                            .onFailure {
-                                Log.w(LogUtils.TAG, "session_upload_failed sessionId=$sessionId", it)
-                            }
-                    }
+                        }
                 }
-            } catch (e: TimeoutCancellationException) {
-                Log.w(LogUtils.TAG, "session_upload_failed sessionId=$sessionId (timeout)", e)
             } catch (t: Throwable) {
-                Log.w(LogUtils.TAG, "session_upload_failed sessionId=$sessionId (exception)", t)
+                Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (exception)", t)
             }
         }
     }

@@ -4,6 +4,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.SocketPolicy
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -40,7 +41,7 @@ class TelemetryUploaderTest {
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         val uploader = TelemetryUploader(sender)
 
-        uploader.upload(sessionId = 123, payload = """{"test":"data"}""")
+        uploader.upload(sessionId = "test-session-123", payload = """{"test":"data"}""")
 
         // Wait for async upload to complete (using real time since TelemetryUploader uses Dispatchers.IO)
         val request = server.takeRequest(2, TimeUnit.SECONDS)
@@ -55,34 +56,34 @@ class TelemetryUploaderTest {
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         val uploader = TelemetryUploader(sender)
 
-        uploader.upload(sessionId = 456, payload = """{"error":"test"}""")
+        uploader.upload(sessionId = "test-session-456", payload = """{"error":"test"}""")
 
         // Wait for async upload to complete and log the error
         server.takeRequest(2, TimeUnit.SECONDS)
         delay(100) // Give time for logging to complete
 
         val logs = ShadowLog.getLogsForTag(LogUtils.TAG)
-        val failureLog = logs?.find { it.msg.contains("session_upload_failed") && it.msg.contains("sessionId=456") }
+        val failureLog = logs?.find { it.msg.contains("session_report_failed") && it.msg.contains("sessionId=test-session-456") }
         assertNotNull("Should log upload failure", failureLog)
         assertEquals(android.util.Log.WARN, failureLog?.type)
     }
 
     @Test
     fun upload_timeout_logsTimeoutWarning() = runBlocking {
-        // Enqueue a response with a delay longer than the timeout
-        server.enqueue(MockResponse().setResponseCode(200).setBodyDelay(20, TimeUnit.SECONDS))
+        // Never respond so the HTTP call/upload timeout is guaranteed to trigger.
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         val uploader = TelemetryUploader(sender, uploadTimeoutMs = 100)
 
-        uploader.upload(sessionId = 789, payload = """{"slow":"data"}""")
+        uploader.upload(sessionId = "test-session-789", payload = """{"slow":"data"}""")
 
         // Wait for timeout to occur
-        delay(300) // Wait longer than uploadTimeoutMs
+        delay(600) // Wait comfortably longer than uploadTimeoutMs
 
         val logs = ShadowLog.getLogsForTag(LogUtils.TAG)
         val timeoutLog = logs?.find { 
-            it.msg.contains("session_upload_failed") && 
-            it.msg.contains("sessionId=789") &&
+            it.msg.contains("session_report_failed") && 
+            it.msg.contains("sessionId=test-session-789") &&
             it.msg.contains("(timeout)")
         }
         assertNotNull("Should log timeout failure", timeoutLog)
@@ -97,9 +98,9 @@ class TelemetryUploaderTest {
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         val uploader = TelemetryUploader(sender)
 
-        uploader.upload(sessionId = 1, payload = """{"session":1}""")
-        uploader.upload(sessionId = 2, payload = """{"session":2}""")
-        uploader.upload(sessionId = 3, payload = """{"session":3}""")
+        uploader.upload(sessionId = "session-1", payload = """{"session":1}""")
+        uploader.upload(sessionId = "session-2", payload = """{"session":2}""")
+        uploader.upload(sessionId = "session-3", payload = """{"session":3}""")
 
         // Wait for all async uploads to complete
         server.takeRequest(2, TimeUnit.SECONDS)
@@ -115,7 +116,7 @@ class TelemetryUploaderTest {
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         val uploader = TelemetryUploader(sender)
 
-        uploader.upload(sessionId = 999, payload = """{"shutdown":"test"}""")
+        uploader.upload(sessionId = "session-999", payload = """{"shutdown":"test"}""")
 
         // Give upload time to start, then shutdown
         delay(10)
@@ -135,7 +136,7 @@ class TelemetryUploaderTest {
         uploader.shutdown()
         
         // Try to upload after shutdown
-        uploader.upload(sessionId = 888, payload = """{"after":"shutdown"}""")
+        uploader.upload(sessionId = "session-888", payload = """{"after":"shutdown"}""")
 
         // Give time to verify no upload occurs
         delay(100)
@@ -150,15 +151,15 @@ class TelemetryUploaderTest {
         val sender = HttpSender(endpointUrl = "http://invalid-host-that-does-not-exist-12345.com/sessions")
         val uploader = TelemetryUploader(sender, uploadTimeoutMs = 1000)
 
-        uploader.upload(sessionId = 555, payload = """{"exception":"test"}""")
+        uploader.upload(sessionId = "session-555", payload = """{"exception":"test"}""")
 
         // Wait for async upload to fail
         delay(1500)
 
         val logs = ShadowLog.getLogsForTag(LogUtils.TAG)
         val exceptionLog = logs?.find { 
-            it.msg.contains("session_upload_failed") && 
-            it.msg.contains("sessionId=555")
+            it.msg.contains("session_report_failed") && 
+            it.msg.contains("sessionId=session-555")
         }
         assertNotNull("Should log exception failure", exceptionLog)
         assertEquals(android.util.Log.WARN, exceptionLog?.type)
@@ -170,7 +171,7 @@ class TelemetryUploaderTest {
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         val uploader = TelemetryUploader(sender, uploadTimeoutMs = 300)
 
-        uploader.upload(sessionId = 111, payload = """{"custom":"timeout"}""")
+        uploader.upload(sessionId = "session-111", payload = """{"custom":"timeout"}""")
 
         // Wait for request to complete within custom timeout
         val request = server.takeRequest(1, TimeUnit.SECONDS)

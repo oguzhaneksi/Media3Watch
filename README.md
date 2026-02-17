@@ -31,7 +31,7 @@ You ship a video app with Media3. Works great in development. Then production hi
 
 - **Android SDK**
 - **Session summary in Logcat** (plain text format, generated on session end)
-- **Optional backend upload** (HTTP POST with JSON payload)
+- **Optional Real-time Backend Upload** (HTTP POST with JSON payload, updates every 15s)
 - **Grafana Dashboards** (Visualize trends & sessions)
 
 ---
@@ -52,7 +52,6 @@ The SDK automatically tracks and summarizes:
 
 - [x] Self-hostable backend (store session summaries)
 - [x] Grafana dashboards (QoE trends + session drill-down)
-- JSON export format (file / clipboard)
 - Optional debug overlay (offline-friendly)
 
 ---
@@ -62,7 +61,7 @@ The SDK automatically tracks and summarizes:
 1. The **Android SDK** attaches to your player.
 2. It aggregates playback metrics during the session.
 3. When the session ends, it prints a **formatted summary** to **Logcat**.
-4. (Optional) It **uploads the session** to your backend for analysis.
+4. (Optional) If configured, it sends **periodic updates** (real-time) and a **final summary** to your backend.
 
 **When does a session end?**
 - Explicitly calling `analytics.detach()`
@@ -85,7 +84,9 @@ To integrate the Media3Watch SDK into your Android project:
    private val analytics = Media3WatchAnalytics(
        config = Media3WatchConfig(
            backendUrl = "http://localhost:8080/v1/sessions", // optional, use this for local testing
-           apiKey = "dev-key" // optional, matches backend default
+           apiKey = "dev-key", // optional, matches backend default
+           enableRealTimeReporting = true, // default: true
+           reportingIntervalMs = 15_000L // default: 15s
        )
    )
    // Or use default config for Logcat-only mode:
@@ -165,7 +166,9 @@ private val analytics = Media3WatchAnalytics(
     config = Media3WatchConfig(
         backendUrl = "http://10.0.2.2:8080/v1/sessions", // Android Emulator -> Host
         // backendUrl = "http://localhost:8080/v1/sessions", // Physical Device on same Wi-Fi
-        apiKey = "dev-key"
+        apiKey = "dev-key",
+        enableRealTimeReporting = true, // Optional, defaults to true
+        reportingIntervalMs = 15_000L // Optional, defaults to 15s
     )
 )
 ```

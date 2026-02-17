@@ -62,7 +62,7 @@ class HttpSenderTest {
 
         assertTrue(result.isSuccess)
         val request = server.takeRequest()
-        assertEquals("Bearer abc123", request.getHeader("Authorization"))
+        assertEquals("abc123", request.getHeader("X-API-Key"))
         assertNotNull(request.getHeader("Content-Type"))
     }
 }

@@ -1,7 +1,9 @@
 package com.media3watch.sdk
 
+import android.os.Looper
 import android.os.SystemClock
 import androidx.media3.common.PlaybackException
+import androidx.media3.common.Player
 import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -19,10 +21,12 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.mock
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowLog
 import org.robolectric.shadows.ShadowSystemClock
 import java.util.concurrent.TimeUnit
+import java.util.regex.Pattern
 
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE)
@@ -47,7 +51,7 @@ class Media3WatchAnalyticsTest {
             .map { it.msg }
             .lastOrNull { it.contains("session_start") }
         assertNotNull(startLog)
-        assertTrue(startLog!!.contains("sessionId=1"))
+        assertSessionStartContainsValidSessionId(startLog!!)
 
         val endLog = lastSessionEndLog()
         assertNotNull(endLog)
@@ -169,8 +173,12 @@ class Media3WatchAnalyticsTest {
 
         assertEquals(2, endLogs.size)
         assertEquals(2, startLogs.size)
-        assertTrue(startLogs[0].contains("sessionId=1"))
-        assertTrue(startLogs[1].contains("sessionId=2"))
+
+        val firstSessionId = extractSessionIdFromStartLog(startLogs[0])
+        val secondSessionId = extractSessionIdFromStartLog(startLogs[1])
+        assertTrue(firstSessionId.isNotBlank())
+        assertTrue(secondSessionId.isNotBlank())
+        assertTrue(firstSessionId != secondSessionId)
 
         val firstDuration = metric(endLogs[0], "sessionDurationMs").toLong()
         val secondDuration = metric(endLogs[1], "sessionDurationMs").toLong()
@@ -265,12 +273,273 @@ class Media3WatchAnalyticsTest {
         val request = server.takeRequest(1, TimeUnit.SECONDS)
         assertNotNull("Request should have been sent despite immediate release()", request)
         assertEquals("POST", request!!.method)
-        assertEquals("Bearer test-key", request.getHeader("Authorization"))
+        assertEquals("test-key", request.getHeader("X-API-Key"))
 
         val body = request.body.readUtf8()
-        assertTrue(body.contains("\"sessionId\":1"))
+        assertTrue(body.contains("\"sessionId\":\""))
         assertTrue(body.contains("\"startupTimeMs\":100"))
 
+        server.shutdown()
+    }
+
+    // ****** Real-Time Reporting Tests ******
+
+    @Test
+    fun buildAndUploadSummary_skipsWhenSessionDurationIsZero() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/sessions").toString(),
+            apiKey = "test-key",
+            enableRealTimeReporting = true,
+            reportingIntervalMs = 100 // Short interval for testing
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        // Attach and immediately trigger an event
+        analytics.attach(harness.player)
+        harness.emitIsPlayingChanged(true)
+
+        // Wait a bit - no report should be sent because sessionDurationMs is 0
+        advanceMs(50)
+
+        // Should be no requests since duration is 0
+        val request = server.takeRequest(200, TimeUnit.MILLISECONDS)
+        assertEquals(null, request)
+
+        analytics.detach()
+        server.shutdown()
+    }
+
+    @Test
+    fun realTimeReport_sentAfterInterval() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/sessions").toString(),
+            apiKey = "test-key",
+            enableRealTimeReporting = true,
+            reportingIntervalMs = 500
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        harness.emitIsPlayingChanged(true)
+        harness.setPlaybackState(Player.STATE_READY)
+
+        // Advance past reportingInterval
+        advanceMs(600)
+
+        // Should receive a periodic report
+        val request = server.takeRequest(1, TimeUnit.SECONDS)
+        assertNotNull("Expected periodic report after interval", request)
+        assertEquals("POST", request!!.method)
+
+        analytics.detach()
+        server.shutdown()
+    }
+
+    @Test
+    fun playerEvents_triggerImmediateReport() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/sessions").toString(),
+            apiKey = "test-key",
+            enableRealTimeReporting = true
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        advanceMs(100) // Make sessionDuration > 0
+
+        // Trigger an event
+        harness.emitIsPlayingChanged(true)
+
+        // Should receive an immediate report
+        val request = server.takeRequest(1, TimeUnit.SECONDS)
+        assertNotNull("Expected immediate report after event", request)
+
+        analytics.detach()
+        server.shutdown()
+    }
+
+    @Test
+    fun detach_sendsLastReport_andStopsReporter() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/sessions").toString(),
+            apiKey = "test-key",
+            enableRealTimeReporting = true,
+            reportingIntervalMs = 200
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        advanceMs(100)
+
+        analytics.detach()
+
+        // Should receive final detach report
+        val request = server.takeRequest(1, TimeUnit.SECONDS)
+        assertNotNull("Expected final report on detach", request)
+
+        // Advance more time - no further reports should come
+        advanceMs(500)
+        val noMoreRequests = server.takeRequest(200, TimeUnit.MILLISECONDS)
+        assertEquals("No reports should be sent after detach", null, noMoreRequests)
+
+        server.shutdown()
+    }
+
+    @Test
+    fun enableRealTimeReporting_false_disablesReporting() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/sessions").toString(),
+            apiKey = "test-key",
+            enableRealTimeReporting = false, // Disabled
+            reportingIntervalMs = 100
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        harness.emitIsPlayingChanged(true)
+        advanceMs(200)
+
+        // No periodic reports should be sent
+        val noRequest = server.takeRequest(200, TimeUnit.MILLISECONDS)
+        assertEquals("No periodic reports when disabled", null, noRequest)
+
+        // Only detach should send a report
+        analytics.detach()
+        val finalRequest = server.takeRequest(1, TimeUnit.SECONDS)
+        assertNotNull("Final report should still be sent on detach", finalRequest)
+
+        server.shutdown()
+    }
+
+    @Test
+    fun enableRealTimeReporting_withoutBackendUrl_doesNotStartReporter() = runTest {
+        val config = Media3WatchConfig(
+            backendUrl = null, // No backend configured
+            enableRealTimeReporting = true,
+            reportingIntervalMs = 100
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        harness.emitIsPlayingChanged(true)
+        harness.setPlaybackState(Player.STATE_READY)
+        
+        // Advance past the reporting interval
+        advanceMs(200)
+        
+        // No reports should be sent/logged since uploader is null
+        // Verify by checking that no "Uploading session summary" logs were created
+        val uploadLogs = ShadowLog.getLogsForTag(TAG)
+            .orEmpty()
+            .map { it.msg }
+            .filter { it.contains("Uploading session summary") }
+        
+        assertEquals("No upload logs should exist when backendUrl is null", 0, uploadLogs.size)
+        
+        analytics.detach()
+    }
+
+    @Test
+    fun onSeek_triggersImmediateReport() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/sessions").toString(),
+            apiKey = "test-key",
+            enableRealTimeReporting = true
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        advanceMs(100)
+
+        harness.emitSeekStarted()
+
+        val request = server.takeRequest(1, TimeUnit.SECONDS)
+        assertNotNull("Expected report on seek", request)
+
+        analytics.detach()
+        server.shutdown()
+    }
+
+    @Test
+    fun onPlayerError_triggersImmediateReport() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/sessions").toString(),
+            apiKey = "test-key",
+            enableRealTimeReporting = true
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        advanceMs(100)
+
+        harness.emitPlayerError(PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED)
+
+        val request = server.takeRequest(1, TimeUnit.SECONDS)
+        assertNotNull("Expected report on player error", request)
+
+        analytics.detach()
+        server.shutdown()
+    }
+
+    @Test
+    fun onDroppedVideoFrames_triggersReport() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/sessions").toString(),
+            apiKey = "test-key",
+            enableRealTimeReporting = true
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        advanceMs(100)
+
+        harness.emitDroppedVideoFrames(5)
+
+        val request = server.takeRequest(1, TimeUnit.SECONDS)
+        assertNotNull("Expected report on dropped frames", request)
+
+        analytics.detach()
         server.shutdown()
     }
 
@@ -291,7 +560,7 @@ class Media3WatchAnalyticsTest {
     }
 
     private fun advanceMs(milliseconds: Long) {
-        ShadowSystemClock.advanceBy(milliseconds, TimeUnit.MILLISECONDS)
+        shadowOf(Looper.getMainLooper()).idleFor(milliseconds, TimeUnit.MILLISECONDS)
     }
 
     private fun assertMetricIsNullOrNonNegativeLong(log: String, key: String) {
@@ -302,9 +571,21 @@ class Media3WatchAnalyticsTest {
         assertTrue(value.toLong() >= 0L)
     }
 
+    private fun assertSessionStartContainsValidSessionId(log: String) {
+        val sessionId = extractSessionIdFromStartLog(log)
+        assertTrue(sessionId.isNotBlank())
+        assertTrue(UUID_V4_PATTERN.matcher(sessionId).matches())
+    }
+
+    private fun extractSessionIdFromStartLog(log: String): String {
+        return log.substringAfter("sessionId=", "").trim()
+    }
+
     private class PlayerHarness {
         val player: ExoPlayer = mock(ExoPlayer::class.java)
         val analyticsListeners = mutableListOf<AnalyticsListener>()
+        private var isPlayingState: Boolean = false
+        private var playbackStateValue: Int = Player.STATE_IDLE
 
         init {
             doAnswer {
@@ -316,6 +597,9 @@ class Media3WatchAnalyticsTest {
                 analyticsListeners.remove(it.arguments[0] as AnalyticsListener)
                 null
             }.`when`(player).removeAnalyticsListener(any(AnalyticsListener::class.java))
+
+            doAnswer { isPlayingState }.`when`(player).isPlaying
+            doAnswer { playbackStateValue }.`when`(player).playbackState
         }
 
         fun emitFirstFrame() {
@@ -338,6 +622,34 @@ class Media3WatchAnalyticsTest {
                 it.onPlayerError(createEventTime(), error)
             }
         }
+        
+        fun emitIsPlayingChanged(isPlaying: Boolean) {
+            isPlayingState = isPlaying
+            analyticsListeners.forEach {
+                it.onIsPlayingChanged(createEventTime(), isPlaying)
+            }
+        }
+        
+        fun setPlaybackState(state: Int) {
+            playbackStateValue = state
+        }
+        
+        fun emitSeekStarted() {
+            analyticsListeners.forEach {
+                it.onPositionDiscontinuity(
+                    createEventTime(),
+                    mock(Player.PositionInfo::class.java),
+                    mock(Player.PositionInfo::class.java),
+                    Player.DISCONTINUITY_REASON_SEEK
+                )
+            }
+        }
+        
+        fun emitDroppedVideoFrames(droppedFrames: Int) {
+            analyticsListeners.forEach {
+                it.onDroppedVideoFrames(createEventTime(), droppedFrames, 100L)
+            }
+        }
 
         private fun createEventTime(): AnalyticsListener.EventTime {
             return AnalyticsListener.EventTime(
@@ -357,5 +669,9 @@ class Media3WatchAnalyticsTest {
 
     private companion object {
         const val TAG = "Media3WatchAnalytics"
+        val UUID_V4_PATTERN: Pattern = Pattern.compile(
+            "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$",
+            Pattern.CASE_INSENSITIVE
+        )
     }
 }
