@@ -15,7 +15,8 @@ class SessionSummaryTest {
     @Test
     fun toJson_containsAllFields() {
         val summary = SessionSummary(
-            sessionId = 5L,
+            sessionId = "test-session-5",
+            timestamp = System.currentTimeMillis(),
             sessionStartDateIso = "2026-02-14T12:00:00.000Z",
             sessionDurationMs = 1200L,
             startupTimeMs = 220L,
@@ -32,7 +33,7 @@ class SessionSummaryTest {
 
         val jsonObject = Json.parseToJsonElement(summary.toJson()).jsonObject
 
-        assertEquals(5L, jsonObject.getValue("sessionId").jsonPrimitive.long)
+        assertEquals("test-session-5", jsonObject.getValue("sessionId").jsonPrimitive.content)
         assertEquals("2026-02-14T12:00:00.000Z", jsonObject.getValue("sessionStartDateIso").jsonPrimitive.content)
         assertEquals(1200L, jsonObject.getValue("sessionDurationMs").jsonPrimitive.long)
         assertEquals(220L, jsonObject.getValue("startupTimeMs").jsonPrimitive.long)
@@ -50,7 +51,8 @@ class SessionSummaryTest {
     @Test
     fun toJson_nullableFieldsSerializedCorrectly() {
         val summary = SessionSummary(
-            sessionId = 9L,
+            sessionId = "test-session-9",
+            timestamp = System.currentTimeMillis(),
             sessionStartDateIso = "2026-02-14T00:00:00.000Z",
             sessionDurationMs = 500L,
             startupTimeMs = null,
@@ -82,7 +84,8 @@ class SessionSummaryTest {
     @Test
     fun toPrettyLog_matchesExpectedFormat() {
         val summary = SessionSummary(
-            sessionId = 11L,
+            sessionId = "test-session-11",
+            timestamp = System.currentTimeMillis(),
             sessionStartDateIso = "2026-02-14T18:30:00.000Z",
             sessionDurationMs = 1600L,
             startupTimeMs = 80L,
@@ -101,7 +104,8 @@ class SessionSummaryTest {
 
         val expected = buildString {
             appendLine("session_end")
-            appendLine("  sessionId: 11")
+            appendLine("  sessionId: test-session-11")
+            appendLine("  timestamp: ${summary.timestamp}")
             appendLine("  sessionStartDateIso: 2026-02-14T18:30:00.000Z")
             appendLine("  sessionDurationMs: 1600")
             appendLine("  startupTimeMs: 80")

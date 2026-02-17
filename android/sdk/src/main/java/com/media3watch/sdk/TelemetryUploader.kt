@@ -31,17 +31,17 @@ internal class TelemetryUploader(
                     withTimeout(uploadTimeoutMs) {
                         sender.send(payload)
                             .onSuccess {
-                                Log.d(LogUtils.TAG, "session_upload_success sessionId=$sessionId")
+                                Log.d(LogUtils.TAG, "session_report_success sessionId=$sessionId")
                             }
                             .onFailure {
-                                Log.w(LogUtils.TAG, "session_upload_failed sessionId=$sessionId", it)
+                                Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId", it)
                             }
                     }
                 }
             } catch (e: TimeoutCancellationException) {
-                Log.w(LogUtils.TAG, "session_upload_failed sessionId=$sessionId (timeout)", e)
+                Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (timeout)", e)
             } catch (t: Throwable) {
-                Log.w(LogUtils.TAG, "session_upload_failed sessionId=$sessionId (exception)", t)
+                Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (exception)", t)
             }
         }
     }
