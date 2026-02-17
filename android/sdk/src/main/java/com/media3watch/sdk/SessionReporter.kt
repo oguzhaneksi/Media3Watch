@@ -35,7 +35,8 @@ internal class SessionReporter(
     /**
      * Triggers an immediate report if the minimum interval has elapsed.
      * This method is safe to call from any thread - it dispatches to the Main thread internally.
-     * Note: This is a fire-and-forget operation that returns immediately before execution.
+     * Note: This is a fire-and-forget operation. The method returns immediately while the 
+     * report executes asynchronously on the Main dispatcher.
      */
     fun reportNow() {
         // Explicitly launch on Main dispatcher to ensure thread-safe access to mutable state
