@@ -7,11 +7,10 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
+import java.io.InterruptedIOException
 
 internal class TelemetryUploader(
     private val sender: HttpSender,
@@ -24,21 +23,21 @@ internal class TelemetryUploader(
 
     @OptIn(UnstableApi::class)
     fun upload(sessionId: String, payload: String) {
-        coroutineScope.launch {
+        coroutineScope.launch(Dispatchers.IO) {
             try {
                 withContext(NonCancellable) {
-                    withTimeout(uploadTimeoutMs) {
-                        sender.send(payload)
-                            .onSuccess {
-                                Log.d(LogUtils.TAG, "session_report_success sessionId=$sessionId")
-                            }
-                            .onFailure {
+                    sender.send(payload, callTimeoutMs = uploadTimeoutMs)
+                        .onSuccess {
+                            Log.d(LogUtils.TAG, "session_report_success sessionId=$sessionId")
+                        }
+                        .onFailure {
+                            if (it is InterruptedIOException && it.message?.contains("timeout", ignoreCase = true) == true) {
+                                Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (timeout)", it)
+                            } else {
                                 Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId", it)
                             }
-                    }
+                        }
                 }
-            } catch (e: TimeoutCancellationException) {
-                Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (timeout)", e)
             } catch (t: Throwable) {
                 Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (exception)", t)
             }

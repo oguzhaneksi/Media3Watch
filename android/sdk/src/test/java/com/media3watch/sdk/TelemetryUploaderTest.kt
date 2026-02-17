@@ -4,6 +4,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okhttp3.mockwebserver.SocketPolicy
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -69,15 +70,15 @@ class TelemetryUploaderTest {
 
     @Test
     fun upload_timeout_logsTimeoutWarning() = runBlocking {
-        // Enqueue a response with a delay longer than the timeout
-        server.enqueue(MockResponse().setResponseCode(200).setBodyDelay(20, TimeUnit.SECONDS))
+        // Never respond so coroutine-level timeout is guaranteed to trigger.
+        server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         val uploader = TelemetryUploader(sender, uploadTimeoutMs = 100)
 
         uploader.upload(sessionId = "test-session-789", payload = """{"slow":"data"}""")
 
         // Wait for timeout to occur
-        delay(300) // Wait longer than uploadTimeoutMs
+        delay(600) // Wait comfortably longer than uploadTimeoutMs
 
         val logs = ShadowLog.getLogsForTag(LogUtils.TAG)
         val timeoutLog = logs?.find { 

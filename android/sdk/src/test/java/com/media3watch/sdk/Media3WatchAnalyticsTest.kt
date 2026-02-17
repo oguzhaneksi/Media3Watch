@@ -1,5 +1,6 @@
 package com.media3watch.sdk
 
+import android.os.Looper
 import android.os.SystemClock
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
@@ -20,6 +21,7 @@ import org.mockito.ArgumentMatchers.any
 import org.mockito.Mockito.doAnswer
 import org.mockito.Mockito.mock
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowLog
 import org.robolectric.shadows.ShadowSystemClock
@@ -529,7 +531,7 @@ class Media3WatchAnalyticsTest {
     }
 
     private fun advanceMs(milliseconds: Long) {
-        ShadowSystemClock.advanceBy(milliseconds, TimeUnit.MILLISECONDS)
+        shadowOf(Looper.getMainLooper()).idleFor(milliseconds, TimeUnit.MILLISECONDS)
     }
 
     private fun assertMetricIsNullOrNonNegativeLong(log: String, key: String) {

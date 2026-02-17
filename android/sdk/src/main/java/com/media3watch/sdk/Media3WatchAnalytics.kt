@@ -18,7 +18,7 @@ class Media3WatchAnalytics(
     private val config: Media3WatchConfig = Media3WatchConfig(),
 ) {
 
-    private val analyticsScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val analyticsScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private var player: ExoPlayer? = null
     private var sessionId: String = ""
@@ -143,7 +143,7 @@ class Media3WatchAnalytics(
         Log.d(LogUtils.TAG, "session_start sessionId=$sessionId")
         
         // Start real-time reporting if enabled
-        if (config.enableRealTimeReporting && uploader != null) {
+        if (config.enableRealTimeReporting) {
             reporter = SessionReporter(
                 intervalMs = config.reportingIntervalMs,
                 isActiveCheck = { 
@@ -239,6 +239,7 @@ class Media3WatchAnalytics(
             startupTimeMs = startupTimeMs,
             sessionEndStats = stats
         )
+        Log.d(LogUtils.TAG, summary.toPrettyLog())
         
         uploader?.upload(sessionId = sessionId, payload = summary.toJson())
     }

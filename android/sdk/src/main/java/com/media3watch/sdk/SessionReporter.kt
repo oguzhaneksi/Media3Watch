@@ -16,7 +16,7 @@ internal class SessionReporter(
     private val onReport: () -> Unit,
     private val nowMsProvider: () -> Long = { SystemClock.elapsedRealtime() },
     // Injectable scope for testing, defaults to IO + SupervisorJob
-    private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
+    private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 ) {
     private var reportingJob: Job? = null
     private var lastReportTimeMs: Long = 0L
