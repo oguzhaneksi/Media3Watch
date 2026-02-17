@@ -239,7 +239,10 @@ class Media3WatchAnalytics(
             startupTimeMs = startupTimeMs,
             sessionEndStats = stats
         )
-        Log.d(LogUtils.TAG, summary.toPrettyLog())
+        Log.d(
+            LogUtils.TAG,
+            "Uploading session summary (sessionId=$sessionId, durationMs=$sessionDurationMs)"
+        )
         
         uploader?.upload(sessionId = sessionId, payload = summary.toJson())
     }
