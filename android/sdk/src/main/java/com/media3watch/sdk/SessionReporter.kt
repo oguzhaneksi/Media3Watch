@@ -15,7 +15,7 @@ internal class SessionReporter(
     private val isActiveCheck: () -> Boolean,
     private val onReport: () -> Unit,
     private val nowMsProvider: () -> Long = { SystemClock.elapsedRealtime() },
-    // Injectable scope for testing, defaults to IO + SupervisorJob
+    // Injectable scope for testing, defaults to Dispatchers.Main + SupervisorJob
     private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 ) {
     private var reportingJob: Job? = null
