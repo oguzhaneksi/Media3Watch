@@ -16,6 +16,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -193,7 +194,7 @@ class TelemetryUploaderTest {
         }
         
         // Verify that CancellationException was thrown (and thus rethrown by our code)
-        assertEquals("CancellationException should have been rethrown", true, cancellationExceptionThrown)
+        assertTrue("CancellationException should have been rethrown", cancellationExceptionThrown)
         
         // Also verify that CancellationException was NOT logged
         val logs = ShadowLog.getLogsForTag(LogUtils.TAG)
