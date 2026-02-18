@@ -9,6 +9,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
@@ -18,6 +19,7 @@ import java.util.UUID
 @androidx.annotation.OptIn(UnstableApi::class)
 class Media3WatchAnalytics(
     private val config: Media3WatchConfig = Media3WatchConfig(),
+    private val backgroundDispatcher: CoroutineDispatcher = Dispatchers.Default
 ) {
 
     private val analyticsScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -214,7 +216,7 @@ class Media3WatchAnalytics(
         val capturedSessionStartTs = sessionStartTs
         val capturedStartupTimeMs = startupTimeMs
 
-        analyticsScope.launch(Dispatchers.Default) {
+        analyticsScope.launch(backgroundDispatcher) {
             val summary = LogUtils.buildSessionSummary(
                 sessionId = capturedSessionId,
                 sessionStartWallClockMs = capturedSessionStartWallClockMs,
