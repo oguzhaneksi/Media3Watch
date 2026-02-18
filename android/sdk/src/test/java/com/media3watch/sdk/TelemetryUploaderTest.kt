@@ -182,12 +182,8 @@ class TelemetryUploaderTest {
         testScheduler.advanceTimeBy(250)
         job.cancel()
         
-        // Advance until all coroutines are done
-        try {
-            testScheduler.advanceUntilIdle()
-        } catch (e: CancellationException) {
-            // Expected when job is cancelled
-        }
+        // Advance until all coroutines are done (may throw if job cancelled)
+        testScheduler.advanceUntilIdle()
         
         // Verify that CancellationException was thrown (and thus rethrown by our code)
         assertTrue("CancellationException should have been rethrown", cancellationExceptionThrown)
