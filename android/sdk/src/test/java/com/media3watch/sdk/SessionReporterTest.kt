@@ -1,12 +1,14 @@
 package com.media3watch.sdk
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import kotlin.coroutines.ContinuationInterceptor
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SessionReporterTest {
@@ -61,6 +63,7 @@ class SessionReporterTest {
 
         // Manual trigger
         reporter.reportNow()
+        runCurrent()
         assertEquals(1, reportCount)
         
         reporter.stop()
@@ -79,17 +82,20 @@ class SessionReporterTest {
 
         // First call goes through
         reporter.reportNow()
+        runCurrent()
         assertEquals(1, reportCount)
 
         // Immediate subsequent calls should be throttled (within 1s)
         reporter.reportNow()
         reporter.reportNow()
         reporter.reportNow()
+        runCurrent()
         assertEquals(1, reportCount)
 
         // After minInterval, it should accept again
         advanceTimeBy(1_001)
         reporter.reportNow()
+        runCurrent()
         assertEquals(2, reportCount)
         
         reporter.stop()
@@ -129,6 +135,7 @@ class SessionReporterTest {
         // Trigger manual report at 9s (just before periodic 10s)
         advanceTimeBy(9_000)
         reporter.reportNow()
+        runCurrent()
         assertEquals(1, reportCount)
 
         // The periodic timer should have reset. 
@@ -158,6 +165,7 @@ class SessionReporterTest {
         reporter.stop()
 
         reporter.reportNow()
+        runCurrent()
         assertEquals(0, reportCount)
     }
 
@@ -173,6 +181,7 @@ class SessionReporterTest {
             minIntervalMs = minIntervalMs,
             isActiveCheck = isActiveCheck,
             onReport = onReport,
+            callbackDispatcher = scope.coroutineContext[ContinuationInterceptor] as CoroutineDispatcher,
             nowMsProvider = { scope.testScheduler.currentTime + 1L },
             coroutineScope = scope
         )

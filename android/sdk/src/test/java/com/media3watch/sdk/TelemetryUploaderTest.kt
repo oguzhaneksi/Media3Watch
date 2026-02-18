@@ -1,7 +1,12 @@
 package com.media3watch.sdk
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.SocketPolicy
@@ -9,6 +14,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -39,11 +45,11 @@ class TelemetryUploaderTest {
     fun upload_success_sendsPayloadToServer() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(200))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender)
+        val uploader = TelemetryUploader(sender, coroutineScope = this)
 
         uploader.upload(sessionId = "test-session-123", payload = """{"test":"data"}""")
 
-        // Wait for async upload to complete (using real time since TelemetryUploader uses Dispatchers.IO)
+        // Launch is on Default; network I/O is on IO inside HttpSender — wait for the real thread.
         val request = server.takeRequest(2, TimeUnit.SECONDS)
         assertNotNull("Request should have been sent", request)
         assertEquals("POST", request!!.method)
@@ -54,7 +60,7 @@ class TelemetryUploaderTest {
     fun upload_serverError_logsWarning() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(500))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender)
+        val uploader = TelemetryUploader(sender, coroutineScope = this)
 
         uploader.upload(sessionId = "test-session-456", payload = """{"error":"test"}""")
 
@@ -73,7 +79,7 @@ class TelemetryUploaderTest {
         // Never respond so the HTTP call/upload timeout is guaranteed to trigger.
         server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, uploadTimeoutMs = 100)
+        val uploader = TelemetryUploader(sender, uploadTimeoutMs = 100, coroutineScope = this)
 
         uploader.upload(sessionId = "test-session-789", payload = """{"slow":"data"}""")
 
@@ -96,7 +102,7 @@ class TelemetryUploaderTest {
         server.enqueue(MockResponse().setResponseCode(200))
         server.enqueue(MockResponse().setResponseCode(200))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender)
+        val uploader = TelemetryUploader(sender, coroutineScope = this)
 
         uploader.upload(sessionId = "session-1", payload = """{"session":1}""")
         uploader.upload(sessionId = "session-2", payload = """{"session":2}""")
@@ -111,45 +117,10 @@ class TelemetryUploaderTest {
     }
 
     @Test
-    fun shutdown_cancelsScope_butDoesNotAffectInFlightUploads() = runBlocking {
-        server.enqueue(MockResponse().setResponseCode(200).setBodyDelay(50, TimeUnit.MILLISECONDS))
-        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender)
-
-        uploader.upload(sessionId = "session-999", payload = """{"shutdown":"test"}""")
-
-        // Give upload time to start, then shutdown
-        delay(10)
-        uploader.shutdown()
-
-        // Since the coroutine was already launched, it should still complete
-        val request = server.takeRequest(2, TimeUnit.SECONDS)
-        assertNotNull("In-flight request should complete even after shutdown", request)
-    }
-
-    @Test
-    fun shutdown_preventsNewUploads() = runBlocking {
-        server.enqueue(MockResponse().setResponseCode(200))
-        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender)
-
-        uploader.shutdown()
-        
-        // Try to upload after shutdown
-        uploader.upload(sessionId = "session-888", payload = """{"after":"shutdown"}""")
-
-        // Give time to verify no upload occurs
-        delay(100)
-
-        // Request should not be sent because scope was cancelled
-        assertEquals("No request should be sent after shutdown", 0, server.requestCount)
-    }
-
-    @Test
     fun upload_unexpectedException_logsException() = runBlocking {
         // Use invalid URL to cause an exception
         val sender = HttpSender(endpointUrl = "http://invalid-host-that-does-not-exist-12345.com/sessions")
-        val uploader = TelemetryUploader(sender, uploadTimeoutMs = 1000)
+        val uploader = TelemetryUploader(sender, uploadTimeoutMs = 1000, coroutineScope = this)
 
         uploader.upload(sessionId = "session-555", payload = """{"exception":"test"}""")
 
@@ -169,7 +140,7 @@ class TelemetryUploaderTest {
     fun upload_customTimeout_respectsConfiguredValue() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(200).setBodyDelay(150, TimeUnit.MILLISECONDS))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, uploadTimeoutMs = 300)
+        val uploader = TelemetryUploader(sender, uploadTimeoutMs = 300, coroutineScope = this)
 
         uploader.upload(sessionId = "session-111", payload = """{"custom":"timeout"}""")
 
@@ -184,5 +155,45 @@ class TelemetryUploaderTest {
         val logs = ShadowLog.getLogsForTag(LogUtils.TAG)
         val timeoutLog = logs?.find { it.msg.contains("(timeout)") }
         assertNull("Should not log timeout", timeoutLog)
+    }
+
+    @Test
+    fun upload_scopeCancelled_rethrowsCancellationException() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBodyDelay(500, TimeUnit.MILLISECONDS))
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        
+        // Use the implicit TestScope from runTest
+        val uploader = TelemetryUploader(sender, coroutineScope = this)
+
+        // Track if CancellationException was thrown
+        var cancellationExceptionThrown = false
+        
+        // Launch upload in a supervised job that can catch the rethrown exception
+        val job = launch {
+            try {
+                uploader.upload(sessionId = "test-cancel", payload = """{"cancel":"test"}""")
+            } catch (e: CancellationException) {
+                cancellationExceptionThrown = true
+                throw e  // Rethrow to maintain cancellation semantics
+            }
+        }
+        
+        // Advance time to mid-upload (halfway through the 500ms response delay), then cancel
+        testScheduler.advanceTimeBy(250)
+        job.cancel()
+        
+        // Process all pending coroutines
+        testScheduler.advanceUntilIdle()
+        
+        // Verify that CancellationException was thrown (and thus rethrown by our code)
+        assertTrue("CancellationException should have been rethrown", cancellationExceptionThrown)
+        
+        // Also verify that CancellationException was NOT logged
+        val logs = ShadowLog.getLogsForTag(LogUtils.TAG)
+        val cancellationLog = logs?.find { 
+            it.msg.contains("test-cancel") && 
+            (it.throwable is CancellationException || it.msg.contains("CancellationException"))
+        }
+        assertNull("CancellationException should not be logged", cancellationLog)
     }
 }

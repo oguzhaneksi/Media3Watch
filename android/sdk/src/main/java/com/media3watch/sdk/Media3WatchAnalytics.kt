@@ -2,20 +2,23 @@ package com.media3watch.sdk
 
 import android.os.SystemClock
 import android.util.Log
+import androidx.annotation.MainThread
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.Player
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import org.jetbrains.annotations.TestOnly
 import java.util.UUID
 
 @androidx.annotation.OptIn(UnstableApi::class)
 class Media3WatchAnalytics(
-    private val config: Media3WatchConfig = Media3WatchConfig(),
+    private val config: Media3WatchConfig = Media3WatchConfig()
 ) {
 
     private val analyticsScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -124,6 +127,7 @@ class Media3WatchAnalytics(
         }
     }
 
+    @MainThread
     fun attach(player: ExoPlayer) {
         if (this.player != null) {
             // Cleanup previous session on repeated attach.
@@ -146,11 +150,7 @@ class Media3WatchAnalytics(
         if (config.enableRealTimeReporting && uploader != null) {
             reporter = SessionReporter(
                 intervalMs = config.reportingIntervalMs,
-                isActiveCheck = { 
-                    this.player?.let { p ->
-                        p.isPlaying && p.playbackState == Player.STATE_READY
-                    } ?: false
-                },
+                isActiveCheck = ::isSessionActive,
                 onReport = { buildAndUploadSummary() },
                 nowMsProvider = { SystemClock.elapsedRealtime() },
                 coroutineScope = analyticsScope
@@ -159,6 +159,7 @@ class Media3WatchAnalytics(
         }
     }
 
+    @MainThread
     fun playRequested() {
         // Multiple calls overwrite pending startup measurement.
         playCommandTs = SystemClock.elapsedRealtime()
@@ -170,38 +171,17 @@ class Media3WatchAnalytics(
         }
     }
 
+    @MainThread
     fun detach() {
+        player ?: return
         reporter?.stop()
         reporter = null
-        
-        val activePlayer = player ?: return
-        val currentSessionId = sessionId
 
-        activePlayer.removeAnalyticsListener(analyticsListener)
-        activePlayer.removeAnalyticsListener(playbackStatsListener)
+        buildAndUploadSummary(logSessionSummary = true)
+
+        player?.removeAnalyticsListener(analyticsListener)
+        player?.removeAnalyticsListener(playbackStatsListener)
         player = null
-
-        // Always build summary for logging
-        val now = SystemClock.elapsedRealtime()
-        val summary = LogUtils.buildSessionSummary(
-            sessionId = currentSessionId,
-            sessionStartWallClockMs = sessionStartWallClockMs,
-            sessionStartTs = sessionStartTs,
-            now = now,
-            startupTimeMs = startupTimeMs,
-            sessionEndStats = playbackStatsListener.playbackStats
-        )
-        Log.d(LogUtils.TAG, summary.toPrettyLog())
-        
-        // Only upload if sessionDurationMs > 0
-        val sessionDurationMs = (now - sessionStartTs).coerceAtLeast(0L)
-        if (uploader != null && sessionDurationMs > 0) {
-            val payload = summary.toJson()
-            uploader.upload(
-                sessionId = currentSessionId,
-                payload = payload
-            )
-        }
         
         resetSession()
     }
@@ -210,9 +190,9 @@ class Media3WatchAnalytics(
     internal fun release() {
         reporter?.stop()
         detach()
-        uploader?.shutdown()
     }
 
+    @MainThread
     private fun resetSession() {
         sessionId = ""
         sessionStartTs = 0L
@@ -221,29 +201,50 @@ class Media3WatchAnalytics(
         startupTimeMs = null
         firstFrameRendered = false
     }
-    
-    private fun buildAndUploadSummary() {
-        player ?: return
+
+    // Called on Main; heavy work (summary building + JSON serialisation) is offloaded to Default.
+    private fun buildAndUploadSummary(logSessionSummary: Boolean = false) {
+        if (player == null) return
         val now = SystemClock.elapsedRealtime()
         val sessionDurationMs = (now - sessionStartTs).coerceAtLeast(0L)
 
-        // Do not send report if sessionDurationMs <= 0
-        if (sessionDurationMs <= 0) return
-        
+        // Snapshot all Main-thread state before crossing dispatcher boundaries.
         val stats = playbackStatsListener.playbackStats
-        val summary = LogUtils.buildSessionSummary(
-            sessionId = sessionId,
-            sessionStartWallClockMs = sessionStartWallClockMs,
-            sessionStartTs = sessionStartTs,
-            now = now,
-            startupTimeMs = startupTimeMs,
-            sessionEndStats = stats
-        )
-        Log.d(
-            LogUtils.TAG,
-            "Uploading session summary (sessionId=$sessionId, durationMs=$sessionDurationMs)"
-        )
-        
-        uploader?.upload(sessionId = sessionId, payload = summary.toJson())
+        val capturedSessionId = sessionId
+        val capturedSessionStartWallClockMs = sessionStartWallClockMs
+        val capturedSessionStartTs = sessionStartTs
+        val capturedStartupTimeMs = startupTimeMs
+
+        analyticsScope.launch(Dispatchers.Default) {
+            val summary = LogUtils.buildSessionSummary(
+                sessionId = capturedSessionId,
+                sessionStartWallClockMs = capturedSessionStartWallClockMs,
+                sessionStartTs = capturedSessionStartTs,
+                now = now,
+                startupTimeMs = capturedStartupTimeMs,
+                sessionEndStats = stats
+            )
+
+            if (logSessionSummary)
+                Log.d(LogUtils.TAG, summary.toPrettyLog())
+
+            // Do not send report if sessionDurationMs <= 0
+            if (sessionDurationMs <= 0) return@launch
+
+            Log.d(
+                LogUtils.TAG,
+                "Uploading session summary (sessionId=$capturedSessionId, durationMs=$sessionDurationMs)"
+            )
+
+            // toJson() is CPU work — stays on Default; HttpSender.send() switches to IO.
+            val payload = summary.toJson()
+            uploader?.upload(sessionId = capturedSessionId, payload = payload)
+        }
+    }
+
+    @MainThread
+    private fun isSessionActive(): Boolean {
+        val currentPlayer = player ?: return false
+        return currentPlayer.isPlaying && currentPlayer.playbackState == Player.STATE_READY
     }
 }
