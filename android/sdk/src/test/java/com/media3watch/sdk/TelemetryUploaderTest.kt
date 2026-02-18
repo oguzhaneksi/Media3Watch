@@ -1,7 +1,12 @@
 package com.media3watch.sdk
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.SocketPolicy
@@ -9,6 +14,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -149,5 +155,45 @@ class TelemetryUploaderTest {
         val logs = ShadowLog.getLogsForTag(LogUtils.TAG)
         val timeoutLog = logs?.find { it.msg.contains("(timeout)") }
         assertNull("Should not log timeout", timeoutLog)
+    }
+
+    @Test
+    fun upload_scopeCancelled_rethrowsCancellationException() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200).setBodyDelay(500, TimeUnit.MILLISECONDS))
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        
+        // Use the implicit TestScope from runTest
+        val uploader = TelemetryUploader(sender, coroutineScope = this)
+
+        // Track if CancellationException was thrown
+        var cancellationExceptionThrown = false
+        
+        // Launch upload in a supervised job that can catch the rethrown exception
+        val job = launch {
+            try {
+                uploader.upload(sessionId = "test-cancel", payload = """{"cancel":"test"}""")
+            } catch (e: CancellationException) {
+                cancellationExceptionThrown = true
+                throw e  // Rethrow to maintain cancellation semantics
+            }
+        }
+        
+        // Advance time to mid-upload (halfway through the 500ms response delay), then cancel
+        testScheduler.advanceTimeBy(250)
+        job.cancel()
+        
+        // Process all pending coroutines
+        testScheduler.advanceUntilIdle()
+        
+        // Verify that CancellationException was thrown (and thus rethrown by our code)
+        assertTrue("CancellationException should have been rethrown", cancellationExceptionThrown)
+        
+        // Also verify that CancellationException was NOT logged
+        val logs = ShadowLog.getLogsForTag(LogUtils.TAG)
+        val cancellationLog = logs?.find { 
+            it.msg.contains("test-cancel") && 
+            (it.throwable is CancellationException || it.msg.contains("CancellationException"))
+        }
+        assertNull("CancellationException should not be logged", cancellationLog)
     }
 }
