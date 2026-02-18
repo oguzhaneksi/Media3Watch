@@ -178,11 +178,11 @@ class TelemetryUploaderTest {
             }
         }
         
-        // Advance time to mid-upload, then cancel
+        // Advance time to mid-upload (halfway through the 500ms response delay), then cancel
         testScheduler.advanceTimeBy(250)
         job.cancel()
         
-        // Advance until all coroutines are done (may throw if job cancelled)
+        // Process all pending coroutines
         testScheduler.advanceUntilIdle()
         
         // Verify that CancellationException was thrown (and thus rethrown by our code)
