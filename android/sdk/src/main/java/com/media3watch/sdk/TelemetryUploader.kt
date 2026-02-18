@@ -3,6 +3,7 @@ package com.media3watch.sdk
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -45,6 +46,7 @@ internal class TelemetryUploader(
                         }
                 }
             } catch (t: Throwable) {
+                if (t is CancellationException) throw t
                 Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (exception)", t)
             }
         }

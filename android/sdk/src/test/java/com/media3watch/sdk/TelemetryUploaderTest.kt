@@ -1,7 +1,12 @@
 package com.media3watch.sdk
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.SocketPolicy
@@ -149,5 +154,32 @@ class TelemetryUploaderTest {
         val logs = ShadowLog.getLogsForTag(LogUtils.TAG)
         val timeoutLog = logs?.find { it.msg.contains("(timeout)") }
         assertNull("Should not log timeout", timeoutLog)
+    }
+
+    @Test
+    fun upload_scopeCancelled_rethrowsCancellationException() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(200).setBodyDelay(500, TimeUnit.MILLISECONDS))
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        
+        // Create a test scope that we can cancel
+        val testScope = TestScope(UnconfinedTestDispatcher())
+        val uploader = TelemetryUploader(sender, coroutineScope = testScope)
+
+        // Start the upload
+        uploader.upload(sessionId = "test-cancel", payload = """{"cancel":"test"}""")
+        
+        // Cancel the scope immediately
+        testScope.cancel()
+        
+        // Wait a bit to allow any logging to occur
+        delay(100)
+        
+        // Verify that CancellationException was NOT logged (it should be rethrown, not caught)
+        val logs = ShadowLog.getLogsForTag(LogUtils.TAG)
+        val cancellationLog = logs?.find { 
+            it.msg.contains("test-cancel") && 
+            (it.throwable is CancellationException || it.msg.contains("CancellationException"))
+        }
+        assertNull("CancellationException should not be logged", cancellationLog)
     }
 }
