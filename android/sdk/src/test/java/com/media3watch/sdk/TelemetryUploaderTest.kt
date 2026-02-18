@@ -5,8 +5,6 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
@@ -164,16 +162,14 @@ class TelemetryUploaderTest {
         server.enqueue(MockResponse().setResponseCode(200).setBodyDelay(500, TimeUnit.MILLISECONDS))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         
-        // Create a test scope that we can cancel
-        val testDispatcher = StandardTestDispatcher(testScheduler)
-        val testScope = TestScope(testDispatcher)
-        val uploader = TelemetryUploader(sender, coroutineScope = testScope)
+        // Use the implicit TestScope from runTest
+        val uploader = TelemetryUploader(sender, coroutineScope = this)
 
         // Track if CancellationException was thrown
         var cancellationExceptionThrown = false
         
         // Launch upload in a supervised job that can catch the rethrown exception
-        val job = testScope.launch {
+        val job = launch {
             try {
                 uploader.upload(sessionId = "test-cancel", payload = """{"cancel":"test"}""")
             } catch (e: CancellationException) {
@@ -182,15 +178,15 @@ class TelemetryUploaderTest {
             }
         }
         
-        // Advance time a bit, then cancel the scope
-        testScheduler.advanceTimeBy(50)
-        testScope.cancel()
+        // Advance time to mid-upload, then cancel
+        testScheduler.advanceTimeBy(250)
+        job.cancel()
         
         // Advance until all coroutines are done
         try {
-            advanceUntilIdle()
+            testScheduler.advanceUntilIdle()
         } catch (e: CancellationException) {
-            // Expected when scope is cancelled
+            // Expected when job is cancelled
         }
         
         // Verify that CancellationException was thrown (and thus rethrown by our code)
