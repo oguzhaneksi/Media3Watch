@@ -15,8 +15,8 @@ import kotlinx.coroutines.launch
  * Does NOT own a coroutine scope. The caller-provided [coroutineScope] (rooted at the shared
  * analytics SupervisorJob) is used so that all SDK coroutines live in a single hierarchy.
  *
- * All coroutines are dispatched on [callbackDispatcher] (default: [Dispatchers.Main.immediate])
- * so that [onReport] and [isActiveCheck] are always invoked on the Main thread.
+ * All coroutines are dispatched on [callbackDispatcher] (default: [Dispatchers.Main.immediate]),
+ * so [onReport] and [isActiveCheck] are invoked on [callbackDispatcher] (default: Main.immediate).
  */
 internal class SessionReporter(
     private val intervalMs: Long = 15_000L,
