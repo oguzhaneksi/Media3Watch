@@ -39,11 +39,11 @@ class TelemetryUploaderTest {
     fun upload_success_sendsPayloadToServer() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(200))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender)
+        val uploader = TelemetryUploader(sender, coroutineScope = this)
 
         uploader.upload(sessionId = "test-session-123", payload = """{"test":"data"}""")
 
-        // Wait for async upload to complete (using real time since TelemetryUploader uses Dispatchers.IO)
+        // Launch is on Default; network I/O is on IO inside HttpSender — wait for the real thread.
         val request = server.takeRequest(2, TimeUnit.SECONDS)
         assertNotNull("Request should have been sent", request)
         assertEquals("POST", request!!.method)
@@ -54,7 +54,7 @@ class TelemetryUploaderTest {
     fun upload_serverError_logsWarning() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(500))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender)
+        val uploader = TelemetryUploader(sender, coroutineScope = this)
 
         uploader.upload(sessionId = "test-session-456", payload = """{"error":"test"}""")
 
@@ -73,7 +73,7 @@ class TelemetryUploaderTest {
         // Never respond so the HTTP call/upload timeout is guaranteed to trigger.
         server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, uploadTimeoutMs = 100)
+        val uploader = TelemetryUploader(sender, uploadTimeoutMs = 100, coroutineScope = this)
 
         uploader.upload(sessionId = "test-session-789", payload = """{"slow":"data"}""")
 
@@ -96,7 +96,7 @@ class TelemetryUploaderTest {
         server.enqueue(MockResponse().setResponseCode(200))
         server.enqueue(MockResponse().setResponseCode(200))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender)
+        val uploader = TelemetryUploader(sender, coroutineScope = this)
 
         uploader.upload(sessionId = "session-1", payload = """{"session":1}""")
         uploader.upload(sessionId = "session-2", payload = """{"session":2}""")
@@ -111,45 +111,10 @@ class TelemetryUploaderTest {
     }
 
     @Test
-    fun shutdown_cancelsScope_butDoesNotAffectInFlightUploads() = runBlocking {
-        server.enqueue(MockResponse().setResponseCode(200).setBodyDelay(50, TimeUnit.MILLISECONDS))
-        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender)
-
-        uploader.upload(sessionId = "session-999", payload = """{"shutdown":"test"}""")
-
-        // Give upload time to start, then shutdown
-        delay(10)
-        uploader.shutdown()
-
-        // Since the coroutine was already launched, it should still complete
-        val request = server.takeRequest(2, TimeUnit.SECONDS)
-        assertNotNull("In-flight request should complete even after shutdown", request)
-    }
-
-    @Test
-    fun shutdown_preventsNewUploads() = runBlocking {
-        server.enqueue(MockResponse().setResponseCode(200))
-        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender)
-
-        uploader.shutdown()
-        
-        // Try to upload after shutdown
-        uploader.upload(sessionId = "session-888", payload = """{"after":"shutdown"}""")
-
-        // Give time to verify no upload occurs
-        delay(100)
-
-        // Request should not be sent because scope was cancelled
-        assertEquals("No request should be sent after shutdown", 0, server.requestCount)
-    }
-
-    @Test
     fun upload_unexpectedException_logsException() = runBlocking {
         // Use invalid URL to cause an exception
         val sender = HttpSender(endpointUrl = "http://invalid-host-that-does-not-exist-12345.com/sessions")
-        val uploader = TelemetryUploader(sender, uploadTimeoutMs = 1000)
+        val uploader = TelemetryUploader(sender, uploadTimeoutMs = 1000, coroutineScope = this)
 
         uploader.upload(sessionId = "session-555", payload = """{"exception":"test"}""")
 
@@ -169,7 +134,7 @@ class TelemetryUploaderTest {
     fun upload_customTimeout_respectsConfiguredValue() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(200).setBodyDelay(150, TimeUnit.MILLISECONDS))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, uploadTimeoutMs = 300)
+        val uploader = TelemetryUploader(sender, uploadTimeoutMs = 300, coroutineScope = this)
 
         uploader.upload(sessionId = "session-111", payload = """{"custom":"timeout"}""")
 

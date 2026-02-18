@@ -24,7 +24,6 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowLog
-import org.robolectric.shadows.ShadowSystemClock
 import java.util.concurrent.TimeUnit
 import java.util.regex.Pattern
 
@@ -45,6 +44,7 @@ class Media3WatchAnalyticsTest {
 
         analytics.attach(harness.player)
         analytics.detach()
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging the summary
 
         val startLog = ShadowLog.getLogsForTag(TAG)
             .orEmpty()
@@ -75,6 +75,7 @@ class Media3WatchAnalyticsTest {
         advanceMs(120)
         harness.emitFirstFrame()
         analytics.detach()
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging the summary
 
         val endLog = lastSessionEndLog()!!
         assertEquals("120", metric(endLog, "startupTimeMs"))
@@ -92,6 +93,7 @@ class Media3WatchAnalyticsTest {
         advanceMs(50)
         harness.emitFirstFrame()
         analytics.detach()
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging the summary
 
         val endLog = lastSessionEndLog()!!
         assertEquals("50", metric(endLog, "startupTimeMs"))
@@ -109,6 +111,7 @@ class Media3WatchAnalyticsTest {
         advanceMs(30)
         harness.emitFirstFrame()
         analytics.detach()
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging the summary
 
         val endLog = lastSessionEndLog()!!
         assertEquals("70", metric(endLog, "startupTimeMs"))
@@ -127,6 +130,7 @@ class Media3WatchAnalyticsTest {
         advanceMs(10)
         harness.emitFirstFrame()
         analytics.detach()
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging the summary
 
         val endLog = lastSessionEndLog()!!
         assertEquals("null", metric(endLog, "startupTimeMs"))
@@ -142,6 +146,7 @@ class Media3WatchAnalyticsTest {
         val now = SystemClock.elapsedRealtime()
         harness.emitFirstFrameAt(now - 10)
         analytics.detach()
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging the summary
 
         val endLog = lastSessionEndLog()!!
         assertEquals("0", metric(endLog, "startupTimeMs"))
@@ -164,6 +169,7 @@ class Media3WatchAnalyticsTest {
         advanceMs(30)
         analytics.attach(second.player)
         analytics.detach()
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging both summaries
 
         val logs = ShadowLog.getLogsForTag(TAG)
             .orEmpty()
@@ -209,6 +215,7 @@ class Media3WatchAnalyticsTest {
         assertTrue(result.isFailure)
 
         analytics.detach()
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging the summary
 
         val endLog = lastSessionEndLog()
         assertNotNull(endLog)
@@ -225,6 +232,7 @@ class Media3WatchAnalyticsTest {
         advanceMs(200)
         harness.emitPlayerError(PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED)
         analytics.detach()
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging the summary
 
         val endLog = lastSessionEndLog()!!
         assertEquals("null", metric(endLog, "startupTimeMs"))
@@ -240,13 +248,14 @@ class Media3WatchAnalyticsTest {
         harness.emitPlayerError(PlaybackException.ERROR_CODE_DECODER_INIT_FAILED)
         harness.emitPlayerError(PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED)
         analytics.detach()
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging the summary
 
         val endLog = lastSessionEndLog()!!
         assertMetricIsNullOrNonNegativeLong(endLog, "errorCount")
     }
 
     @Test
-    fun detachWithBackend_followedByRelease_uploadsSessionDespiteCancellation() = runTest {
+    fun detachWithBackend_followedByRelease_uploadsSession() = runTest {
         val server = MockWebServer()
         server.start()
 
@@ -266,12 +275,12 @@ class Media3WatchAnalyticsTest {
         harness.emitFirstFrame()
         analytics.detach()
 
-        // Immediately release (cancels scope) - upload should still complete
+        // release() stops the reporter and calls detach(); the upload coroutine is
+        // protected by NonCancellable so it always completes regardless of cleanup order.
         analytics.release()
 
-        // Wait for upload to complete (MockWebServer blocks until request arrives or timeout)
         val request = server.takeRequest(1, TimeUnit.SECONDS)
-        assertNotNull("Request should have been sent despite immediate release()", request)
+        assertNotNull("Request should have been sent after detach + release", request)
         assertEquals("POST", request!!.method)
         assertEquals("test-key", request.getHeader("X-API-Key"))
 

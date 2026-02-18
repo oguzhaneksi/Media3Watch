@@ -6,25 +6,30 @@ import androidx.media3.common.util.UnstableApi
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.InterruptedIOException
 import java.net.SocketTimeoutException
 
+/**
+ * Uploads telemetry payloads via [HttpSender].
+ *
+ * Does NOT own a coroutine scope. The caller-provided [coroutineScope] (rooted at the shared
+ * analytics SupervisorJob) is used so that all SDK coroutines live in a single hierarchy.
+ *
+ * Dispatcher responsibilities:
+ *  - Launched on [Dispatchers.Default] (CPU / parsing work lives here if needed before the call).
+ *  - Network I/O is delegated to [Dispatchers.IO] inside [HttpSender.send].
+ */
 internal class TelemetryUploader(
     private val sender: HttpSender,
     private val uploadTimeoutMs: Long = 15_000,
-    private val coroutineScope: CoroutineScope = CoroutineScope(Dispatchers.IO + SupervisorJob()),
+    private val coroutineScope: CoroutineScope,
 ) {
-    fun shutdown() {
-        coroutineScope.cancel() // call when SDK is disposed, if ever
-    }
-
     @OptIn(UnstableApi::class)
     fun upload(sessionId: String, payload: String) {
-        coroutineScope.launch(Dispatchers.IO) {
+        // Launch on Default; network switch to IO is handled inside HttpSender.send().
+        coroutineScope.launch(Dispatchers.Default) {
             try {
                 withContext(NonCancellable) {
                     sender.send(payload, callTimeoutMs = uploadTimeoutMs)
