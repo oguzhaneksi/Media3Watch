@@ -8,12 +8,7 @@ import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import kotlinx.coroutines.test.setMain
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.Assert.assertEquals
@@ -35,25 +30,21 @@ import java.util.regex.Pattern
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE)
 @androidx.annotation.OptIn(UnstableApi::class)
-@OptIn(ExperimentalCoroutinesApi::class)
 class Media3WatchAnalyticsTest {
-
-    private val testDispatcher = StandardTestDispatcher()
 
     @Before
     fun setUp() {
         ShadowLog.clear()
-        Dispatchers.setMain(testDispatcher)
     }
 
     @Test
-    fun attach_logsSessionStart_andDetach_logsSessionEnd() = runTest(testDispatcher) {
-        val analytics = Media3WatchAnalytics(backgroundDispatcher = testDispatcher)
+    fun attach_logsSessionStart_andDetach_logsSessionEnd() {
+        val analytics = Media3WatchAnalytics()
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
         analytics.detach()
-        advanceUntilIdle() // Process all pending coroutines
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging the summary
 
         val startLog = ShadowLog.getLogsForTag(TAG)
             .orEmpty()
@@ -75,8 +66,8 @@ class Media3WatchAnalyticsTest {
     }
 
     @Test
-    fun startupTime_measuredFromPlayRequestedToFirstFrame() = runTest(testDispatcher) {
-        val analytics = Media3WatchAnalytics(backgroundDispatcher = testDispatcher)
+    fun startupTime_measuredFromPlayRequestedToFirstFrame() {
+        val analytics = Media3WatchAnalytics()
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -84,15 +75,15 @@ class Media3WatchAnalyticsTest {
         advanceMs(120)
         harness.emitFirstFrame()
         analytics.detach()
-        advanceUntilIdle() // Process all pending coroutines
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging the summary
 
         val endLog = lastSessionEndLog()!!
         assertEquals("120", metric(endLog, "startupTimeMs"))
     }
 
     @Test
-    fun startupTime_lastPlayRequestedWinsBeforeFirstFrame() = runTest(testDispatcher) {
-        val analytics = Media3WatchAnalytics(backgroundDispatcher = testDispatcher)
+    fun startupTime_lastPlayRequestedWinsBeforeFirstFrame() {
+        val analytics = Media3WatchAnalytics()
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -102,15 +93,15 @@ class Media3WatchAnalyticsTest {
         advanceMs(50)
         harness.emitFirstFrame()
         analytics.detach()
-        advanceUntilIdle() // Process all pending coroutines
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging the summary
 
         val endLog = lastSessionEndLog()!!
         assertEquals("50", metric(endLog, "startupTimeMs"))
     }
 
     @Test
-    fun startupTime_onlyFirstFrameIsUsed() = runTest(testDispatcher) {
-        val analytics = Media3WatchAnalytics(backgroundDispatcher = testDispatcher)
+    fun startupTime_onlyFirstFrameIsUsed() {
+        val analytics = Media3WatchAnalytics()
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -120,15 +111,15 @@ class Media3WatchAnalyticsTest {
         advanceMs(30)
         harness.emitFirstFrame()
         analytics.detach()
-        advanceUntilIdle() // Process all pending coroutines
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging the summary
 
         val endLog = lastSessionEndLog()!!
         assertEquals("70", metric(endLog, "startupTimeMs"))
     }
 
     @Test
-    fun playRequestedAfterFirstFrame_clearsStartupMeasurement() = runTest(testDispatcher) {
-        val analytics = Media3WatchAnalytics(backgroundDispatcher = testDispatcher)
+    fun playRequestedAfterFirstFrame_clearsStartupMeasurement() {
+        val analytics = Media3WatchAnalytics()
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -139,15 +130,15 @@ class Media3WatchAnalyticsTest {
         advanceMs(10)
         harness.emitFirstFrame()
         analytics.detach()
-        advanceUntilIdle() // Process all pending coroutines
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging the summary
 
         val endLog = lastSessionEndLog()!!
         assertEquals("null", metric(endLog, "startupTimeMs"))
     }
 
     @Test
-    fun startupTime_isClampedToZeroForNegativeDelta() = runTest(testDispatcher) {
-        val analytics = Media3WatchAnalytics(backgroundDispatcher = testDispatcher)
+    fun startupTime_isClampedToZeroForNegativeDelta() {
+        val analytics = Media3WatchAnalytics()
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -155,23 +146,22 @@ class Media3WatchAnalyticsTest {
         val now = SystemClock.elapsedRealtime()
         harness.emitFirstFrameAt(now - 10)
         analytics.detach()
-        advanceUntilIdle() // Process all pending coroutines
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging the summary
 
         val endLog = lastSessionEndLog()!!
         assertEquals("0", metric(endLog, "startupTimeMs"))
     }
 
     @Test
-    fun detachWithoutAttach_isNoOp() = runTest(testDispatcher) {
-        val analytics = Media3WatchAnalytics(backgroundDispatcher = testDispatcher)
+    fun detachWithoutAttach_isNoOp() {
+        val analytics = Media3WatchAnalytics()
         analytics.detach()
-        advanceUntilIdle()
         assertEquals(null, lastSessionEndLog())
     }
 
     @Test
-    fun secondAttach_detachesPreviousSession_andStartsNewSession() = runTest(testDispatcher) {
-        val analytics = Media3WatchAnalytics(backgroundDispatcher = testDispatcher)
+    fun secondAttach_detachesPreviousSession_andStartsNewSession() {
+        val analytics = Media3WatchAnalytics()
         val first = PlayerHarness()
         val second = PlayerHarness()
 
@@ -179,7 +169,7 @@ class Media3WatchAnalyticsTest {
         advanceMs(30)
         analytics.attach(second.player)
         analytics.detach()
-        advanceUntilIdle() // Process all pending coroutines
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging both summaries
 
         val logs = ShadowLog.getLogsForTag(TAG)
             .orEmpty()
@@ -203,8 +193,8 @@ class Media3WatchAnalyticsTest {
     }
 
     @Test
-    fun detach_removesListenersFromPlayer() = runTest(testDispatcher) {
-        val analytics = Media3WatchAnalytics(backgroundDispatcher = testDispatcher)
+    fun detach_removesListenersFromPlayer() {
+        val analytics = Media3WatchAnalytics()
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -214,8 +204,8 @@ class Media3WatchAnalyticsTest {
     }
 
     @Test
-    fun attach_whenPlayerInitializationFails_propagates_andDetachStillClosesSession() = runTest(testDispatcher) {
-        val analytics = Media3WatchAnalytics(backgroundDispatcher = testDispatcher)
+    fun attach_whenPlayerInitializationFails_propagates_andDetachStillClosesSession() {
+        val analytics = Media3WatchAnalytics()
         val failingPlayer = mock(ExoPlayer::class.java)
 
         doAnswer { throw IllegalStateException("player init failed") }
@@ -225,7 +215,7 @@ class Media3WatchAnalyticsTest {
         assertTrue(result.isFailure)
 
         analytics.detach()
-        advanceUntilIdle() // Process all pending coroutines
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging the summary
 
         val endLog = lastSessionEndLog()
         assertNotNull(endLog)
@@ -233,8 +223,8 @@ class Media3WatchAnalyticsTest {
     }
 
     @Test
-    fun networkError_preventsFirstFrame_startupRemainsNull_andErrorCountIncreases() = runTest(testDispatcher) {
-        val analytics = Media3WatchAnalytics(backgroundDispatcher = testDispatcher)
+    fun networkError_preventsFirstFrame_startupRemainsNull_andErrorCountIncreases() {
+        val analytics = Media3WatchAnalytics()
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -242,7 +232,7 @@ class Media3WatchAnalyticsTest {
         advanceMs(200)
         harness.emitPlayerError(PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED)
         analytics.detach()
-        advanceUntilIdle() // Process all pending coroutines
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging the summary
 
         val endLog = lastSessionEndLog()!!
         assertEquals("null", metric(endLog, "startupTimeMs"))
@@ -250,22 +240,22 @@ class Media3WatchAnalyticsTest {
     }
 
     @Test
-    fun codecOrFormatErrors_areTrackedInErrorCount() = runTest(testDispatcher) {
-        val analytics = Media3WatchAnalytics(backgroundDispatcher = testDispatcher)
+    fun codecOrFormatErrors_areTrackedInErrorCount() {
+        val analytics = Media3WatchAnalytics()
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
         harness.emitPlayerError(PlaybackException.ERROR_CODE_DECODER_INIT_FAILED)
         harness.emitPlayerError(PlaybackException.ERROR_CODE_PARSING_CONTAINER_MALFORMED)
         analytics.detach()
-        advanceUntilIdle() // Process all pending coroutines
+        Thread.sleep(200) // Allow Dispatchers.Default to finish building and logging the summary
 
         val endLog = lastSessionEndLog()!!
         assertMetricIsNullOrNonNegativeLong(endLog, "errorCount")
     }
 
     @Test
-    fun detachWithBackend_followedByRelease_uploadsSession() = runTest(testDispatcher) {
+    fun detachWithBackend_followedByRelease_uploadsSession() = runTest {
         val server = MockWebServer()
         server.start()
 
@@ -276,7 +266,7 @@ class Media3WatchAnalyticsTest {
             backendUrl = server.url("/sessions").toString(),
             apiKey = "test-key"
         )
-        val analytics = Media3WatchAnalytics(config, backgroundDispatcher = testDispatcher)
+        val analytics = Media3WatchAnalytics(config)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -288,7 +278,6 @@ class Media3WatchAnalyticsTest {
         // release() stops the reporter and calls detach(); the upload coroutine is
         // protected by NonCancellable so it always completes regardless of cleanup order.
         analytics.release()
-        advanceUntilIdle() // Process all pending coroutines
 
         val request = server.takeRequest(1, TimeUnit.SECONDS)
         assertNotNull("Request should have been sent after detach + release", request)
@@ -469,19 +458,19 @@ class Media3WatchAnalyticsTest {
         analytics.attach(harness.player)
         harness.emitIsPlayingChanged(true)
         harness.setPlaybackState(Player.STATE_READY)
-        
+
         // Advance past the reporting interval
         advanceMs(200)
-        
+
         // No reports should be sent/logged since uploader is null
         // Verify by checking that no "Uploading session summary" logs were created
         val uploadLogs = ShadowLog.getLogsForTag(TAG)
             .orEmpty()
             .map { it.msg }
             .filter { it.contains("Uploading session summary") }
-        
+
         assertEquals("No upload logs should exist when backendUrl is null", 0, uploadLogs.size)
-        
+
         analytics.detach()
     }
 
@@ -642,18 +631,18 @@ class Media3WatchAnalyticsTest {
                 it.onPlayerError(createEventTime(), error)
             }
         }
-        
+
         fun emitIsPlayingChanged(isPlaying: Boolean) {
             isPlayingState = isPlaying
             analyticsListeners.forEach {
                 it.onIsPlayingChanged(createEventTime(), isPlaying)
             }
         }
-        
+
         fun setPlaybackState(state: Int) {
             playbackStateValue = state
         }
-        
+
         fun emitSeekStarted() {
             analyticsListeners.forEach {
                 it.onPositionDiscontinuity(
@@ -664,7 +653,7 @@ class Media3WatchAnalyticsTest {
                 )
             }
         }
-        
+
         fun emitDroppedVideoFrames(droppedFrames: Int) {
             analyticsListeners.forEach {
                 it.onDroppedVideoFrames(createEventTime(), droppedFrames, 100L)

@@ -18,8 +18,7 @@ import java.util.UUID
 
 @androidx.annotation.OptIn(UnstableApi::class)
 class Media3WatchAnalytics(
-    private val config: Media3WatchConfig = Media3WatchConfig(),
-    private val backgroundDispatcher: CoroutineDispatcher = Dispatchers.Default
+    private val config: Media3WatchConfig = Media3WatchConfig()
 ) {
 
     private val analyticsScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
@@ -216,7 +215,7 @@ class Media3WatchAnalytics(
         val capturedSessionStartTs = sessionStartTs
         val capturedStartupTimeMs = startupTimeMs
 
-        analyticsScope.launch(backgroundDispatcher) {
+        analyticsScope.launch(Dispatchers.Default) {
             val summary = LogUtils.buildSessionSummary(
                 sessionId = capturedSessionId,
                 sessionStartWallClockMs = capturedSessionStartWallClockMs,
