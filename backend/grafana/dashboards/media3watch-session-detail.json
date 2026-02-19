@@ -42,7 +42,7 @@
               }
             ]
           },
-          "unit": "none"
+          "unit": "dateTimeAsLocal"
         },
         "overrides": []
       },
@@ -62,8 +62,9 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
-          "values": false
+          "fields": "/val/",
+          "values": true,
+          "limit": 1
         },
         "textMode": "value"
       },
@@ -78,7 +79,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT session_start_date_iso AS val FROM sessions WHERE session_id = '$sessionId'",
+          "rawSql": "SELECT to_timestamp(timestamp / 1000.0) AS val FROM sessions WHERE session_id = '$sessionId'",
           "refId": "A"
         }
       ]
@@ -1121,7 +1122,7 @@
           "editorMode": "code",
           "format": "table",
           "rawQuery": true,
-          "rawSql": "SELECT\n  session_id,\n  session_start_date_iso AS \"Start Time\",\n  session_duration_ms AS \"Duration (ms)\",\n  startup_time_ms AS \"Startup (ms)\",\n  rebuffer_count AS \"Rebuffers\",\n  ROUND(rebuffer_ratio::numeric * 100, 2) AS \"Rebuffer Ratio (%)\",\n  error_count AS \"Errors\",\n  mean_video_format_bitrate AS \"Bitrate (bps)\"\nFROM sessions\nWHERE $__timeFilter(timestamp)\nORDER BY timestamp DESC\nLIMIT 50",
+          "rawSql": "SELECT\n  session_id,\n  session_start_date_iso AS \"Start Time\",\n  session_duration_ms AS \"Duration (ms)\",\n  startup_time_ms AS \"Startup (ms)\",\n  rebuffer_count AS \"Rebuffers\",\n  ROUND(rebuffer_ratio::numeric * 100, 2) AS \"Rebuffer Ratio (%)\",\n  error_count AS \"Errors\",\n  mean_video_format_bitrate AS \"Bitrate (bps)\"\nFROM sessions\nWHERE timestamp >= $__from AND timestamp <= $__to\nORDER BY timestamp DESC\nLIMIT 50",
           "refId": "A"
         }
       ]
