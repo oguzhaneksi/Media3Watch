@@ -6,7 +6,19 @@
   "fiscalYearStartMonth": 0,
   "graphTooltip": 0,
   "id": null,
-  "links": [],
+  "links": [
+    {
+      "asDropdown": false,
+      "icon": "external link",
+      "includeVars": false,
+      "keepTime": true,
+      "targetBlank": false,
+      "title": "Session Detail →",
+      "tooltip": "Inspect a single session in detail",
+      "type": "link",
+      "url": "/d/m3w-session-detail"
+    }
+  ],
   "liveNow": false,
   "panels": [
     {
