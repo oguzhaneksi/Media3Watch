@@ -2,6 +2,9 @@
 
 **Debug video sessions fast. Get a session summary in Logcat.**
 
+> [!TIP]
+> **Check out the demo video:** [Watch Demo (MP4)](docs/demo.mp4)
+
 > Status: **Android SDK (Alpha)** ✅  
 > Backend + Grafana: **Alpha** ✅
 
