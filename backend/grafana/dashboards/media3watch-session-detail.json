@@ -975,7 +975,7 @@
                 "value": [
                   {
                     "title": "View Session",
-                    "url": "/d/m3w-session-detail?var-sessionId=${__data.fields[\"session_id\"]}&orgId=1",
+                    "url": "/d/m3w-session-detail?var-sessionId=${__data.fields[\"session_id\"]}",
                     "targetBlank": false
                   }
                 ]
