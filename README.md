@@ -3,7 +3,11 @@
 **Debug video sessions fast. Get a session summary in Logcat.**
 
 > [!TIP]
-> **Check out the demo video:** [Watch Demo (MP4)](docs/demo.mp4)
+> **Check out the demo video:**
+
+<video src="https://github.com/user-attachments/assets/8ac95523-b171-480e-a8f5-76e834495e90" controls="controls" style="max-width: 100%;">
+  Your browser does not support the video tag.
+</video>
 
 > Status: **Android SDK (Alpha)** ✅  
 > Backend + Grafana: **Alpha** ✅
