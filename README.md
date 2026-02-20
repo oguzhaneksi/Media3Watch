@@ -55,11 +55,14 @@ The SDK automatically tracks and summarizes:
 
 ---
 
-## Roadmap (Planned)
+## 🗺️ Roadmap (What's Next?)
 
-- [x] Self-hostable backend (store session summaries)
-- [x] Grafana dashboards (QoE trends + session drill-down)
-- Optional debug overlay (offline-friendly)
+- [x] **Baseline QoE Metrics:** Fully supported for progressive media.
+- [x] **Self-hostable Backend:** Ktor + Postgres & auto-provisioned Grafana dashboards.
+- [ ] **Frictionless Publishing:** Maven Central availability for easy `implementation(...)` integration.
+- [ ] **Solidifying ABR Telemetry:** Enhance metrics accuracy for HLS/DASH dynamic bitrate switching edge cases.
+- [ ] **Offline-Resilience:** Store-and-forward caching to flush telemetry when connectivity restores.
+- [ ] **Standalone Debug Overlay:** A drop-in, offline-friendly UI component for real-time local QA testing without Logcat.
 
 ---
 
