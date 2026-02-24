@@ -69,7 +69,7 @@ fun Route.sessionsRoutes(
                 if (!UUID_PATTERN.matches(session.sessionId)) {
                     call.respond(
                         HttpStatusCode.BadRequest,
-                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "sessionId must be a valid UUID (RFC 4122)"))
+                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "sessionId must be in UUID format"))
                     )
                     return@post
                 }
