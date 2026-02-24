@@ -83,45 +83,65 @@ The SDK automatically tracks and summarizes:
 
 To integrate the Media3Watch SDK into your Android project:
 
+### Option A: From Maven Central (Recommended for external consumers)
+
+1. **Ensure Maven Central is in your repositories** (in `settings.gradle.kts` or `build.gradle.kts`):
+   ```kotlin
+   repositories {
+       mavenCentral()
+   }
+   ```
+
+2. **Add the dependency** to your `app/build.gradle.kts`:
+   ```kotlin
+   implementation("io.github.oguzhaneksi:media3watch-sdk:1.0.0-alpha01")
+   ```
+
+### Option B: Local project reference (For contributors)
+
 1. **Add the dependency** to your `app/build.gradle.kts`:
    ```kotlin
    implementation(project(":sdk"))
    ```
 
-2. **Initialize and attach** the analytics in your Player implementation (e.g., ViewModel):
-   ```kotlin
-   // 1. Create the analytics instance (with optional backend upload)
-   private val analytics = Media3WatchAnalytics(
-       config = Media3WatchConfig(
-           backendUrl = "http://localhost:8080/v1/sessions", // optional, use this for local testing
-           apiKey = "dev-key", // optional, matches backend default
-           enableRealTimeReporting = true, // default: true
-           reportingIntervalMs = 15_000L, // default: 15s
-           enableLogging = true // set to false in production to suppress Logcat output
-       )
-   )
-   // Or use default config for Logcat-only mode:
-   // private val analytics = Media3WatchAnalytics()
+---
 
-   fun initializePlayer() {
-       player = ExoPlayer.Builder(context).build().apply {
-           // 2. Attach the analytics listener
-           analytics.attach(this)
-           
-           setMediaItem(MediaItem.fromUri(url))
-           prepare()
-       }
-       
-       // 3. Log playback request to start measuring startup time
-       analytics.playRequested()
-   }
+### Usage
 
-   fun releasePlayer() {
-       // 4. Detach ALWAYS before releasing the player to capture final stats
-       analytics.detach()
-       player?.release()
-   }
-   ```
+**Initialize and attach** the analytics in your Player implementation (e.g., ViewModel):
+```kotlin
+// 1. Create the analytics instance (with optional backend upload)
+private val analytics = Media3WatchAnalytics(
+    config = Media3WatchConfig(
+        backendUrl = "http://localhost:8080/v1/sessions", // optional, use this for local testing
+        apiKey = "dev-key", // optional, matches backend default
+        enableRealTimeReporting = true, // default: true
+        reportingIntervalMs = 15_000L, // default: 15s
+        enableLogging = true // set to false in production to suppress Logcat output
+    )
+)
+// Or use default config for Logcat-only mode:
+// private val analytics = Media3WatchAnalytics()
+
+fun initializePlayer() {
+    player = ExoPlayer.Builder(context).build().apply {
+        // 2. Attach the analytics listener
+        analytics.attach(this)
+        
+        setMediaItem(MediaItem.fromUri(url))
+        prepare()
+    }
+    
+    // 3. Log playback request to start measuring startup time
+    analytics.playRequested()
+}
+
+fun releasePlayer() {
+    // 4. Detach ALWAYS before releasing the player to capture final stats
+    analytics.detach()
+    player?.release()
+}
+```
 
 ## Viewing the Summary in Logcat
 
