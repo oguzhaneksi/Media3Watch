@@ -96,7 +96,6 @@ fun Route.sessionsRoutes(
                     if (session.rebufferTimeMs != null && session.rebufferTimeMs < 0) add("rebufferTimeMs")
                     if (session.rebufferCount != null && session.rebufferCount < 0) add("rebufferCount")
                     if (session.playTimeMs != null && session.playTimeMs < 0) add("playTimeMs")
-                    if (session.rebufferRatio != null && (session.rebufferRatio < 0f || session.rebufferRatio > 1f)) add("rebufferRatio")
                     if (session.totalDroppedFrames != null && session.totalDroppedFrames < 0) add("totalDroppedFrames")
                     if (session.totalSeekCount != null && session.totalSeekCount < 0) add("totalSeekCount")
                     if (session.totalSeekTimeMs != null && session.totalSeekTimeMs < 0) add("totalSeekTimeMs")
@@ -107,6 +106,13 @@ fun Route.sessionsRoutes(
                     call.respond(
                         HttpStatusCode.BadRequest,
                         ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "Out-of-range value for field(s): ${outOfRangeFields.joinToString()}: must be non-negative"))
+                    )
+                    return@post
+                }
+                if (session.rebufferRatio != null && (session.rebufferRatio < 0f || session.rebufferRatio > 1f)) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "rebufferRatio must be between 0 and 1 (inclusive)"))
                     )
                     return@post
                 }
