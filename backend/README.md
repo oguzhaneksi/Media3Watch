@@ -95,6 +95,13 @@ The backend reads from environment variables. All sensitive values must be set i
 | `DATABASE_USER` | Database username (must match POSTGRES_USER) | **Yes** | Same as `POSTGRES_USER` |
 | `DATABASE_PASSWORD` | Database password (must match POSTGRES_PASSWORD) | **Yes** | Same as `POSTGRES_PASSWORD` |
 | `PORT` | Server port | No | `8080` |
+| `RATE_LIMIT_REQUESTS` | Max requests per rate-limit window | No | `100` |
+| `RATE_LIMIT_WINDOW_SEC` | Rate-limit window duration in seconds | No | `60` |
+| `RETENTION_DAYS` | Days to retain session data before cleanup | No | `90` |
+| `HIKARI_MAX_POOL_SIZE` | HikariCP maximum connection pool size | No | `20` |
+| `HIKARI_MIN_IDLE` | HikariCP minimum idle connections | No | `5` |
+| `LOG_LEVEL` | Logging level (`DEBUG`, `INFO`, `WARN`, `ERROR`) | No | `INFO` |
+| `ENABLE_METRICS` | Enable Prometheus `/metrics` endpoint | No | `true` |
 
 **For production or shared environments:**
 - Use strong, unique passwords
@@ -125,7 +132,10 @@ GET /health
 
 **Response:**
 ```json
-{"status": "healthy"}
+{
+  "status": "healthy",
+  "timestamp": 1708000000000
+}
 ```
 
 ---
@@ -192,6 +202,62 @@ Content-Type: application/json
 }
 ```
 
+**Rate Limit Error** (`429 Too Many Requests`):
+```json
+{
+  "error": {
+    "code": "RATE_LIMIT_EXCEEDED",
+    "message": "Too many requests",
+    "timestamp": 1698402000000
+  }
+}
+```
+
+**Payload Too Large** (`413 Payload Too Large`):
+```json
+{
+  "error": {
+    "code": "INVALID_SCHEMA",
+    "message": "Payload exceeds maximum size",
+    "timestamp": 1698402000000
+  }
+}
+```
+
+**Database Error** (`503 Service Unavailable`):
+```json
+{
+  "error": {
+    "code": "DATABASE_ERROR",
+    "message": "Temporary storage issue",
+    "timestamp": 1698402000000
+  }
+}
+```
+
+#### Validation Rules
+
+The following rules are enforced on the request body:
+
+| Field | Rule |
+| :--- | :--- |
+| `sessionId` | Required, non-blank, max 128 chars, must be a valid UUID |
+| `timestamp` | Required, must be a positive integer |
+| `sessionStartDateIso` | Required, non-blank |
+| `sessionDurationMs` | Required, must be > 0 |
+| `startupTimeMs` | Optional, must be ≥ 0 if provided |
+| `rebufferTimeMs` | Optional, must be ≥ 0 if provided |
+| `rebufferCount` | Optional, must be ≥ 0 if provided |
+| `playTimeMs` | Optional, must be ≥ 0 if provided |
+| `rebufferRatio` | Optional, must be between 0 and 1 (inclusive) if provided |
+| `totalDroppedFrames` | Optional, must be ≥ 0 if provided |
+| `totalSeekCount` | Optional, must be ≥ 0 if provided |
+| `totalSeekTimeMs` | Optional, must be ≥ 0 if provided |
+| `meanVideoFormatBitrate` | Optional, must be ≥ 0 if provided |
+| `errorCount` | Optional, must be ≥ 0 if provided |
+
+**Request body limit:** 64 KB. Requests exceeding this are rejected with `413`.
+
 ---
 
 ### 3. Metrics (Optional)
@@ -200,7 +266,24 @@ Content-Type: application/json
 GET /metrics
 ```
 
+**Headers:**
+```
+X-API-Key: dev-key
+```
+
 Prometheus-formatted metrics. Useful if you want to track ingestion stats.
+
+> **Note:** This endpoint is only registered when `ENABLE_METRICS=true` (default). If disabled, the route returns `404 Not Found`.
+
+## � Rate Limiting
+
+The `/v1/sessions` endpoint is rate-limited per API key. The default limit is **100 requests per 60 seconds**. Exceeding the limit results in a `429 Too Many Requests` response with error code `RATE_LIMIT_EXCEEDED`.
+
+Configure with `RATE_LIMIT_REQUESTS` and `RATE_LIMIT_WINDOW_SEC` environment variables.
+
+## 🗄 Data Retention
+
+A background job runs on startup and then **every 24 hours** to delete sessions older than `RETENTION_DAYS` (default: 90 days). Adjust the retention window with the `RETENTION_DAYS` environment variable.
 
 ## 📂 Project Structure
 

@@ -86,7 +86,8 @@ To integrate the Media3Watch SDK into your Android project:
            backendUrl = "http://localhost:8080/v1/sessions", // optional, use this for local testing
            apiKey = "dev-key", // optional, matches backend default
            enableRealTimeReporting = true, // default: true
-           reportingIntervalMs = 15_000L // default: 15s
+           reportingIntervalMs = 15_000L, // default: 15s
+           enableLogging = true // set to false in production to suppress Logcat output
        )
    )
    // Or use default config for Logcat-only mode:
@@ -168,7 +169,8 @@ private val analytics = Media3WatchAnalytics(
         // backendUrl = "http://localhost:8080/v1/sessions", // Physical Device on same Wi-Fi
         apiKey = "dev-key",
         enableRealTimeReporting = true, // Optional, defaults to true
-        reportingIntervalMs = 15_000L // Optional, defaults to 15s
+        reportingIntervalMs = 15_000L, // Optional, defaults to 15s
+        enableLogging = true // Optional, set to false in production to suppress Logcat output
     )
 )
 ```
