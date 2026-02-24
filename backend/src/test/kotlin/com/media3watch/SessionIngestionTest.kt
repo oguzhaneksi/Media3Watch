@@ -502,7 +502,7 @@ class SessionIngestionTest {
         val dbPwd = System.getenv("DATABASE_PASSWORD") ?: "m3w"
         val dataSource = object : javax.sql.DataSource {
             override fun getConnection() = DriverManager.getConnection(jdbcUrl, dbUser, dbPwd)
-            override fun getConnection(u: String, p: String) = getConnection()
+            override fun getConnection(u: String, p: String) = DriverManager.getConnection(jdbcUrl, u, p)
             override fun getLogWriter(): java.io.PrintWriter? = null
             override fun setLogWriter(out: java.io.PrintWriter?) {}
             override fun getLoginTimeout() = 0
