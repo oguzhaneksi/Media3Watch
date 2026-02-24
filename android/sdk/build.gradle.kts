@@ -55,7 +55,7 @@ mavenPublishing {
     coordinates(
         groupId = "io.github.oguzhaneksi",
         artifactId = "media3watch-sdk",
-        version = "1.0.0-alpha01"
+        version = project.property("VERSION_NAME") as String
     )
 
     pom {
