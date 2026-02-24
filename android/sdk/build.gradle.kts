@@ -79,7 +79,7 @@ mavenPublishing {
         }
         scm {
             url.set("https://github.com/oguzhaneksi/Media3Watch")
-            connection.set("scm:git:git://github.com/oguzhaneksi/Media3Watch.git")
+            connection.set("scm:git:https://github.com/oguzhaneksi/Media3Watch.git")
             developerConnection.set("scm:git:ssh://git@github.com/oguzhaneksi/Media3Watch.git")
         }
     }
