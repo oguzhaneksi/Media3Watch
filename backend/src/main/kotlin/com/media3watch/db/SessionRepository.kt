@@ -34,7 +34,7 @@ class SessionRepository(private val dataSource: DataSource) {
                         total_seek_time_ms = EXCLUDED.total_seek_time_ms,
                         mean_video_format_bitrate = EXCLUDED.mean_video_format_bitrate,
                         error_count = EXCLUDED.error_count
-                    WHERE sessions.timestamp >= EXCLUDED.timestamp
+                    WHERE sessions.timestamp <= EXCLUDED.timestamp
                 """.trimIndent()
 
                 connection.prepareStatement(sql).use { stmt ->
@@ -62,5 +62,41 @@ class SessionRepository(private val dataSource: DataSource) {
             Result.failure(e)
         }
     }
-}
 
+    /**
+     * Deletes sessions older than [retentionDays] days in batches of [batchSize] rows.
+     *
+     * Batched deletes prevent table-level lock contention on large datasets. The method
+     * loops until no rows remain beyond the retention window.
+     *
+     * @return total number of rows deleted across all batches.
+     */
+    fun deleteExpiredSessions(retentionDays: Int, batchSize: Int = 10_000): Int {
+        val cutoffMs = System.currentTimeMillis() - (retentionDays.toLong() * 24 * 60 * 60 * 1000)
+        var totalDeleted = 0
+        try {
+            do {
+                val deleted = dataSource.connection.use { connection ->
+                    val sql = """
+                        DELETE FROM sessions
+                        WHERE id IN (
+                            SELECT id FROM sessions
+                            WHERE timestamp < ?
+                            LIMIT ?
+                        )
+                    """.trimIndent()
+                    connection.prepareStatement(sql).use { stmt ->
+                        stmt.setLong(1, cutoffMs)
+                        stmt.setInt(2, batchSize)
+                        stmt.executeUpdate()
+                    }
+                }
+                totalDeleted += deleted
+                if (deleted < batchSize) break  // last batch — no more rows to delete
+            } while (true)
+        } catch (e: SQLException) {
+            logger.error("Failed to delete expired sessions (cutoffMs=$cutoffMs)", e)
+        }
+        return totalDeleted
+    }
+}

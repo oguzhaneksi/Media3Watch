@@ -40,7 +40,8 @@ class Media3WatchAnalytics(
     private val uploader: TelemetryUploader? = httpSender?.let {
         TelemetryUploader(
             sender = httpSender,
-            coroutineScope = analyticsScope
+            coroutineScope = analyticsScope,
+            enableLogging = config.enableLogging
         )
     }
 
@@ -144,7 +145,7 @@ class Media3WatchAnalytics(
         player.addAnalyticsListener(analyticsListener)
         player.addAnalyticsListener(playbackStatsListener)
 
-        Log.d(LogUtils.TAG, "session_start sessionId=$sessionId")
+        if (config.enableLogging) Log.d(LogUtils.TAG, "session_start sessionId=$sessionId")
         
         // Start real-time reporting if enabled and uploader is configured
         if (config.enableRealTimeReporting && uploader != null) {
@@ -225,13 +226,13 @@ class Media3WatchAnalytics(
                 sessionEndStats = stats
             )
 
-            if (logSessionSummary)
+            if (logSessionSummary && config.enableLogging)
                 Log.d(LogUtils.TAG, summary.toPrettyLog())
 
             // Do not send report if sessionDurationMs <= 0
             if (sessionDurationMs <= 0) return@launch
 
-            Log.d(
+            if (config.enableLogging) Log.d(
                 LogUtils.TAG,
                 "Uploading session summary (sessionId=$capturedSessionId, durationMs=$sessionDurationMs)"
             )

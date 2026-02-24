@@ -555,6 +555,51 @@ class Media3WatchAnalyticsTest {
     // Note: Timeout behavior is tested manually/integration testing
     // Unit testing async timeout in Robolectric proves unreliable due to thread scheduling
 
+    // ── enableLogging = false: log suppression ─────────────────────────────────
+
+    @Test
+    fun enableLogging_false_suppressesSessionStartAndEndLogs() {
+        val config = Media3WatchConfig(enableLogging = false)
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        analytics.detach()
+        Thread.sleep(200)
+
+        val logs = ShadowLog.getLogsForTag(TAG).orEmpty()
+        assertEquals("No logs should be emitted when enableLogging=false", 0, logs.size)
+    }
+
+    @Test
+    fun enableLogging_false_withBackend_suppressesAllLogcatOutput() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/sessions").toString(),
+            apiKey = "test-key",
+            enableLogging = false
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        analytics.playRequested()
+        advanceMs(100)
+        harness.emitFirstFrame()
+        analytics.detach()
+        analytics.release()
+
+        Thread.sleep(300)
+
+        val logs = ShadowLog.getLogsForTag(TAG).orEmpty()
+        assertEquals("No Logcat output should be emitted when enableLogging=false", 0, logs.size)
+
+        server.shutdown()
+    }
+
     private fun lastSessionEndLog(): String? {
         return ShadowLog.getLogsForTag(TAG)
             .orEmpty()

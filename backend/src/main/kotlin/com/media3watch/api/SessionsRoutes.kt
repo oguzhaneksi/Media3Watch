@@ -16,6 +16,12 @@ import org.slf4j.LoggerFactory
 
 private val logger = LoggerFactory.getLogger("SessionsRoutes")
 
+private val UUID_PATTERN = Regex(
+    "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    RegexOption.IGNORE_CASE
+)
+private const val MAX_SESSION_ID_LENGTH = 128
+
 @Serializable
 data class SessionResponse(
     val status: String,
@@ -32,16 +38,27 @@ fun Route.sessionsRoutes(
             try {
                 val session = call.receive<SessionSummary>()
 
-                // Validate required fields
-                if (session.sessionId.isEmpty() || session.sessionId.isBlank()) {
+                // Validate sessionId: non-blank, max length, UUID format
+                if (session.sessionId.isBlank()) {
                     call.respond(
                         HttpStatusCode.BadRequest,
-                        ErrorResponse(
-                            ErrorDetail(
-                                code = ErrorCodes.INVALID_SCHEMA,
-                                message = "Missing or empty required field: sessionId"
-                            )
-                        )
+                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "Missing or empty required field: sessionId"))
+                    )
+                    return@post
+                }
+
+                if (session.sessionId.length > MAX_SESSION_ID_LENGTH) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "sessionId exceeds maximum length of $MAX_SESSION_ID_LENGTH characters"))
+                    )
+                    return@post
+                }
+
+                if (!UUID_PATTERN.matches(session.sessionId)) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "sessionId must be in UUID format"))
                     )
                     return@post
                 }
@@ -50,12 +67,7 @@ fun Route.sessionsRoutes(
                 if (session.sessionDurationMs <= 0) {
                     call.respond(
                         HttpStatusCode.BadRequest,
-                        ErrorResponse(
-                            ErrorDetail(
-                                code = ErrorCodes.INVALID_SCHEMA,
-                                message = "Invalid value for sessionDurationMs: must be positive"
-                            )
-                        )
+                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "Invalid value for sessionDurationMs: must be positive"))
                     )
                     return@post
                 }
@@ -64,26 +76,43 @@ fun Route.sessionsRoutes(
                 if (session.timestamp <= 0) {
                     call.respond(
                         HttpStatusCode.BadRequest,
-                        ErrorResponse(
-                            ErrorDetail(
-                                code = ErrorCodes.INVALID_SCHEMA,
-                                message = "Invalid value for timestamp: must be positive"
-                            )
-                        )
+                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "Invalid value for timestamp: must be positive"))
                     )
                     return@post
                 }
 
                 // Validate sessionStartDateIso
-                if (session.sessionStartDateIso.isBlank() || session.sessionStartDateIso.isEmpty()) {
+                if (session.sessionStartDateIso.isBlank()) {
                     call.respond(
                         HttpStatusCode.BadRequest,
-                        ErrorResponse(
-                            ErrorDetail(
-                                code = ErrorCodes.INVALID_SCHEMA,
-                                message = "Missing or empty required field: sessionStartDateIso"
-                            )
-                        )
+                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "Missing or empty required field: sessionStartDateIso"))
+                    )
+                    return@post
+                }
+
+                // Validate nullable numeric fields: all must be non-negative if provided
+                val outOfRangeFields = buildList {
+                    if (session.startupTimeMs != null && session.startupTimeMs < 0) add("startupTimeMs")
+                    if (session.rebufferTimeMs != null && session.rebufferTimeMs < 0) add("rebufferTimeMs")
+                    if (session.rebufferCount != null && session.rebufferCount < 0) add("rebufferCount")
+                    if (session.playTimeMs != null && session.playTimeMs < 0) add("playTimeMs")
+                    if (session.totalDroppedFrames != null && session.totalDroppedFrames < 0) add("totalDroppedFrames")
+                    if (session.totalSeekCount != null && session.totalSeekCount < 0) add("totalSeekCount")
+                    if (session.totalSeekTimeMs != null && session.totalSeekTimeMs < 0) add("totalSeekTimeMs")
+                    if (session.errorCount != null && session.errorCount < 0) add("errorCount")
+                    if (session.meanVideoFormatBitrate != null && session.meanVideoFormatBitrate < 0) add("meanVideoFormatBitrate")
+                }
+                if (outOfRangeFields.isNotEmpty()) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "Out-of-range value for field(s): ${outOfRangeFields.joinToString()}: must be non-negative"))
+                    )
+                    return@post
+                }
+                if (session.rebufferRatio != null && (session.rebufferRatio < 0f || session.rebufferRatio > 1f)) {
+                    call.respond(
+                        HttpStatusCode.BadRequest,
+                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "rebufferRatio must be between 0 and 1 (inclusive)"))
                     )
                     return@post
                 }
@@ -113,7 +142,7 @@ fun Route.sessionsRoutes(
                     ErrorResponse(
                         ErrorDetail(
                             code = ErrorCodes.INVALID_SCHEMA,
-                            message = "Invalid request body: ${e.message}"
+                            message = "Invalid request body"
                         )
                     )
                 )

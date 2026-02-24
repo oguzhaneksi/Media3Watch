@@ -18,6 +18,8 @@ import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.plugins.*
+import io.ktor.server.plugins.bodylimit.*
 import io.ktor.server.plugins.ratelimit.*
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.httpMethod
@@ -29,8 +31,14 @@ import io.micrometer.core.instrument.binder.jvm.*
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 
 fun main() {
@@ -107,6 +115,12 @@ fun Application.module(config: AppConfig = AppConfig.fromEnvironment()) {
     }
 
     install(StatusPages) {
+        exception<PayloadTooLargeException> { call, _ ->
+            call.respond(
+                HttpStatusCode.PayloadTooLarge,
+                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "Payload exceeds maximum size"))
+            )
+        }
         exception<Throwable> { call, cause ->
             logger.error("Unhandled exception", cause)
             call.respond(
@@ -141,14 +155,33 @@ fun Application.module(config: AppConfig = AppConfig.fromEnvironment()) {
         healthRoutes()
 
         if (config.enableMetrics) {
-            metricsRoutes(prometheusRegistry)
+            authenticate("api-key-auth") {
+                metricsRoutes(prometheusRegistry)
+            }
         }
 
         rateLimit(RateLimitName("api-key-limit")) {
+            install(RequestBodyLimit) {
+                bodyLimit { 64 * 1024L }
+            }
             sessionsRoutes(sessionRepository, sessionsIngestedCounter, sessionsFailedCounter)
+        }
+    }
+
+    // Scheduled data retention cleanup — runs immediately on startup, then once daily
+    launch {
+        while (isActive) {
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    val deleted = sessionRepository.deleteExpiredSessions(config.retentionDays)
+                    logger.info("Retention cleanup: deleted $deleted expired sessions (retentionDays=${config.retentionDays})")
+                }.onFailure { e ->
+                    logger.error("Retention cleanup failed", e)
+                }
+            }
+            delay(24.hours)
         }
     }
 
     logger.info("Application started successfully")
 }
-
