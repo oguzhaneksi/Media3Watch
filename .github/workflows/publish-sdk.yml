@@ -29,10 +29,12 @@ jobs:
         env:
           ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_USERNAME_TOKEN }}
           ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_PASSWORD_TOKEN }}
-          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.OSSRH_GPG_SECRET_KEY }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.OSSRH_GPG_SECRET_KEY_ID }}
-        run: ./gradlew :sdk:publishAndReleaseToMavenCentral --no-daemon
+          SECRET_GPG_KEY: ${{ secrets.OSSRH_GPG_SECRET_KEY }}
+        run: |
+          export ORG_GRADLE_PROJECT_signingInMemoryKey=$(echo "$SECRET_GPG_KEY" | base64 --decode)
+          ./gradlew :sdk:publishAndReleaseToMavenCentral --no-daemon
         working-directory: android
 
       - name: Notify on Failure
