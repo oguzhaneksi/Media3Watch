@@ -471,6 +471,59 @@ class SessionIngestionTest {
         assertTrue(response.bodyAsText().contains("sessions_ingested_total"), "Prometheus response should contain counter")
     }
 
+    // ── New hardening: timestamp-based conflict resolution ────────────────────
+
+    @Test
+    fun `test upsert only overwrites session when incoming timestamp is newer`() {
+        val sessionId = UUID.randomUUID().toString()
+        val t1 = System.currentTimeMillis() - 2000L   // oldest
+        val t2 = t1 + 1000L                           // newer  — should overwrite
+        val t3 = t1 + 500L                            // older than t2 — should NOT overwrite
+
+        val jdbcUrl = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5433/media3watch"
+        val dbUser = System.getenv("DATABASE_USER") ?: "m3w"
+        val dbPwd = System.getenv("DATABASE_PASSWORD") ?: "m3w"
+        val dataSource = object : javax.sql.DataSource {
+            override fun getConnection() = DriverManager.getConnection(jdbcUrl, dbUser, dbPwd)
+            override fun getConnection(u: String, p: String) = DriverManager.getConnection(jdbcUrl, u, p)
+            override fun getLogWriter(): java.io.PrintWriter? = null
+            override fun setLogWriter(out: java.io.PrintWriter?) {}
+            override fun getLoginTimeout() = 0
+            override fun setLoginTimeout(s: Int) {}
+            override fun getParentLogger(): java.util.logging.Logger? = null
+            override fun <T : Any> unwrap(iface: Class<T>): T = throw java.sql.SQLFeatureNotSupportedException()
+            override fun isWrapperFor(iface: Class<*>) = false
+        }
+        val repo = SessionRepository(dataSource)
+
+        fun makeSession(ts: Long, duration: Long) = com.media3watch.domain.SessionSummary(
+            sessionId = sessionId,
+            timestamp = ts,
+            sessionStartDateIso = "2026-01-01T00:00:00.000Z",
+            sessionDurationMs = duration
+        )
+
+        fun queryDuration(): Long {
+            getDbConnection().use { conn ->
+                val rs = conn.prepareStatement("SELECT session_duration_ms, timestamp FROM sessions WHERE session_id = ?")
+                    .also { it.setString(1, sessionId) }.executeQuery()
+                return if (rs.next()) rs.getLong("session_duration_ms") else -1L
+            }
+        }
+
+        // Step 1: Insert initial session at T1 with duration 10_000
+        repo.upsertSession(makeSession(t1, 10_000))
+        assertEquals(10_000L, queryDuration(), "Initial insert should persist duration 10_000")
+
+        // Step 2: Update with T2 > T1 and duration 20_000 — should succeed
+        repo.upsertSession(makeSession(t2, 20_000))
+        assertEquals(20_000L, queryDuration(), "Newer timestamp T2 should overwrite to duration 20_000")
+
+        // Step 3: Update with T3 < T2 and duration 30_000 — should be rejected
+        repo.upsertSession(makeSession(t3, 30_000))
+        assertEquals(20_000L, queryDuration(), "Older timestamp T3 should NOT overwrite; duration must remain 20_000")
+    }
+
     // ── New hardening: retention cleanup ──────────────────────────────────────
 
     @Test
