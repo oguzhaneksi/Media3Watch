@@ -37,11 +37,11 @@ To make the existing `.github/workflows/publish-sdk.yml` pipeline work, you need
 
 Once the secrets are set up, doing a release is completely automated:
 
-1. Update the `version` block in `android/sdk/build.gradle.kts` (e.g. from `1.0.0-alpha01` to `1.0.0-alpha02`).
+1. Update the SDK version by bumping the `VERSION_NAME` project property (the source of truth used by `android/sdk/build.gradle.kts`, typically defined in `gradle.properties`; e.g. from `1.0.0-alpha01` to `1.0.0-alpha02`).
 2. Commit and push the version bump to the `main` branch.
 3. Open your GitHub repository and go to the **Releases** tab.
 4. Click **Draft a new release**.
-5. Create a new tag (e.g. `v1.0.0-alpha02`), fill in the release title and description.
+5. Create a new tag that matches the new `VERSION_NAME` (e.g. `v1.0.0-alpha02`), and fill in the release title and description.
 6. Click **Publish release**.
 
 The GitHub Action `Publish SDK to Maven Central` will automatically start. Once it completes successfully, your SDK will be available on Maven Central (it usually takes 15-30 minutes for new releases to sync visually to the Maven Central search UI).
