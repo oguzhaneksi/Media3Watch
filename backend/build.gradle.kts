@@ -31,6 +31,7 @@ dependencies {
     implementation("io.ktor:ktor-server-auth:$ktor_version")
     implementation("io.ktor:ktor-server-metrics-micrometer:$ktor_version")
     implementation("io.ktor:ktor-server-status-pages:$ktor_version")
+    implementation("io.ktor:ktor-server-body-limit:$ktor_version")
     implementation("io.ktor:ktor-server-config-yaml:$ktor_version")
 
     // Database

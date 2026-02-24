@@ -448,6 +448,21 @@ class SessionIngestionTest {
         assertFalse(body.contains("at com."), "Error response must not contain stack trace fragments")
     }
 
+    @Test
+    fun `test oversized payload is rejected with 413`() = testApplication {
+        application { module() }
+
+        val oversizedBody = "{\"data\":\"${"x".repeat(65 * 1024)}\"}" // > 64 KB
+
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(oversizedBody)
+        }
+
+        assertEquals(HttpStatusCode.PayloadTooLarge, response.status)
+    }
+
     // ── New hardening: /metrics authentication ────────────────────────────────
 
     @Test

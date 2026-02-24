@@ -21,7 +21,6 @@ private val UUID_PATTERN = Regex(
     RegexOption.IGNORE_CASE
 )
 private const val MAX_SESSION_ID_LENGTH = 128
-private const val MAX_PAYLOAD_BYTES = 64 * 1024L // 64 KB
 
 @Serializable
 data class SessionResponse(
@@ -37,16 +36,6 @@ fun Route.sessionsRoutes(
     authenticate("api-key-auth") {
         post("/v1/sessions") {
             try {
-                // Reject oversized payloads before deserialization
-                val contentLength = call.request.contentLength()
-                if (contentLength != null && contentLength > MAX_PAYLOAD_BYTES) {
-                    call.respond(
-                        HttpStatusCode.PayloadTooLarge,
-                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "Payload exceeds maximum size"))
-                    )
-                    return@post
-                }
-
                 val session = call.receive<SessionSummary>()
 
                 // Validate sessionId: non-blank, max length, UUID format

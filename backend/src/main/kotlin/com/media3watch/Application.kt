@@ -18,6 +18,8 @@ import io.ktor.server.engine.*
 import io.ktor.server.netty.*
 import io.ktor.server.plugins.calllogging.*
 import io.ktor.server.plugins.contentnegotiation.*
+import io.ktor.server.plugins.*
+import io.ktor.server.plugins.bodylimit.*
 import io.ktor.server.plugins.ratelimit.*
 import io.ktor.server.plugins.statuspages.*
 import io.ktor.server.request.httpMethod
@@ -113,6 +115,12 @@ fun Application.module(config: AppConfig = AppConfig.fromEnvironment()) {
     }
 
     install(StatusPages) {
+        exception<PayloadTooLargeException> { call, _ ->
+            call.respond(
+                HttpStatusCode.PayloadTooLarge,
+                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "Payload exceeds maximum size"))
+            )
+        }
         exception<Throwable> { call, cause ->
             logger.error("Unhandled exception", cause)
             call.respond(
@@ -153,6 +161,9 @@ fun Application.module(config: AppConfig = AppConfig.fromEnvironment()) {
         }
 
         rateLimit(RateLimitName("api-key-limit")) {
+            install(RequestBodyLimit) {
+                bodyLimit { 64 * 1024L }
+            }
             sessionsRoutes(sessionRepository, sessionsIngestedCounter, sessionsFailedCounter)
         }
     }
