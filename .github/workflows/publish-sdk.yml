@@ -2,7 +2,7 @@ name: Publish SDK to Maven Central
 
 on:
   release:
-    types: [published]
+    types: [published, prereleased]
   workflow_dispatch:
 
 jobs:
