@@ -168,10 +168,9 @@ fun Application.module(config: AppConfig = AppConfig.fromEnvironment()) {
         }
     }
 
-    // Scheduled data retention cleanup — runs once daily, deletes in batches to avoid table locks
+    // Scheduled data retention cleanup — runs immediately on startup, then once daily
     launch {
         while (isActive) {
-            delay(24.hours)
             withContext(Dispatchers.IO) {
                 runCatching {
                     val deleted = sessionRepository.deleteExpiredSessions(config.retentionDays)
@@ -180,6 +179,7 @@ fun Application.module(config: AppConfig = AppConfig.fromEnvironment()) {
                     logger.error("Retention cleanup failed", e)
                 }
             }
+            delay(24.hours)
         }
     }
 
