@@ -196,4 +196,38 @@ class TelemetryUploaderTest {
         }
         assertNull("CancellationException should not be logged", cancellationLog)
     }
+
+    // ── enableLogging = false: log suppression ─────────────────────────────────
+
+    @Test
+    fun upload_success_loggingDisabled_doesNotLogSuccessMessage() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(200))
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        val uploader = TelemetryUploader(sender, coroutineScope = this, enableLogging = false)
+
+        uploader.upload(sessionId = "silent-session-ok", payload = """{"test":"data"}""")
+
+        server.takeRequest(2, TimeUnit.SECONDS)
+        delay(100)
+
+        val successLog = ShadowLog.getLogsForTag(LogUtils.TAG)
+            ?.find { it.msg.contains("session_report_success") }
+        assertNull("Should not log upload success when enableLogging=false", successLog)
+    }
+
+    @Test
+    fun upload_failure_loggingDisabled_doesNotLogFailureMessage() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(500))
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        val uploader = TelemetryUploader(sender, coroutineScope = this, enableLogging = false)
+
+        uploader.upload(sessionId = "silent-session-fail", payload = """{"test":"data"}""")
+
+        server.takeRequest(2, TimeUnit.SECONDS)
+        delay(100)
+
+        val failLog = ShadowLog.getLogsForTag(LogUtils.TAG)
+            ?.find { it.msg.contains("session_report_failed") }
+        assertNull("Should not log upload failure when enableLogging=false", failLog)
+    }
 }

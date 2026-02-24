@@ -26,6 +26,7 @@ internal class TelemetryUploader(
     private val sender: HttpSender,
     private val uploadTimeoutMs: Long = 15_000,
     private val coroutineScope: CoroutineScope,
+    private val enableLogging: Boolean = true,
 ) {
     @OptIn(UnstableApi::class)
     fun upload(sessionId: String, payload: String) {
@@ -35,19 +36,21 @@ internal class TelemetryUploader(
                 withContext(NonCancellable) {
                     sender.send(payload, callTimeoutMs = uploadTimeoutMs)
                         .onSuccess {
-                            Log.d(LogUtils.TAG, "session_report_success sessionId=$sessionId")
+                            if (enableLogging) Log.d(LogUtils.TAG, "session_report_success sessionId=$sessionId")
                         }
                         .onFailure {
-                            if (it is SocketTimeoutException || it is InterruptedIOException) {
-                                Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (timeout)", it)
-                            } else {
-                                Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId", it)
+                            if (enableLogging) {
+                                if (it is SocketTimeoutException || it is InterruptedIOException) {
+                                    Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (timeout)", it)
+                                } else {
+                                    Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId", it)
+                                }
                             }
                         }
                 }
             } catch (t: Throwable) {
                 if (t is CancellationException) throw t
-                Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (exception)", t)
+                if (enableLogging) Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (exception)", t)
             }
         }
     }

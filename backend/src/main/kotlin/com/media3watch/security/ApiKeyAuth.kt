@@ -6,6 +6,7 @@ import com.media3watch.observability.ErrorResponse
 import io.ktor.http.*
 import io.ktor.server.auth.*
 import io.ktor.server.response.*
+import java.security.MessageDigest
 
 data class ApiKeyPrincipal(val key: String)
 
@@ -24,8 +25,15 @@ class ApiKeyAuthenticationProvider internal constructor(
         val apiKey = context.call.request.headers["X-API-Key"]
         val expectedKey = keyProvider()
 
-        if (apiKey != null && apiKey == expectedKey) {
-            context.principal(ApiKeyPrincipal(apiKey))
+        // Constant-time comparison prevents timing side-channel attacks
+        val isValid = apiKey != null &&
+            MessageDigest.isEqual(
+                apiKey.toByteArray(Charsets.UTF_8),
+                expectedKey.toByteArray(Charsets.UTF_8)
+            )
+
+        if (isValid) {
+            context.principal(ApiKeyPrincipal(expectedKey))
         } else {
             context.challenge("ApiKeyAuth", AuthenticationFailedCause.InvalidCredentials) { challenge, call ->
                 call.respond(

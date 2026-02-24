@@ -29,8 +29,14 @@ import io.micrometer.core.instrument.binder.jvm.*
 import io.micrometer.prometheusmetrics.PrometheusConfig
 import io.micrometer.prometheusmetrics.PrometheusMeterRegistry
 import kotlinx.serialization.json.Json
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.slf4j.event.Level
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 
 fun main() {
@@ -141,7 +147,9 @@ fun Application.module(config: AppConfig = AppConfig.fromEnvironment()) {
         healthRoutes()
 
         if (config.enableMetrics) {
-            metricsRoutes(prometheusRegistry)
+            authenticate("api-key-auth") {
+                metricsRoutes(prometheusRegistry)
+            }
         }
 
         rateLimit(RateLimitName("api-key-limit")) {
@@ -149,6 +157,20 @@ fun Application.module(config: AppConfig = AppConfig.fromEnvironment()) {
         }
     }
 
+    // Scheduled data retention cleanup — runs once daily, deletes in batches to avoid table locks
+    launch {
+        while (isActive) {
+            delay(24.hours)
+            withContext(Dispatchers.IO) {
+                runCatching {
+                    val deleted = sessionRepository.deleteExpiredSessions(config.retentionDays)
+                    logger.info("Retention cleanup: deleted $deleted expired sessions (retentionDays=${config.retentionDays})")
+                }.onFailure { e ->
+                    logger.error("Retention cleanup failed", e)
+                }
+            }
+        }
+    }
+
     logger.info("Application started successfully")
 }
-
