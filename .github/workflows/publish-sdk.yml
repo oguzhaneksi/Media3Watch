@@ -10,6 +10,7 @@ jobs:
     name: Publish to Maven Central
     permissions:
       contents: read
+      issues: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
@@ -42,3 +43,23 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.OSSRH_GPG_SECRET_KEY_ID }}
         run: ./gradlew :sdk:publishAndReleaseToMavenCentral --no-daemon
         working-directory: android
+
+      - name: Notify on Failure
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { repo, owner } = context.repo;
+            const runUrl = `https://github.com/${owner}/${repo}/actions/runs/${context.runId}`;
+            const title = `🚨 Maven Central publishing failed for ${context.ref}`;
+            const body = [
+              `The **Publish SDK to Maven Central** workflow failed.`,
+              ``,
+              `**Workflow run:** ${runUrl}`,
+              `**Triggered by:** ${context.eventName}`,
+              `**Ref:** \`${context.ref}\``,
+              ``,
+              `Please check the logs and fix the issue before the next release.`,
+            ].join('\n');
+            await github.rest.issues.create({ owner, repo, title, body, labels: ['ci-failure'] });
+
