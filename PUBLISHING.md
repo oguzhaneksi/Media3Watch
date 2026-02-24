@@ -18,8 +18,12 @@ To make the existing `.github/workflows/publish-sdk.yml` pipeline work, you need
     * The base64 representation of your GPG private key.
     * If you haven't created one yet, run `gpg --full-generate-key` (Use RSA, 4096 bits, no expiry).
     * Make sure to upload your public key to a keyserver: `gpg --keyserver keyserver.ubuntu.com --send-keys YOUR_KEY_ID`.
-    * Export the private key as base64 to put in this secret: 
+    * Export the private key as base64 to put in this secret (avoid line wrapping in the output):
       ```bash
+      # Linux (GNU coreutils base64)
+      gpg --armor --export-secret-keys YOUR_KEY_ID | base64 -w 0
+
+      # macOS (BSD base64, no wrapping by default)
       gpg --armor --export-secret-keys YOUR_KEY_ID | base64
       ```
 
