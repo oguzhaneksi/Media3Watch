@@ -112,6 +112,7 @@ fun Route.sessionsRoutes(
                     if (session.totalSeekCount != null && session.totalSeekCount < 0) add("totalSeekCount")
                     if (session.totalSeekTimeMs != null && session.totalSeekTimeMs < 0) add("totalSeekTimeMs")
                     if (session.errorCount != null && session.errorCount < 0) add("errorCount")
+                    if (session.meanVideoFormatBitrate != null && session.meanVideoFormatBitrate < 0) add("meanVideoFormatBitrate")
                 }
                 if (outOfRangeFields.isNotEmpty()) {
                     call.respond(
