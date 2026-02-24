@@ -25,16 +25,29 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
 
-      - name: Publish and Release SDK
+      - name: Import GPG Key
+        uses: crazy-max/ghaction-import-gpg@v6
+        with:
+          gpg_private_key: ${{ secrets.OSSRH_GPG_SECRET_KEY }}
+          passphrase: ${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }}
+
+      - name: Configure Gradle Setup
         env:
-          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_USERNAME_TOKEN }}
-          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_PASSWORD_TOKEN }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }}
-          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.OSSRH_GPG_SECRET_KEY_ID }}
-          SECRET_GPG_KEY: ${{ secrets.OSSRH_GPG_SECRET_KEY }}
+          SONATYPE_USER: ${{ secrets.SONATYPE_USERNAME_TOKEN }}
+          SONATYPE_PASS: ${{ secrets.SONATYPE_PASSWORD_TOKEN }}
+          GPG_KEY_ID: ${{ secrets.OSSRH_GPG_SECRET_KEY_ID }}
+          GPG_PASS: ${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }}
         run: |
-          export ORG_GRADLE_PROJECT_signingInMemoryKey=$(echo "$SECRET_GPG_KEY" | base64 --decode)
-          ./gradlew :sdk:publishAndReleaseToMavenCentral --no-daemon
+          mkdir -p ~/.gradle
+          cat <<EOF > ~/.gradle/gradle.properties
+          mavenCentralUsername=$SONATYPE_USER
+          mavenCentralPassword=$SONATYPE_PASS
+          signing.gnupg.keyName=$GPG_KEY_ID
+          signing.gnupg.passphrase=$GPG_PASS
+          EOF
+
+      - name: Publish and Release SDK
+        run: ./gradlew :sdk:publishAndReleaseToMavenCentral --no-daemon
         working-directory: android
 
       - name: Notify on Failure
