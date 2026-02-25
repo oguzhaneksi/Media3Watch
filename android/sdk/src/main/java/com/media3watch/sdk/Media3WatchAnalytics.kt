@@ -216,7 +216,9 @@ class Media3WatchAnalytics(
         val sessionDurationMs = (now - sessionStartTs).coerceAtLeast(0L)
 
         // Snapshot all Main-thread state before crossing dispatcher boundaries.
-        val stats = statsListener.playbackStats
+        // Fall back to getCombinedPlaybackStats() when playbackStats is null (e.g. during
+        // rapid content switches where the session manager temporarily clears currentSessionId).
+        val stats = statsListener.playbackStats ?: statsListener.getCombinedPlaybackStats()
         val capturedSessionId = sessionId
         val capturedSessionStartWallClockMs = sessionStartWallClockMs
         val capturedSessionStartTs = sessionStartTs
