@@ -1,6 +1,7 @@
 package com.media3watch.sample.ui
 
 import android.os.Build
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -33,6 +34,8 @@ fun PlayerScreen(viewModel: PlayerViewModel = viewModel()) {
     val player = viewModel.player
 
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
+
+    BackHandler(onBack = viewModel::clearStream)
 
     if (Build.VERSION.SDK_INT > 23) {
         LifecycleStartEffect(viewModel) {
