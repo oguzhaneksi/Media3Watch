@@ -85,7 +85,7 @@ mavenPublishing {
     }
 
     // Configure publishing to Maven Central Portal
-    publishToMavenCentral(com.vanniktech.maven.publish.SonatypeHost.CENTRAL_PORTAL)
+    publishToMavenCentral()
 
     // Enable GPG signing for all publications
     signAllPublications()

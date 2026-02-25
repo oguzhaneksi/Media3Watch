@@ -6,8 +6,35 @@ on:
   workflow_dispatch:
 
 jobs:
+  validate:
+    name: Dry-Run Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'zulu'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Validate POM & Signing (publishToMavenLocal dry-run)
+        working-directory: android
+        env:
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.SONATYPE_USERNAME_TOKEN }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.SONATYPE_PASSWORD_TOKEN }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.OSSRH_GPG_SECRET_KEY }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.OSSRH_GPG_SECRET_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.OSSRH_GPG_SECRET_KEY_PASSWORD }}
+        run: ./gradlew :sdk:publishToMavenLocal --no-daemon --stacktrace
+
   publish:
     name: Publish to Maven Central
+    needs: validate
     permissions:
       contents: read
       issues: write
@@ -23,7 +50,7 @@ jobs:
           distribution: 'zulu'
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v3
+        uses: gradle/actions/setup-gradle@v4
 
       - name: Publish and Release SDK
         working-directory: android
@@ -53,4 +80,3 @@ jobs:
               `Please check the logs and fix the issue before the next release.`,
             ].join('\n');
             await github.rest.issues.create({ owner, repo, title, body, labels: ['ci-failure'] });
-
