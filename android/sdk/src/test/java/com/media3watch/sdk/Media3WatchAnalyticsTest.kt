@@ -603,8 +603,9 @@ class Media3WatchAnalyticsTest {
     fun rapidContentSwitch_playbackStatsNullDuringTransition_metricsAreNeverNull() {
         // Regression test: when content is switched rapidly, DefaultPlaybackSessionManager
         // temporarily sets currentSessionId to null (while the new timeline is still EMPTY),
-        // causing PlaybackStatsListener.getPlaybackStats() to return null. The SDK must
-        // fall back to getCombinedPlaybackStats() so metrics are never sent as null.
+        // causing PlaybackStatsListener.getPlaybackStats() to return null. The SDK passes
+        // the nullable PlaybackStats directly to buildSessionSummary(), which handles null
+        // gracefully via Kotlin safe-call operators so metrics are never missing from the log.
         val analytics = Media3WatchAnalytics()
         val harness = PlayerHarness()
 
