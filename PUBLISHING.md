@@ -15,17 +15,19 @@ To make the existing `.github/workflows/publish-sdk.yml` pipeline work, you need
     * The **Password** part of the generated token from the previous step.
 
 3. **`OSSRH_GPG_SECRET_KEY`**
-    * The base64 representation of your GPG private key.
-    * If you haven't created one yet, run `gpg --full-generate-key` (Use RSA, 4096 bits, no expiry).
-    * Make sure to upload your public key to a keyserver: `gpg --keyserver keyserver.ubuntu.com --send-keys YOUR_KEY_ID`.
-    * Export the private key as base64 to put in this secret (avoid line wrapping in the output):
+    * **IMPORTANT WARNING for macOS/brew users:** GnuPG v2.3+ encrypts private keys using an "AEAD" algorithm which Gradle's crypto library (BouncyCastle) **cannot read**, resulting in `Could not read PGP secret key` errors.
+    * **The Fix:** You must temporarily remove the passphrase from your private key before exporting it for GitHub Actions.
+    * 1. Run `gpg --edit-key YOUR_KEY_ID`
+    * 2. Type `passwd`. Enter your current passphrase. When asked for the new passphrase, **leave it blank** and confirm. Type `save` to exit.
+    * 3. Export the unencrypted key to base64:
       ```bash
       # Linux (GNU coreutils base64)
       gpg --armor --export-secret-keys YOUR_KEY_ID | base64 -w 0
 
-      # macOS (BSD base64, no wrapping by default)
+      # macOS (BSD base64)
       gpg --armor --export-secret-keys YOUR_KEY_ID | base64
       ```
+    * 4. Once exported, you can run `gpg --edit-key YOUR_KEY_ID` and use `passwd` again to put your passphrase back for local security.
 
 4. **`OSSRH_GPG_SECRET_KEY_ID`**
     * The last 8 characters (or full ID) of your GPG key. You can find it with `gpg --list-keys`.
