@@ -7,7 +7,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.InterruptedIOException
 import java.net.SocketTimeoutException
@@ -29,29 +28,26 @@ internal class TelemetryUploader(
     private val enableLogging: Boolean = true,
 ) {
     @OptIn(UnstableApi::class)
-    fun upload(sessionId: String, payload: String) {
-        // Launch on Default; network switch to IO is handled inside HttpSender.send().
-        coroutineScope.launch(Dispatchers.Default) {
-            try {
-                withContext(NonCancellable) {
-                    sender.send(payload, callTimeoutMs = uploadTimeoutMs)
-                        .onSuccess {
-                            if (enableLogging) Log.d(LogUtils.TAG, "session_report_success sessionId=$sessionId")
-                        }
-                        .onFailure {
-                            if (enableLogging) {
-                                if (it is SocketTimeoutException || it is InterruptedIOException) {
-                                    Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (timeout)", it)
-                                } else {
-                                    Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId", it)
-                                }
+    suspend fun upload(sessionId: String, payload: String) {
+        try {
+            withContext(NonCancellable) {
+                sender.send(payload, callTimeoutMs = uploadTimeoutMs)
+                    .onSuccess {
+                        if (enableLogging) Log.d(LogUtils.TAG, "session_report_success sessionId=$sessionId")
+                    }
+                    .onFailure {
+                        if (enableLogging) {
+                            if (it is SocketTimeoutException || it is InterruptedIOException) {
+                                Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (timeout)", it)
+                            } else {
+                                Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId", it)
                             }
                         }
-                }
-            } catch (t: Throwable) {
-                if (t is CancellationException) throw t
-                if (enableLogging) Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (exception)", t)
+                    }
             }
+        } catch (t: Throwable) {
+            if (t is CancellationException) throw t
+            if (enableLogging) Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (exception)", t)
         }
     }
 }
