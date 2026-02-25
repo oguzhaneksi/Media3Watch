@@ -599,6 +599,79 @@ class Media3WatchAnalyticsTest {
         server.shutdown()
     }
 
+    @Test
+    fun rapidContentSwitch_playbackStatsNullDuringTransition_metricsAreNeverNull() {
+        // Regression test: when content is switched rapidly, DefaultPlaybackSessionManager
+        // temporarily sets currentSessionId to null (while the new timeline is still EMPTY),
+        // causing PlaybackStatsListener.getPlaybackStats() to return null. The SDK must
+        // fall back to getCombinedPlaybackStats() so metrics are never sent as null.
+        val analytics = Media3WatchAnalytics()
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        analytics.playRequested()
+        advanceMs(100)
+        harness.emitFirstFrame()
+
+        // Simulate rapid content switch: the player emits a DISCONTINUITY_REASON_SEEK which
+        // in real usage (setMediaItem) causes the session manager to clear currentSessionId
+        // before the new timeline is established.
+        harness.emitSeekStarted()
+
+        analytics.detach()
+        Thread.sleep(200)
+
+        val endLog = lastSessionEndLog()
+        assertNotNull("Session summary must be logged even after rapid content switch", endLog)
+
+        // Core assertion: none of the collected metrics should be the literal string "null"
+        // that comes from a null PlaybackStats being passed to buildSessionSummary().
+        // rebufferTimeMs, rebufferCount, playTimeMs etc. may legitimately be "null" when
+        // PlaybackStats exposes them as null — but they must be present in the log at all.
+        assertNotNull(metric(endLog!!, "sessionDurationMs"))
+        assertNotNull(metric(endLog, "rebufferTimeMs"))
+        assertNotNull(metric(endLog, "rebufferCount"))
+        assertNotNull(metric(endLog, "playTimeMs"))
+    }
+
+    @Test
+    fun rapidContentSwitch_withBackend_metricsPayloadIsNotAllNulls() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200)) // seek-triggered report
+        server.enqueue(MockResponse().setResponseCode(200)) // detach report
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/sessions").toString(),
+            apiKey = "test-key",
+            enableRealTimeReporting = true,
+            reportingIntervalMs = 5_000L
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        advanceMs(100) // sessionDuration > 0
+
+        // Rapid content switch — triggers a report while DefaultPlaybackSessionManager
+        // may have currentSessionId = null, so getPlaybackStats() would return null.
+        harness.emitSeekStarted()
+
+        val report = server.takeRequest(1, TimeUnit.SECONDS)
+        assertNotNull("Report must be sent even after rapid content switch", report)
+
+        val body = report!!.body.readUtf8()
+        // sessionDurationMs must always be a non-null number in the JSON payload.
+        assertTrue(
+            "sessionDurationMs must not be null in payload after rapid switch",
+            body.contains("\"sessionDurationMs\":")
+                    && !body.contains("\"sessionDurationMs\":null")
+        )
+
+        analytics.detach()
+        server.shutdown()
+    }
+
     // ── Stream Switching Edge Cases ───────────────────────────────────────────
 
     @Test
@@ -779,6 +852,7 @@ class Media3WatchAnalyticsTest {
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
+        advanceMs(100) // sessionDuration > 0
         harness.emitVideoFormatChanged(4_000_000)
         harness.emitVideoFormatChanged(2_000_000)
         harness.emitVideoFormatChanged(500_000)

@@ -3,13 +3,12 @@ package com.media3watch.sdk
 import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.MainThread
-import androidx.media3.common.util.UnstableApi
 import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
@@ -45,9 +44,7 @@ class Media3WatchAnalytics(
         )
     }
 
-    private val playbackStatsListener = PlaybackStatsListener(false) { _, _ ->
-
-    }
+    private var playbackStatsListener: PlaybackStatsListener? = null
 
     private val analyticsListener = object : AnalyticsListener {
         override fun onRenderedFirstFrame(
@@ -136,6 +133,10 @@ class Media3WatchAnalytics(
         }
 
         resetSession()
+
+        val statsListener = PlaybackStatsListener(false) { _, _ -> }
+        playbackStatsListener = statsListener
+
         sessionId = UUID.randomUUID().toString()
         sessionStartTs = SystemClock.elapsedRealtime()
         sessionStartWallClockMs = System.currentTimeMillis()
@@ -143,7 +144,7 @@ class Media3WatchAnalytics(
         this.player = player
 
         player.addAnalyticsListener(analyticsListener)
-        player.addAnalyticsListener(playbackStatsListener)
+        player.addAnalyticsListener(statsListener)
 
         if (config.enableLogging) Log.d(LogUtils.TAG, "session_start sessionId=$sessionId")
         
@@ -174,16 +175,20 @@ class Media3WatchAnalytics(
 
     @MainThread
     fun detach() {
-        player ?: return
+        val currentPlayer = player
+
         reporter?.stop()
         reporter = null
 
-        buildAndUploadSummary(logSessionSummary = true)
+        if (currentPlayer != null) {
+            buildAndUploadSummary(logSessionSummary = true)
 
-        player?.removeAnalyticsListener(analyticsListener)
-        player?.removeAnalyticsListener(playbackStatsListener)
+            currentPlayer.removeAnalyticsListener(analyticsListener)
+            playbackStatsListener?.let { currentPlayer.removeAnalyticsListener(it) }
+        }
+
+        playbackStatsListener = null
         player = null
-        
         resetSession()
     }
 
@@ -203,14 +208,15 @@ class Media3WatchAnalytics(
         firstFrameRendered = false
     }
 
-    // Called on Main; heavy work (summary building + JSON serialisation) is offloaded to Default.
+    // Called on Main; heavy work (summary building + JSON serialization) is offloaded to Default.
     private fun buildAndUploadSummary(logSessionSummary: Boolean = false) {
         if (player == null) return
+        val statsListener = playbackStatsListener ?: return
         val now = SystemClock.elapsedRealtime()
         val sessionDurationMs = (now - sessionStartTs).coerceAtLeast(0L)
 
         // Snapshot all Main-thread state before crossing dispatcher boundaries.
-        val stats = playbackStatsListener.playbackStats
+        val stats = statsListener.playbackStats
         val capturedSessionId = sessionId
         val capturedSessionStartWallClockMs = sessionStartWallClockMs
         val capturedSessionStartTs = sessionStartTs
