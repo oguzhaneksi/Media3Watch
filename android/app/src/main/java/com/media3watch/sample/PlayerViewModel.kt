@@ -32,18 +32,37 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
     var player: ExoPlayer? by mutableStateOf(null)
         private set
 
+    private val _selectedStream = MutableStateFlow<Stream?>(null)
+    val selectedStream: StateFlow<Stream?> = _selectedStream
+
     private val _uiState = MutableStateFlow(PlayerUiState())
     val uiState: StateFlow<PlayerUiState> = _uiState
 
     private var updateJob: Job? = null
 
+    fun selectStream(stream: Stream) {
+        _selectedStream.value = stream
+    }
+
+    fun clearStream() {
+        _selectedStream.value = null
+    }
+
     fun initializePlayer() {
+        val stream = _selectedStream.value ?: return
         if (player != null) return
 
         player = ExoPlayer.Builder(getApplication()).build().apply {
             analytics.attach(this)
-            val url = "https://download.blender.org/peach/bigbuckbunny_movies/BigBuckBunny_320x180.mp4"
-            setMediaItem(MediaItem.fromUri(url))
+            val mediaItem = if (stream.mimeType != null) {
+                MediaItem.Builder()
+                    .setUri(stream.url)
+                    .setMimeType(stream.mimeType)
+                    .build()
+            } else {
+                MediaItem.fromUri(stream.url)
+            }
+            setMediaItem(mediaItem)
             prepare()
             playWhenReady = true
         }

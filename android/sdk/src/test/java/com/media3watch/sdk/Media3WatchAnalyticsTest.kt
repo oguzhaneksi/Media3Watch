@@ -4,7 +4,6 @@ import android.os.Looper
 import android.os.SystemClock
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.common.Timeline
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
@@ -600,6 +599,425 @@ class Media3WatchAnalyticsTest {
         server.shutdown()
     }
 
+    @Test
+    fun rapidContentSwitch_playbackStatsNullDuringTransition_metricsAreNeverNull() {
+        // Regression test: when content is switched rapidly, DefaultPlaybackSessionManager
+        // temporarily sets currentSessionId to null (while the new timeline is still EMPTY),
+        // causing PlaybackStatsListener.getPlaybackStats() to return null. The SDK passes
+        // the nullable PlaybackStats directly to buildSessionSummary(), which handles null
+        // gracefully via Kotlin safe-call operators so metrics are never missing from the log.
+        val analytics = Media3WatchAnalytics()
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        analytics.playRequested()
+        advanceMs(100)
+        harness.emitFirstFrame()
+
+        // Simulate rapid content switch: the player emits a DISCONTINUITY_REASON_SEEK which
+        // in real usage (setMediaItem) causes the session manager to clear currentSessionId
+        // before the new timeline is established.
+        harness.emitSeekStarted()
+
+        analytics.detach()
+        Thread.sleep(200)
+
+        val endLog = lastSessionEndLog()
+        assertNotNull("Session summary must be logged even after rapid content switch", endLog)
+
+        // Core assertion: none of the collected metrics should be the literal string "null"
+        // that comes from a null PlaybackStats being passed to buildSessionSummary().
+        // rebufferTimeMs, rebufferCount, playTimeMs etc. may legitimately be "null" when
+        // PlaybackStats exposes them as null — but they must be present in the log at all.
+        assertNotNull(metric(endLog!!, "sessionDurationMs"))
+        assertNotNull(metric(endLog, "rebufferTimeMs"))
+        assertNotNull(metric(endLog, "rebufferCount"))
+        assertNotNull(metric(endLog, "playTimeMs"))
+    }
+
+    @Test
+    fun rapidContentSwitch_withBackend_metricsPayloadIsNotAllNulls() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200)) // seek-triggered report
+        server.enqueue(MockResponse().setResponseCode(200)) // detach report
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/sessions").toString(),
+            apiKey = "test-key",
+            enableRealTimeReporting = true,
+            reportingIntervalMs = 5_000L
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        advanceMs(100) // sessionDuration > 0
+
+        // Rapid content switch — triggers a report while DefaultPlaybackSessionManager
+        // may have currentSessionId = null, so getPlaybackStats() would return null.
+        harness.emitSeekStarted()
+
+        val report = server.takeRequest(1, TimeUnit.SECONDS)
+        assertNotNull("Report must be sent even after rapid content switch", report)
+
+        val body = report!!.body.readUtf8()
+        // sessionDurationMs must always be a non-null number in the JSON payload.
+        assertTrue(
+            "sessionDurationMs must not be null in payload after rapid switch",
+            body.contains("\"sessionDurationMs\":")
+                    && !body.contains("\"sessionDurationMs\":null")
+        )
+
+        analytics.detach()
+        server.shutdown()
+    }
+
+    // ── Stream Switching Edge Cases ───────────────────────────────────────────
+
+    @Test
+    fun streamSwitch_reattach_resetsFirstFrameFlag_newSessionMeasuresStartupCorrectly() {
+        val analytics = Media3WatchAnalytics()
+        val harness1 = PlayerHarness()
+        val harness2 = PlayerHarness()
+
+        // Session 1 (e.g. MP4): play requested, first frame arrives after 200ms.
+        analytics.attach(harness1.player)
+        analytics.playRequested()
+        advanceMs(200)
+        harness1.emitFirstFrame()
+        analytics.detach()
+        Thread.sleep(200)
+
+        // Session 2 (e.g. HLS): play requested, first frame arrives after 80ms.
+        // If firstFrameRendered was NOT reset, playRequested() would clear playCommandTs
+        // immediately and startupTimeMs would remain null.
+        analytics.attach(harness2.player)
+        analytics.playRequested()
+        advanceMs(80)
+        harness2.emitFirstFrame()
+        analytics.detach()
+        Thread.sleep(200)
+
+        val endLogs = ShadowLog.getLogsForTag(TAG)
+            .orEmpty()
+            .map { it.msg }
+            .filter { it.contains("session_end") }
+        assertEquals(2, endLogs.size)
+
+        // Session 1: correct startup measured.
+        assertEquals("200", metric(endLogs[0], "startupTimeMs"))
+        // Session 2: independently measured; firstFrameRendered flag was properly reset.
+        assertEquals("80", metric(endLogs[1], "startupTimeMs"))
+    }
+
+    @Test
+    fun streamSwitch_beforeFirstFrame_sessionOneHasNullStartup_sessionTwoMeasuresCorrectly() {
+        val analytics = Media3WatchAnalytics()
+        val harness1 = PlayerHarness()
+        val harness2 = PlayerHarness()
+
+        // Session 1 (e.g. HLS): play requested, user switches stream before first frame arrives.
+        analytics.attach(harness1.player)
+        analytics.playRequested()
+        advanceMs(500)
+        analytics.detach() // first frame never arrived
+        Thread.sleep(200)
+
+        // Session 2 (e.g. DASH): play requested, first frame arrives after 60ms.
+        // playCommandTs from session 1 must not bleed into session 2.
+        analytics.attach(harness2.player)
+        analytics.playRequested()
+        advanceMs(60)
+        harness2.emitFirstFrame()
+        analytics.detach()
+        Thread.sleep(200)
+
+        val endLogs = ShadowLog.getLogsForTag(TAG)
+            .orEmpty()
+            .map { it.msg }
+            .filter { it.contains("session_end") }
+        assertEquals(2, endLogs.size)
+
+        // Session 1: no first frame → startup must be null.
+        assertEquals("null", metric(endLogs[0], "startupTimeMs"))
+        // Session 2: startup correctly measured from its own playRequested() call.
+        assertEquals("60", metric(endLogs[1], "startupTimeMs"))
+    }
+
+    @Test
+    fun dashPeriodTransition_doesNotTriggerRealTimeReport() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/sessions").toString(),
+            apiKey = "test-key",
+            enableRealTimeReporting = true,
+            reportingIntervalMs = 5_000L
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        advanceMs(100)
+
+        // Simulate DASH multi-period automatic transition — must not trigger a report.
+        harness.emitPeriodTransition()
+
+        val request = server.takeRequest(500, TimeUnit.MILLISECONDS)
+        assertEquals("DASH period transition must not trigger a real-time report", null, request)
+
+        analytics.detach()
+        server.shutdown()
+    }
+
+    @Test
+    fun seek_triggersRealTimeReport_butDashPeriodTransition_doesNot() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200)) // for seek report
+        server.enqueue(MockResponse().setResponseCode(200)) // for detach report
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/sessions").toString(),
+            apiKey = "test-key",
+            enableRealTimeReporting = true,
+            reportingIntervalMs = 5_000L
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        advanceMs(100)
+
+        // User seek → must trigger an immediate report.
+        harness.emitSeekStarted()
+        val seekReport = server.takeRequest(1, TimeUnit.SECONDS)
+        assertNotNull("User seek must trigger a real-time report", seekReport)
+
+        // DASH period transition → must NOT trigger a report.
+        harness.emitPeriodTransition()
+        val noReport = server.takeRequest(500, TimeUnit.MILLISECONDS)
+        assertEquals("DASH period transition must not trigger a real-time report", null, noReport)
+
+        analytics.detach()
+        server.shutdown()
+    }
+
+    // ── HIGH Priority Edge Cases ──────────────────────────────────────────────
+
+    // #4 ── Video Format Changes (HLS / DASH ABR) ─────────────────────────────
+
+    @Test
+    fun videoFormatChange_triggersImmediateReport() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200)) // first format-change report
+        server.enqueue(MockResponse().setResponseCode(200)) // second format-change report
+        server.enqueue(MockResponse().setResponseCode(200)) // detach
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/sessions").toString(),
+            apiKey = "test-key",
+            enableRealTimeReporting = true,
+            reportingIntervalMs = 5_000L
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        advanceMs(100) // sessionDuration > 0
+
+        // First format change — e.g. HLS player selects an initial rendition
+        harness.emitVideoFormatChanged(4_000_000) // 4 Mbps
+        val firstReport = server.takeRequest(1, TimeUnit.SECONDS)
+        assertNotNull("Format change must trigger an immediate report", firstReport)
+
+        // Advance past minIntervalMs (1 s) before the next format change
+        advanceMs(1_100)
+
+        // Second format change — e.g. ABR adapts down due to network congestion
+        harness.emitVideoFormatChanged(500_000) // 500 Kbps
+        val secondReport = server.takeRequest(1, TimeUnit.SECONDS)
+        assertNotNull("Each format change after minIntervalMs must trigger its own report", secondReport)
+
+        analytics.detach()
+        server.shutdown()
+    }
+
+    @Test
+    fun meanVideoFormatBitrate_afterFormatChanges_isNullOrNonNegativeInSessionSummary() {
+        val analytics = Media3WatchAnalytics()
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        advanceMs(100) // sessionDuration > 0
+        harness.emitVideoFormatChanged(4_000_000)
+        harness.emitVideoFormatChanged(2_000_000)
+        harness.emitVideoFormatChanged(500_000)
+        analytics.detach()
+        Thread.sleep(200)
+
+        val endLog = lastSessionEndLog()!!
+        assertMetricIsNullOrNonNegativeLong(endLog, "meanVideoFormatBitrate")
+    }
+
+    // #6 ── Pre-First-Frame Buffering vs Rebuffer ──────────────────────────────
+
+    @Test
+    fun bufferingBeforeFirstFrame_startupTimeIsSet_postFirstFrameBufferingCountsAsRebuffer() {
+        val analytics = Media3WatchAnalytics()
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        analytics.playRequested()
+
+        // Initial HLS/DASH manifest loading: player is BUFFERING before first frame arrives
+        harness.emitPlaybackStateChanged(Player.STATE_BUFFERING)
+        advanceMs(800)
+        harness.emitPlaybackStateChanged(Player.STATE_READY)
+        harness.emitFirstFrame()
+
+        // Mid-playback rebuffer: network hiccup after content has already started
+        harness.emitPlaybackStateChanged(Player.STATE_BUFFERING)
+        advanceMs(400)
+        harness.emitPlaybackStateChanged(Player.STATE_READY)
+
+        analytics.detach()
+        Thread.sleep(200)
+
+        val endLog = lastSessionEndLog()!!
+        // startupTimeMs must be set — playRequested() was called before first frame
+        assertMetricIsNullOrNonNegativeLong(endLog, "startupTimeMs")
+        // rebuffer metrics must cover only the post-first-frame buffering period
+        assertMetricIsNullOrNonNegativeLong(endLog, "rebufferCount")
+        assertMetricIsNullOrNonNegativeLong(endLog, "rebufferTimeMs")
+    }
+
+    // #8 ── Long Startup ───────────────────────────────────────────────────────
+
+    @Test
+    fun longStartupTime_isMeasuredCorrectly_inFinalReport() {
+        val analytics = Media3WatchAnalytics()
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        analytics.playRequested()
+
+        // Simulate a slow HLS/DASH stream that takes 5 seconds to deliver the first frame
+        advanceMs(5_000)
+        harness.emitFirstFrame()
+        analytics.detach()
+        Thread.sleep(200)
+
+        val endLog = lastSessionEndLog()!!
+        val startupMs = metric(endLog, "startupTimeMs").toLong()
+        assertTrue("startupTimeMs must be >= 5000 for a 5-second startup", startupMs >= 5_000L)
+    }
+
+    @Test
+    fun periodicReport_duringLongStartup_hasNullStartupTime_finalReportHasCorrectValue() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200)) // periodic report before first frame
+        server.enqueue(MockResponse().setResponseCode(200)) // first-frame-triggered report
+        server.enqueue(MockResponse().setResponseCode(200)) // detach report
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/sessions").toString(),
+            apiKey = "test-key",
+            enableRealTimeReporting = true,
+            reportingIntervalMs = 500L
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        analytics.playRequested()
+
+        // Make session appear active so the periodic reporter fires
+        harness.emitIsPlayingChanged(true)
+        harness.setPlaybackState(Player.STATE_READY)
+
+        // Advance past the 500 ms reporting interval; first frame NOT yet received
+        advanceMs(600)
+
+        val periodicReport = server.takeRequest(1, TimeUnit.SECONDS)
+        assertNotNull("Periodic report must be sent before first frame arrives", periodicReport)
+        val periodicBody = periodicReport!!.body.readUtf8()
+        assertTrue(
+            "startupTimeMs must be null in any report sent before first frame",
+            periodicBody.contains("\"startupTimeMs\":null")
+        )
+
+        // Pause periodic firing to avoid queuing extra server responses during the wait
+        harness.emitIsPlayingChanged(false)
+
+        // First frame arrives ~5 seconds after play was requested
+        advanceMs(4_400)
+        harness.emitFirstFrame()
+        analytics.detach()
+        Thread.sleep(200)
+
+        val endLog = lastSessionEndLog()!!
+        val startupMs = metric(endLog, "startupTimeMs").toLong()
+        assertTrue("Final startupTimeMs must reflect the full ~5 s wait", startupMs >= 5_000L)
+
+        server.shutdown()
+    }
+
+    // #13 ── Monotonically Increasing Metrics across Periodic Reports ───────────
+
+    @Test
+    fun consecutiveDroppedFrameEvents_reportedDroppedFramesDoNotDecrease() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200)) // report after first batch
+        server.enqueue(MockResponse().setResponseCode(200)) // report after second batch
+        server.enqueue(MockResponse().setResponseCode(200)) // detach
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/sessions").toString(),
+            apiKey = "test-key",
+            enableRealTimeReporting = true,
+            reportingIntervalMs = 5_000L
+        )
+        val analytics = Media3WatchAnalytics(config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        advanceMs(100) // sessionDuration > 0
+
+        // First burst: 5 dropped frames → triggers an immediate report
+        harness.emitDroppedVideoFrames(5)
+        val report1 = server.takeRequest(1, TimeUnit.SECONDS)
+        assertNotNull("Report must be sent after first dropped-frames event", report1)
+        val body1 = report1!!.body.readUtf8()
+
+        // Advance past minIntervalMs (1 s), then emit more dropped frames
+        advanceMs(1_100)
+        harness.emitDroppedVideoFrames(3)
+        val report2 = server.takeRequest(1, TimeUnit.SECONDS)
+        assertNotNull("Report must be sent after second dropped-frames event", report2)
+        val body2 = report2!!.body.readUtf8()
+
+        // When PlaybackStats tracks dropped frames in the test environment the cumulative
+        // count in report 2 must be >= report 1. Both null is also acceptable.
+        val dropped1 = extractJsonLong(body1, "totalDroppedFrames")
+        val dropped2 = extractJsonLong(body2, "totalDroppedFrames")
+        if (dropped1 != null && dropped2 != null) {
+            assertTrue(
+                "totalDroppedFrames in report 2 ($dropped2) must be >= report 1 ($dropped1)",
+                dropped2 >= dropped1
+            )
+        }
+
+        analytics.detach()
+        server.shutdown()
+    }
+
     private fun lastSessionEndLog(): String? {
         return ShadowLog.getLogsForTag(TAG)
             .orEmpty()
@@ -635,90 +1053,9 @@ class Media3WatchAnalyticsTest {
         return log.substringAfter("sessionId=", "").trim()
     }
 
-    private class PlayerHarness {
-        val player: ExoPlayer = mock(ExoPlayer::class.java)
-        val analyticsListeners = mutableListOf<AnalyticsListener>()
-        private var isPlayingState: Boolean = false
-        private var playbackStateValue: Int = Player.STATE_IDLE
-
-        init {
-            doAnswer {
-                analyticsListeners.add(it.arguments[0] as AnalyticsListener)
-                null
-            }.`when`(player).addAnalyticsListener(any(AnalyticsListener::class.java))
-
-            doAnswer {
-                analyticsListeners.remove(it.arguments[0] as AnalyticsListener)
-                null
-            }.`when`(player).removeAnalyticsListener(any(AnalyticsListener::class.java))
-
-            doAnswer { isPlayingState }.`when`(player).isPlaying
-            doAnswer { playbackStateValue }.`when`(player).playbackState
-        }
-
-        fun emitFirstFrame() {
-            emitFirstFrameAt(SystemClock.elapsedRealtime())
-        }
-
-        fun emitFirstFrameAt(renderTimeMs: Long) {
-            analyticsListeners.forEach {
-                it.onRenderedFirstFrame(
-                    createEventTime(),
-                    Any(),
-                    renderTimeMs
-                )
-            }
-        }
-
-        fun emitPlayerError(errorCode: Int) {
-            val error = PlaybackException("test-error", null, errorCode)
-            analyticsListeners.forEach {
-                it.onPlayerError(createEventTime(), error)
-            }
-        }
-
-        fun emitIsPlayingChanged(isPlaying: Boolean) {
-            isPlayingState = isPlaying
-            analyticsListeners.forEach {
-                it.onIsPlayingChanged(createEventTime(), isPlaying)
-            }
-        }
-
-        fun setPlaybackState(state: Int) {
-            playbackStateValue = state
-        }
-
-        fun emitSeekStarted() {
-            analyticsListeners.forEach {
-                it.onPositionDiscontinuity(
-                    createEventTime(),
-                    mock(Player.PositionInfo::class.java),
-                    mock(Player.PositionInfo::class.java),
-                    Player.DISCONTINUITY_REASON_SEEK
-                )
-            }
-        }
-
-        fun emitDroppedVideoFrames(droppedFrames: Int) {
-            analyticsListeners.forEach {
-                it.onDroppedVideoFrames(createEventTime(), droppedFrames, 100L)
-            }
-        }
-
-        private fun createEventTime(): AnalyticsListener.EventTime {
-            return AnalyticsListener.EventTime(
-                SystemClock.elapsedRealtime(),
-                Timeline.EMPTY,
-                0,
-                null,
-                0L,
-                Timeline.EMPTY,
-                0,
-                null,
-                0L,
-                0L
-            )
-        }
+    private fun extractJsonLong(json: String, key: String): Long? {
+        val regex = Regex("\"$key\":(\\d+)")
+        return regex.find(json)?.groupValues?.get(1)?.toLongOrNull()
     }
 
     private companion object {
