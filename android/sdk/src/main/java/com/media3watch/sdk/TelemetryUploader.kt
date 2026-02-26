@@ -60,7 +60,10 @@ internal class TelemetryUploader(
             // without this, a cancellation between the two could leave the queue over the limit.
             withContext(NonCancellable) {
                 fileQueue?.let { queue ->
-                    queue.enqueue(sessionId, payload)
+                    val enqueueResult = queue.enqueue(sessionId, payload)
+                    if (enqueueResult.isFailure && enableLogging) {
+                        Log.w(LogUtils.TAG, "offline_queue persist failed sessionId=$sessionId", enqueueResult.exceptionOrNull())
+                    }
                     queue.trimToMaxSize(maxQueuedPayloads)
                 }
             }

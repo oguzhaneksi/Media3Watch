@@ -5,6 +5,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withContext
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -28,7 +30,8 @@ class FileQueueTest {
 
     @Test
     fun enqueue_peekAll_remove_roundTrip() = runTest {
-        queue.enqueue("session-1", """{"a":1}""")
+        val result = queue.enqueue("session-1", """{"a":1}""")
+        assertTrue("enqueue should succeed", result.isSuccess)
 
         val entries = queue.peekAll()
         assertEquals(1, entries.size)
@@ -158,5 +161,29 @@ class FileQueueTest {
         assertEquals(sessionCount, ids.size)
         assertTrue(ids.contains("s-1"))
         assertTrue(ids.contains("s-$sessionCount"))
+    }
+
+    // ── enqueue returns Result reflecting success / failure ────────────────────
+
+    @Test
+    fun enqueue_returnsSuccess_onSuccessfulWrite() = runTest {
+        val result = queue.enqueue("result-session", """{"ok":true}""")
+        assertTrue("enqueue should return success", result.isSuccess)
+    }
+
+    @Test
+    fun enqueue_returnsFailure_whenDirIsUnwritable() = runTest {
+        val readOnlyDir = tempFolder.newFolder("readonly")
+        readOnlyDir.setWritable(false)
+        val unwritableQueue = FileQueue(dir = readOnlyDir)
+
+        val result = try {
+            unwritableQueue.enqueue("session-fail", """{"ok":false}""")
+        } finally {
+            readOnlyDir.setWritable(true)
+        }
+
+        assertFalse("enqueue should return failure for unwritable dir", result.isSuccess)
+        assertNotNull("failure should carry the cause", result.exceptionOrNull())
     }
 }
