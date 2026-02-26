@@ -1,8 +1,10 @@
 package com.media3watch.sdk
 
 import androidx.core.util.AtomicFile
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.io.IOException
 
@@ -14,7 +16,7 @@ import java.io.IOException
  * file with the latest payload, so the file count is bounded by the number of active sessions
  * (typically 1).
  *
- * All operations are coroutine-safe via [Mutex].
+ * All operations are coroutine-safe via [Mutex] and always execute file I/O on [Dispatchers.IO].
  * The directory itself is the index — no in-memory state, crash-safe.
  *
  * @param dir Queue directory. Created lazily on first write.
@@ -30,20 +32,22 @@ internal class FileQueue(private val dir: File) {
      * atomically overwritten with the newer payload.
      */
     suspend fun enqueue(sessionId: String, payload: String) = mutex.withLock {
-        runCatching {
-            dir.mkdirs()
-            val atomicFile = AtomicFile(fileFor(sessionId))
-            atomicFile.startWrite().use { out ->
-                try {
-                    out.write(payload.toByteArray(Charsets.UTF_8))
-                    atomicFile.finishWrite(out)
-                } catch (e: IOException) {
-                    atomicFile.failWrite(out)
-                    throw e
+        withContext(Dispatchers.IO) {
+            runCatching {
+                dir.mkdirs()
+                val atomicFile = AtomicFile(fileFor(sessionId))
+                atomicFile.startWrite().use { out ->
+                    try {
+                        out.write(payload.toByteArray(Charsets.UTF_8))
+                        atomicFile.finishWrite(out)
+                    } catch (e: IOException) {
+                        atomicFile.failWrite(out)
+                        throw e
+                    }
                 }
             }
+            // Swallow silently — failing to persist must not crash the caller.
         }
-        // Swallow silently — failing to persist must not crash the caller.
         Unit
     }
 
@@ -52,29 +56,35 @@ internal class FileQueue(private val dir: File) {
      * Returns an empty list if the directory does not exist or is empty.
      */
     suspend fun peekAll(): List<Entry> = mutex.withLock {
-        val files = dir.listFiles { f -> f.extension == "json" } ?: return@withLock emptyList()
-        files
-            .sortedBy { it.lastModified() }
-            .mapNotNull { file ->
-                runCatching {
-                    val payload = file.readText(Charsets.UTF_8)
-                    Entry(sessionId = file.nameWithoutExtension, payload = payload)
-                }.getOrNull()
-                // Corrupt / unreadable files are silently skipped.
-            }
+        withContext(Dispatchers.IO) {
+            val files = dir.listFiles { f -> f.extension == "json" } ?: return@withContext emptyList()
+            files
+                .sortedBy { it.lastModified() }
+                .mapNotNull { file ->
+                    runCatching {
+                        val payload = file.readText(Charsets.UTF_8)
+                        Entry(sessionId = file.nameWithoutExtension, payload = payload)
+                    }.getOrNull()
+                    // Corrupt / unreadable files are silently skipped.
+                }
+        }
     }
 
     /**
      * Deletes the queued file for [sessionId]. No-op if no file exists.
      */
     suspend fun remove(sessionId: String) = mutex.withLock {
-        runCatching { fileFor(sessionId).delete() }
+        withContext(Dispatchers.IO) {
+            runCatching { fileFor(sessionId).delete() }
+        }
         Unit
     }
 
     /** Returns the number of files currently in the queue directory. */
     suspend fun size(): Int = mutex.withLock {
-        dir.listFiles { f -> f.extension == "json" }?.size ?: 0
+        withContext(Dispatchers.IO) {
+            dir.listFiles { f -> f.extension == "json" }?.size ?: 0
+        }
     }
 
     /**
@@ -83,12 +93,14 @@ internal class FileQueue(private val dir: File) {
      */
     suspend fun trimToMaxSize(maxCount: Int) = mutex.withLock {
         require(maxCount >= 0)
-        val files = dir.listFiles { f -> f.extension == "json" } ?: return@withLock
-        if (files.size <= maxCount) return@withLock
-        files
-            .sortedBy { it.lastModified() }
-            .dropLast(maxCount)
-            .forEach { runCatching { it.delete() } }
+        withContext(Dispatchers.IO) {
+            val files = dir.listFiles { f -> f.extension == "json" } ?: return@withContext
+            if (files.size <= maxCount) return@withContext
+            files
+                .sortedBy { it.lastModified() }
+                .dropLast(maxCount)
+                .forEach { runCatching { it.delete() } }
+        }
     }
 
     private fun fileFor(sessionId: String): File {
