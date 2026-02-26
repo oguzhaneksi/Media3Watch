@@ -46,20 +46,23 @@ internal class TelemetryUploader(
     private val flushMutex = Mutex()
 
     suspend fun upload(sessionId: String, payload: String) {
-        val result = trySend(sessionId, payload)
+        // Run the entire upload sequence under NonCancellable so that cancellation cannot leave
+        // the queue in an inconsistent state (e.g. a stale entry after a successful send, or
+        // enqueue without trimToMaxSize after a failure).
+        withContext(NonCancellable) {
+            val result = trySend(sessionId, payload)
 
-        if (result.isSuccess) {
-            // Clear any stale queued entry for this session, then opportunistically drain others.
-            fileQueue?.remove(sessionId)
-            flushPending(exclude = sessionId)
-        } else {
-            // Persist payload so the next upload() call (driven by SessionReporter) can retry.
-            fileQueue?.let { queue ->
-                val enqueueResult = queue.enqueue(sessionId, payload)
-                if (enqueueResult.isFailure && enableLogging) {
-                    Log.w(LogUtils.TAG, "offline_queue persist failed sessionId=$sessionId", enqueueResult.exceptionOrNull())
+            if (result.isSuccess) {
+                fileQueue?.remove(sessionId)
+                flushPending(exclude = sessionId)
+            } else {
+                fileQueue?.let { queue ->
+                    val enqueueResult = queue.enqueue(sessionId, payload)
+                    if (enqueueResult.isFailure && enableLogging) {
+                        Log.w(LogUtils.TAG, "offline_queue persist failed sessionId=$sessionId", enqueueResult.exceptionOrNull())
+                    }
+                    queue.trimToMaxSize(maxQueuedPayloads)
                 }
-                queue.trimToMaxSize(maxQueuedPayloads)
             }
         }
     }
