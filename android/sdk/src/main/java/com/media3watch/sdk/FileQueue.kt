@@ -30,8 +30,12 @@ internal class FileQueue(private val dir: File) {
     /**
      * Persist [payload] for [sessionId]. If a file already exists for this session, it is
      * atomically overwritten with the newer payload.
+     *
+     * @return [Result.success] on successful write, or [Result.failure] wrapping the cause if the
+     * file could not be written. The caller must not crash on failure — the result is provided so
+     * that failures can be logged or counted without being silently dropped.
      */
-    suspend fun enqueue(sessionId: String, payload: String) = mutex.withLock {
+    suspend fun enqueue(sessionId: String, payload: String): Result<Unit> = mutex.withLock {
         withContext(Dispatchers.IO) {
             runCatching {
                 dir.mkdirs()
@@ -46,9 +50,7 @@ internal class FileQueue(private val dir: File) {
                     }
                 }
             }
-            // Swallow silently — failing to persist must not crash the caller.
         }
-        Unit
     }
 
     /**
