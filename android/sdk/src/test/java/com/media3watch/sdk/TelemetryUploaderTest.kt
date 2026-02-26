@@ -20,6 +20,8 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowLog
 import java.util.concurrent.TimeUnit
+import kotlin.io.path.createTempDirectory
+
 
 @RunWith(RobolectricTestRunner::class)
 @Config(manifest = Config.NONE)
@@ -227,5 +229,170 @@ class TelemetryUploaderTest {
         val failLog = ShadowLog.getLogsForTag(LogUtils.TAG)
             ?.find { it.msg.contains("session_report_failed") }
         assertNull("Should not log upload failure when enableLogging=false", failLog)
+    }
+
+    // ── Offline resilience (FileQueue) ─────────────────────────────────────────
+
+    @Test
+    fun upload_failure_persistsPayloadToQueue() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(500))
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        val queue = FileQueue(dir = createTempDirectory("queue").toFile())
+        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+
+        uploader.upload(sessionId = "offline-session", payload = """{"o":1}""")
+
+        server.takeRequest(2, TimeUnit.SECONDS)
+        delay(100)
+
+        assertEquals("Failed payload should be persisted", 1, queue.size())
+        val entries = queue.peekAll()
+        assertEquals("offline-session", entries[0].sessionId)
+        assertEquals("""{"o":1}""", entries[0].payload)
+    }
+
+    @Test
+    fun upload_success_removesStaleQueueEntry() = runBlocking {
+        // Pre-seed queue with a stale entry for this session.
+        val queue = FileQueue(dir = createTempDirectory("queue").toFile())
+        queue.enqueue("session-stale", """{"old":true}""")
+        assertEquals(1, queue.size())
+
+        server.enqueue(MockResponse().setResponseCode(200))
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+
+        uploader.upload(sessionId = "session-stale", payload = """{"new":true}""")
+
+        server.takeRequest(2, TimeUnit.SECONDS)
+        delay(200)
+
+        assertEquals("Stale queue entry should be removed on successful upload", 0, queue.size())
+    }
+
+    @Test
+    fun upload_success_clearsStaleAndFlushesOtherPendingEntries() = runBlocking {
+        val queue = FileQueue(dir = createTempDirectory("queue").toFile())
+        queue.enqueue("session-live", """{"old":"stale"}""")
+        queue.enqueue("session-prev", """{"from":"previous"}""")
+        assertEquals(2, queue.size())
+
+        server.enqueue(MockResponse().setResponseCode(200)) // current upload
+        server.enqueue(MockResponse().setResponseCode(200)) // flush pending
+
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+
+        uploader.upload(sessionId = "session-live", payload = """{"new":"live"}""")
+
+        val firstRequest = server.takeRequest(2, TimeUnit.SECONDS)
+        val secondRequest = server.takeRequest(2, TimeUnit.SECONDS)
+        assertNotNull(firstRequest)
+        assertNotNull(secondRequest)
+
+        val bodies = listOf(firstRequest!!.body.readUtf8(), secondRequest!!.body.readUtf8())
+        assertTrue("Should send current payload", bodies.contains("""{"new":"live"}"""))
+        assertTrue("Should flush previous pending payload", bodies.contains("""{"from":"previous"}"""))
+
+        delay(200)
+        assertEquals("Both stale and pending entries should be cleared", 0, queue.size())
+    }
+
+    @Test
+    fun upload_failureThenSuccess_upsertsThenClears() = runBlocking {
+        // First upload fails — payload persisted.
+        server.enqueue(MockResponse().setResponseCode(500))
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        val queue = FileQueue(dir = createTempDirectory("queue").toFile())
+        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+
+        uploader.upload(sessionId = "s1", payload = """{"v":1}""")
+        server.takeRequest(2, TimeUnit.SECONDS)
+        delay(100)
+        assertEquals(1, queue.size())
+
+        // Second upload (newer payload) succeeds — queue entry removed.
+        server.enqueue(MockResponse().setResponseCode(200))
+        uploader.upload(sessionId = "s1", payload = """{"v":2}""")
+        server.takeRequest(2, TimeUnit.SECONDS)
+        delay(200)
+
+        assertEquals("Queue should be empty after successful upload", 0, queue.size())
+    }
+
+    @Test
+    fun flushPending_drainsQueueOnSuccess() = runBlocking {
+        val queue = FileQueue(dir = createTempDirectory("queue").toFile())
+        queue.enqueue("prev-1", """{"p":1}""")
+        queue.enqueue("prev-2", """{"p":2}""")
+
+        server.enqueue(MockResponse().setResponseCode(200))
+        server.enqueue(MockResponse().setResponseCode(200))
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+
+        uploader.flushPending()
+
+        // Wait for both network calls.
+        server.takeRequest(2, TimeUnit.SECONDS)
+        server.takeRequest(2, TimeUnit.SECONDS)
+        delay(200)
+
+        assertEquals("Queue should be empty after successful flush", 0, queue.size())
+    }
+
+    @Test
+    fun flushPending_continuedFailure_retainsEntries() = runBlocking {
+        val queue = FileQueue(dir = createTempDirectory("queue").toFile())
+        queue.enqueue("prev-fail", """{"f":1}""")
+
+        server.enqueue(MockResponse().setResponseCode(503))
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+
+        uploader.flushPending()
+
+        server.takeRequest(2, TimeUnit.SECONDS)
+        delay(100)
+
+        assertEquals("Entry should remain in queue on continued failure", 1, queue.size())
+    }
+
+    @Test
+    fun flushPending_concurrentCalls_eachPayloadSentOnlyOnce() = runBlocking {
+        val queue = FileQueue(dir = createTempDirectory("queue").toFile())
+        queue.enqueue("concurrent-1", """{"c":1}""")
+        queue.enqueue("concurrent-2", """{"c":2}""")
+
+        // Enqueue exactly 2 responses — if payloads are sent more than twice total the test fails.
+        server.enqueue(MockResponse().setResponseCode(200))
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+
+        // Launch two concurrent flushes.
+        val flushJob1 = launch { uploader.flushPending() }
+        val flushJob2 = launch { uploader.flushPending() }
+        flushJob1.join()
+        flushJob2.join()
+
+        // Only 2 requests should have been sent — one per unique payload.
+        assertEquals("Each payload should be sent exactly once", 2, server.requestCount)
+        assertEquals("Queue should be empty after flush", 0, queue.size())
+    }
+
+    @Test
+    fun upload_withNullFileQueue_fireAndForget_doesNotCrash() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(500))
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        // No fileQueue — classic fire-and-forget.
+        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = null)
+
+        // Should complete without exception even on failure.
+        uploader.upload(sessionId = "no-queue-session", payload = """{"x":1}""")
+        server.takeRequest(2, TimeUnit.SECONDS)
+        delay(100)
+        // No queue to assert on — just verifying no crash.
     }
 }

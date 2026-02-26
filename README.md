@@ -61,7 +61,7 @@ The SDK automatically tracks and summarizes:
 - [x] **Self-hostable Backend:** Ktor + Postgres & auto-provisioned Grafana dashboards.
 - [x] **Frictionless Publishing:** Maven Central availability for easy `implementation(...)` integration.
 - [x] **Solidifying ABR Telemetry:** Enhance metrics accuracy for HLS/DASH dynamic bitrate switching edge cases.
-- [ ] **Offline-Resilience:** Store-and-forward caching to flush telemetry when connectivity restores.
+- [x] **Offline-Resilience:** Store-and-forward caching to flush telemetry when connectivity restores.
 - [ ] **Standalone Debug Overlay:** A drop-in, offline-friendly UI component for real-time local QA testing without Logcat.
 
 ---
@@ -112,16 +112,19 @@ To integrate the Media3Watch SDK into your Android project:
 ```kotlin
 // 1. Create the analytics instance (with optional backend upload)
 private val analytics = Media3WatchAnalytics(
+    context = context,
     config = Media3WatchConfig(
         backendUrl = "http://localhost:8080/v1/sessions", // optional, use this for local testing
         apiKey = "dev-key", // optional, matches backend default
         enableRealTimeReporting = true, // default: true
         reportingIntervalMs = 15_000L, // default: 15s
-        enableLogging = true // set to false in production to suppress Logcat output
+        enableLogging = true, // set to false in production to suppress Logcat output
+        enableOfflineResilience = true, // default: true — queues failed uploads to disk and retries on next session
+        maxQueuedPayloads = 100 // default: 100 — max payloads kept on disk (FIFO eviction)
     )
 )
 // Or use default config for Logcat-only mode:
-// private val analytics = Media3WatchAnalytics()
+// private val analytics = Media3WatchAnalytics(context = context)
 
 fun initializePlayer() {
     player = ExoPlayer.Builder(context).build().apply {
@@ -156,7 +159,8 @@ You should see a formatted summary similar to this:
 
 ```text
 session_end
-  sessionId: 1
+  sessionId: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+  timestamp: 1740470400000
   sessionStartDateIso: 2026-02-14T10:30:00.000Z
   sessionDurationMs: 45000
   startupTimeMs: 450
@@ -194,6 +198,7 @@ Update your `Media3WatchAnalytics` config to point to your local machine:
 
 ```kotlin
 private val analytics = Media3WatchAnalytics(
+    context = context,
     config = Media3WatchConfig(
         backendUrl = "http://10.0.2.2:8080/v1/sessions", // Android Emulator -> Host
         // backendUrl = "http://localhost:8080/v1/sessions", // Physical Device on same Wi-Fi
@@ -208,7 +213,7 @@ private val analytics = Media3WatchAnalytics(
 **4. Verify Data Flow:**
 1. Play a video in your app.
 2. Wait for the session to end (detach or background app).
-3. Check the logs: `adb logcat -s Media3WatchAnalytics` (look for "Upload success").
+3. Check the logs: `adb logcat -s Media3WatchAnalytics` (look for `session_report_success`).
 4. Refresh the Grafana dashboard to see the new data.
 
 **Cleanup:**

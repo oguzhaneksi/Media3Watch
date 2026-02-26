@@ -7,6 +7,7 @@ import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
+import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -31,6 +32,8 @@ import java.util.regex.Pattern
 @androidx.annotation.OptIn(UnstableApi::class)
 class Media3WatchAnalyticsTest {
 
+    private val context get() = ApplicationProvider.getApplicationContext<android.content.Context>()
+
     @Before
     fun setUp() {
         ShadowLog.clear()
@@ -38,7 +41,7 @@ class Media3WatchAnalyticsTest {
 
     @Test
     fun attach_logsSessionStart_andDetach_logsSessionEnd() {
-        val analytics = Media3WatchAnalytics()
+        val analytics = Media3WatchAnalytics(context)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -66,7 +69,7 @@ class Media3WatchAnalyticsTest {
 
     @Test
     fun startupTime_measuredFromPlayRequestedToFirstFrame() {
-        val analytics = Media3WatchAnalytics()
+        val analytics = Media3WatchAnalytics(context)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -82,7 +85,7 @@ class Media3WatchAnalyticsTest {
 
     @Test
     fun startupTime_lastPlayRequestedWinsBeforeFirstFrame() {
-        val analytics = Media3WatchAnalytics()
+        val analytics = Media3WatchAnalytics(context)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -100,7 +103,7 @@ class Media3WatchAnalyticsTest {
 
     @Test
     fun startupTime_onlyFirstFrameIsUsed() {
-        val analytics = Media3WatchAnalytics()
+        val analytics = Media3WatchAnalytics(context)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -118,7 +121,7 @@ class Media3WatchAnalyticsTest {
 
     @Test
     fun playRequestedAfterFirstFrame_clearsStartupMeasurement() {
-        val analytics = Media3WatchAnalytics()
+        val analytics = Media3WatchAnalytics(context)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -137,7 +140,7 @@ class Media3WatchAnalyticsTest {
 
     @Test
     fun startupTime_isClampedToZeroForNegativeDelta() {
-        val analytics = Media3WatchAnalytics()
+        val analytics = Media3WatchAnalytics(context)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -153,14 +156,14 @@ class Media3WatchAnalyticsTest {
 
     @Test
     fun detachWithoutAttach_isNoOp() {
-        val analytics = Media3WatchAnalytics()
+        val analytics = Media3WatchAnalytics(context)
         analytics.detach()
         assertEquals(null, lastSessionEndLog())
     }
 
     @Test
     fun secondAttach_detachesPreviousSession_andStartsNewSession() {
-        val analytics = Media3WatchAnalytics()
+        val analytics = Media3WatchAnalytics(context)
         val first = PlayerHarness()
         val second = PlayerHarness()
 
@@ -193,7 +196,7 @@ class Media3WatchAnalyticsTest {
 
     @Test
     fun detach_removesListenersFromPlayer() {
-        val analytics = Media3WatchAnalytics()
+        val analytics = Media3WatchAnalytics(context)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -204,7 +207,7 @@ class Media3WatchAnalyticsTest {
 
     @Test
     fun attach_whenPlayerInitializationFails_propagates_andDetachStillClosesSession() {
-        val analytics = Media3WatchAnalytics()
+        val analytics = Media3WatchAnalytics(context)
         val failingPlayer = mock(ExoPlayer::class.java)
 
         doAnswer { throw IllegalStateException("player init failed") }
@@ -223,7 +226,7 @@ class Media3WatchAnalyticsTest {
 
     @Test
     fun networkError_preventsFirstFrame_startupRemainsNull_andErrorCountIncreases() {
-        val analytics = Media3WatchAnalytics()
+        val analytics = Media3WatchAnalytics(context)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -240,7 +243,7 @@ class Media3WatchAnalyticsTest {
 
     @Test
     fun codecOrFormatErrors_areTrackedInErrorCount() {
-        val analytics = Media3WatchAnalytics()
+        val analytics = Media3WatchAnalytics(context)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -265,7 +268,7 @@ class Media3WatchAnalyticsTest {
             backendUrl = server.url("/sessions").toString(),
             apiKey = "test-key"
         )
-        val analytics = Media3WatchAnalytics(config)
+        val analytics = Media3WatchAnalytics(context, config)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -304,7 +307,7 @@ class Media3WatchAnalyticsTest {
             enableRealTimeReporting = true,
             reportingIntervalMs = 100 // Short interval for testing
         )
-        val analytics = Media3WatchAnalytics(config)
+        val analytics = Media3WatchAnalytics(context, config)
         val harness = PlayerHarness()
 
         // Attach and immediately trigger an event
@@ -334,7 +337,7 @@ class Media3WatchAnalyticsTest {
             enableRealTimeReporting = true,
             reportingIntervalMs = 500
         )
-        val analytics = Media3WatchAnalytics(config)
+        val analytics = Media3WatchAnalytics(context, config)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -364,7 +367,7 @@ class Media3WatchAnalyticsTest {
             apiKey = "test-key",
             enableRealTimeReporting = true
         )
-        val analytics = Media3WatchAnalytics(config)
+        val analytics = Media3WatchAnalytics(context, config)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -393,7 +396,7 @@ class Media3WatchAnalyticsTest {
             enableRealTimeReporting = true,
             reportingIntervalMs = 200
         )
-        val analytics = Media3WatchAnalytics(config)
+        val analytics = Media3WatchAnalytics(context, config)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -425,7 +428,7 @@ class Media3WatchAnalyticsTest {
             enableRealTimeReporting = false, // Disabled
             reportingIntervalMs = 100
         )
-        val analytics = Media3WatchAnalytics(config)
+        val analytics = Media3WatchAnalytics(context, config)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -451,7 +454,7 @@ class Media3WatchAnalyticsTest {
             enableRealTimeReporting = true,
             reportingIntervalMs = 100
         )
-        val analytics = Media3WatchAnalytics(config)
+        val analytics = Media3WatchAnalytics(context, config)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -484,7 +487,7 @@ class Media3WatchAnalyticsTest {
             apiKey = "test-key",
             enableRealTimeReporting = true
         )
-        val analytics = Media3WatchAnalytics(config)
+        val analytics = Media3WatchAnalytics(context, config)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -510,7 +513,7 @@ class Media3WatchAnalyticsTest {
             apiKey = "test-key",
             enableRealTimeReporting = true
         )
-        val analytics = Media3WatchAnalytics(config)
+        val analytics = Media3WatchAnalytics(context, config)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -536,7 +539,7 @@ class Media3WatchAnalyticsTest {
             apiKey = "test-key",
             enableRealTimeReporting = true
         )
-        val analytics = Media3WatchAnalytics(config)
+        val analytics = Media3WatchAnalytics(context, config)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -559,7 +562,7 @@ class Media3WatchAnalyticsTest {
     @Test
     fun enableLogging_false_suppressesSessionStartAndEndLogs() {
         val config = Media3WatchConfig(enableLogging = false)
-        val analytics = Media3WatchAnalytics(config)
+        val analytics = Media3WatchAnalytics(context, config)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -581,7 +584,7 @@ class Media3WatchAnalyticsTest {
             apiKey = "test-key",
             enableLogging = false
         )
-        val analytics = Media3WatchAnalytics(config)
+        val analytics = Media3WatchAnalytics(context, config)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -606,7 +609,7 @@ class Media3WatchAnalyticsTest {
         // causing PlaybackStatsListener.getPlaybackStats() to return null. The SDK passes
         // the nullable PlaybackStats directly to buildSessionSummary(), which handles null
         // gracefully via Kotlin safe-call operators so metrics are never missing from the log.
-        val analytics = Media3WatchAnalytics()
+        val analytics = Media3WatchAnalytics(context)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -648,7 +651,7 @@ class Media3WatchAnalyticsTest {
             enableRealTimeReporting = true,
             reportingIntervalMs = 5_000L
         )
-        val analytics = Media3WatchAnalytics(config)
+        val analytics = Media3WatchAnalytics(context, config)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -677,7 +680,7 @@ class Media3WatchAnalyticsTest {
 
     @Test
     fun streamSwitch_reattach_resetsFirstFrameFlag_newSessionMeasuresStartupCorrectly() {
-        val analytics = Media3WatchAnalytics()
+        val analytics = Media3WatchAnalytics(context)
         val harness1 = PlayerHarness()
         val harness2 = PlayerHarness()
 
@@ -713,7 +716,7 @@ class Media3WatchAnalyticsTest {
 
     @Test
     fun streamSwitch_beforeFirstFrame_sessionOneHasNullStartup_sessionTwoMeasuresCorrectly() {
-        val analytics = Media3WatchAnalytics()
+        val analytics = Media3WatchAnalytics(context)
         val harness1 = PlayerHarness()
         val harness2 = PlayerHarness()
 
@@ -757,7 +760,7 @@ class Media3WatchAnalyticsTest {
             enableRealTimeReporting = true,
             reportingIntervalMs = 5_000L
         )
-        val analytics = Media3WatchAnalytics(config)
+        val analytics = Media3WatchAnalytics(context, config)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -786,7 +789,7 @@ class Media3WatchAnalyticsTest {
             enableRealTimeReporting = true,
             reportingIntervalMs = 5_000L
         )
-        val analytics = Media3WatchAnalytics(config)
+        val analytics = Media3WatchAnalytics(context, config)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -824,7 +827,7 @@ class Media3WatchAnalyticsTest {
             enableRealTimeReporting = true,
             reportingIntervalMs = 5_000L
         )
-        val analytics = Media3WatchAnalytics(config)
+        val analytics = Media3WatchAnalytics(context, config)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -849,7 +852,7 @@ class Media3WatchAnalyticsTest {
 
     @Test
     fun meanVideoFormatBitrate_afterFormatChanges_isNullOrNonNegativeInSessionSummary() {
-        val analytics = Media3WatchAnalytics()
+        val analytics = Media3WatchAnalytics(context)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -868,7 +871,7 @@ class Media3WatchAnalyticsTest {
 
     @Test
     fun bufferingBeforeFirstFrame_startupTimeIsSet_postFirstFrameBufferingCountsAsRebuffer() {
-        val analytics = Media3WatchAnalytics()
+        val analytics = Media3WatchAnalytics(context)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -900,7 +903,7 @@ class Media3WatchAnalyticsTest {
 
     @Test
     fun longStartupTime_isMeasuredCorrectly_inFinalReport() {
-        val analytics = Media3WatchAnalytics()
+        val analytics = Media3WatchAnalytics(context)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -931,7 +934,7 @@ class Media3WatchAnalyticsTest {
             enableRealTimeReporting = true,
             reportingIntervalMs = 500L
         )
-        val analytics = Media3WatchAnalytics(config)
+        val analytics = Media3WatchAnalytics(context, config)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)
@@ -984,7 +987,7 @@ class Media3WatchAnalyticsTest {
             enableRealTimeReporting = true,
             reportingIntervalMs = 5_000L
         )
-        val analytics = Media3WatchAnalytics(config)
+        val analytics = Media3WatchAnalytics(context, config)
         val harness = PlayerHarness()
 
         analytics.attach(harness.player)

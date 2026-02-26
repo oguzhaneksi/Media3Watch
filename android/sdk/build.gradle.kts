@@ -43,6 +43,7 @@ dependencies {
     implementation(libs.okhttp)
 
     testImplementation(libs.junit)
+    testImplementation(libs.androidx.test.core)
     testImplementation(libs.robolectric)
     testImplementation(libs.mockito.core)
     testImplementation(libs.kotlinx.coroutines.test)
