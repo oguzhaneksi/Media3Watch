@@ -19,7 +19,7 @@ import java.util.UUID
 
 @androidx.annotation.OptIn(UnstableApi::class)
 class Media3WatchAnalytics(
-    context: Context,
+    context: Context? = null,
     private val config: Media3WatchConfig = Media3WatchConfig()
 ) {
 
@@ -39,9 +39,9 @@ class Media3WatchAnalytics(
         HttpSender(endpointUrl = it, apiKey = config.apiKey)
     }
 
-    private val fileQueue: FileQueue? = if (config.enableOfflineResilience && config.backendUrl != null) {
-        FileQueue(dir = File(context.applicationContext.cacheDir, "media3watch_queue"))
-    } else null
+    private val fileQueue: FileQueue? = context
+        ?.takeIf { config.enableOfflineResilience && config.backendUrl != null }
+        ?.let { FileQueue(dir = File(it.applicationContext.cacheDir, "media3watch_queue")) }
 
     private val uploader: TelemetryUploader? = httpSender?.let {
         TelemetryUploader(
