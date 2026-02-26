@@ -55,7 +55,10 @@ internal class TelemetryUploader(
         } else {
             // Persist payload so the next upload() call (driven by SessionReporter) can retry.
             fileQueue?.let { queue ->
-                queue.enqueue(sessionId, payload)
+                val enqueueResult = queue.enqueue(sessionId, payload)
+                if (enqueueResult.isFailure && enableLogging) {
+                    Log.w(LogUtils.TAG, "offline_queue persist failed sessionId=$sessionId", enqueueResult.exceptionOrNull())
+                }
                 queue.trimToMaxSize(maxQueuedPayloads)
             }
         }
