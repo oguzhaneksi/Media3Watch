@@ -49,14 +49,20 @@ internal class TelemetryUploader(
         val result = trySend(sessionId, payload)
 
         if (result.isSuccess) {
-            // Clear any stale queued entry for this session, then opportunistically drain others.
-            fileQueue?.remove(sessionId)
+            // Wrap in NonCancellable so a mid-flight cancellation doesn't leave a stale queue
+            // entry that would cause duplicate delivery on the next flushPending() call.
+            withContext(NonCancellable) {
+                fileQueue?.remove(sessionId)
+            }
             flushPending(exclude = sessionId)
         } else {
-            // Persist payload so the next upload() call (driven by SessionReporter) can retry.
-            fileQueue?.let { queue ->
-                queue.enqueue(sessionId, payload)
-                queue.trimToMaxSize(maxQueuedPayloads)
+            // Wrap in NonCancellable so both enqueue and trimToMaxSize always run as a pair;
+            // without this, a cancellation between the two could leave the queue over the limit.
+            withContext(NonCancellable) {
+                fileQueue?.let { queue ->
+                    queue.enqueue(sessionId, payload)
+                    queue.trimToMaxSize(maxQueuedPayloads)
+                }
             }
         }
     }
