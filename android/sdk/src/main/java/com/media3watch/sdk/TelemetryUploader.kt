@@ -81,23 +81,21 @@ internal class TelemetryUploader(
     @OptIn(UnstableApi::class)
     private suspend fun trySend(sessionId: String, payload: String): Result<Unit> {
         return try {
-            withContext(NonCancellable) {
-                val result = sender.send(payload, callTimeoutMs = uploadTimeoutMs)
-                result
-                    .onSuccess {
-                        if (enableLogging) Log.d(LogUtils.TAG, "session_report_success sessionId=$sessionId")
-                    }
-                    .onFailure {
-                        if (enableLogging) {
-                            if (it is SocketTimeoutException || it is InterruptedIOException) {
-                                Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (timeout)", it)
-                            } else {
-                                Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId", it)
-                            }
+            val result = sender.send(payload, callTimeoutMs = uploadTimeoutMs)
+            result
+                .onSuccess {
+                    if (enableLogging) Log.d(LogUtils.TAG, "session_report_success sessionId=$sessionId")
+                }
+                .onFailure {
+                    if (enableLogging) {
+                        if (it is SocketTimeoutException || it is InterruptedIOException) {
+                            Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (timeout)", it)
+                        } else {
+                            Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId", it)
                         }
                     }
-                result
-            }
+                }
+            result
         } catch (t: Throwable) {
             if (t is CancellationException) throw t
             if (enableLogging) Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (exception)", t)
