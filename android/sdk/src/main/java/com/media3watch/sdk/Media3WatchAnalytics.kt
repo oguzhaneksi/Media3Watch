@@ -1,5 +1,6 @@
 package com.media3watch.sdk
 
+import android.content.Context
 import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.MainThread
@@ -13,10 +14,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import org.jetbrains.annotations.TestOnly
+import java.io.File
 import java.util.UUID
 
 @androidx.annotation.OptIn(UnstableApi::class)
 class Media3WatchAnalytics(
+    context: Context,
     private val config: Media3WatchConfig = Media3WatchConfig()
 ) {
 
@@ -36,11 +39,17 @@ class Media3WatchAnalytics(
         HttpSender(endpointUrl = it, apiKey = config.apiKey)
     }
 
+    private val fileQueue: FileQueue? = if (config.enableOfflineResilience && config.backendUrl != null) {
+        FileQueue(dir = File(context.applicationContext.cacheDir, "media3watch_queue"))
+    } else null
+
     private val uploader: TelemetryUploader? = httpSender?.let {
         TelemetryUploader(
             sender = httpSender,
             coroutineScope = analyticsScope,
-            enableLogging = config.enableLogging
+            enableLogging = config.enableLogging,
+            fileQueue = fileQueue,
+            maxQueuedPayloads = config.maxQueuedPayloads,
         )
     }
 
@@ -147,7 +156,10 @@ class Media3WatchAnalytics(
         player.addAnalyticsListener(statsListener)
 
         if (config.enableLogging) Log.d(LogUtils.TAG, "session_start sessionId=$sessionId")
-        
+
+        // Drain any payloads that survived from previous sessions.
+        analyticsScope.launch(Dispatchers.IO) { uploader?.flushPending() }
+
         // Start real-time reporting if enabled and uploader is configured
         if (config.enableRealTimeReporting && uploader != null) {
             reporter = SessionReporter(

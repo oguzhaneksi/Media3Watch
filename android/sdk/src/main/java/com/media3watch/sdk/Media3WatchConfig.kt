@@ -15,7 +15,18 @@ data class Media3WatchConfig(
      * READ_LOGS permission. Disable in production builds to prevent session metadata
      * (session IDs, timing data) from appearing in device logs.
      */
-    val enableLogging: Boolean = true
+    val enableLogging: Boolean = true,
+    /**
+     * When true, failed telemetry uploads are persisted to a file-backed queue and retried
+     * automatically on the next upload cycle or on the next [Media3WatchAnalytics.attach] call.
+     * Uses only [java.io] + [AtomicFile] — no Room or WorkManager dependency.
+     */
+    val enableOfflineResilience: Boolean = true,
+    /**
+     * Maximum number of queued payloads kept on disk. When the limit is exceeded, the oldest
+     * file is evicted (FIFO). Must be positive.
+     */
+    val maxQueuedPayloads: Int = 100,
 ) {
 
     init {
@@ -29,6 +40,10 @@ data class Media3WatchConfig(
         
         if (reportingIntervalMs <= 0) {
             throw IllegalArgumentException("reportingIntervalMs must be positive, got: $reportingIntervalMs")
+        }
+
+        if (maxQueuedPayloads <= 0) {
+            throw IllegalArgumentException("maxQueuedPayloads must be positive, got: $maxQueuedPayloads")
         }
     }
 }

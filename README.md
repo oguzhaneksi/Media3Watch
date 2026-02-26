@@ -112,6 +112,7 @@ To integrate the Media3Watch SDK into your Android project:
 ```kotlin
 // 1. Create the analytics instance (with optional backend upload)
 private val analytics = Media3WatchAnalytics(
+    context = context,
     config = Media3WatchConfig(
         backendUrl = "http://localhost:8080/v1/sessions", // optional, use this for local testing
         apiKey = "dev-key", // optional, matches backend default
@@ -121,7 +122,7 @@ private val analytics = Media3WatchAnalytics(
     )
 )
 // Or use default config for Logcat-only mode:
-// private val analytics = Media3WatchAnalytics()
+// private val analytics = Media3WatchAnalytics(context = context)
 
 fun initializePlayer() {
     player = ExoPlayer.Builder(context).build().apply {
@@ -194,6 +195,7 @@ Update your `Media3WatchAnalytics` config to point to your local machine:
 
 ```kotlin
 private val analytics = Media3WatchAnalytics(
+    context = context,
     config = Media3WatchConfig(
         backendUrl = "http://10.0.2.2:8080/v1/sessions", // Android Emulator -> Host
         // backendUrl = "http://localhost:8080/v1/sessions", // Physical Device on same Wi-Fi
