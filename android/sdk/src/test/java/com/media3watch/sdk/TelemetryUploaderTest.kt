@@ -359,6 +359,30 @@ class TelemetryUploaderTest {
     }
 
     @Test
+    fun flushPending_concurrentCalls_eachPayloadSentOnlyOnce() = runBlocking {
+        val queue = FileQueue(dir = createTempDirectory("queue").toFile())
+        queue.enqueue("concurrent-1", """{"c":1}""")
+        queue.enqueue("concurrent-2", """{"c":2}""")
+
+        // Enqueue exactly 2 responses — if payloads are sent more than twice total the test fails.
+        server.enqueue(MockResponse().setResponseCode(200))
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+
+        // Launch two concurrent flushes.
+        val flushJob1 = launch { uploader.flushPending() }
+        val flushJob2 = launch { uploader.flushPending() }
+        flushJob1.join()
+        flushJob2.join()
+
+        // Only 2 requests should have been sent — one per unique payload.
+        assertEquals("Each payload should be sent exactly once", 2, server.requestCount)
+        assertEquals("Queue should be empty after flush", 0, queue.size())
+    }
+
+    @Test
     fun upload_withNullFileQueue_fireAndForget_doesNotCrash() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(500))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())

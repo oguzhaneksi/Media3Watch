@@ -9,6 +9,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.InterruptedIOException
 import java.net.SocketTimeoutException
@@ -40,6 +42,8 @@ internal class TelemetryUploader(
     private val fileQueue: FileQueue? = null,
     private val maxQueuedPayloads: Int = 100,
 ) {
+
+    private val flushMutex = Mutex()
 
     suspend fun upload(sessionId: String, payload: String) {
         val result = trySend(sessionId, payload)
@@ -97,19 +101,23 @@ internal class TelemetryUploader(
 
     private suspend fun flushPending(exclude: String?) {
         val queue = fileQueue ?: return
-        val pending = queue.peekAll()
-            .filter { it.sessionId != exclude }
-
+        // Quick pre-check to avoid acquiring the mutex when there's nothing to flush.
+        val pending = queue.peekAll().filter { it.sessionId != exclude }
         if (pending.isEmpty()) return
-        if (enableLogging) Log.d(LogUtils.TAG, "offline_queue flush ${pending.size} pending payload(s)")
+        flushMutex.withLock {
+            // Re-read inside the lock: another coroutine may have flushed while we were waiting.
+            val currentPending = queue.peekAll().filter { it.sessionId != exclude }
+            if (currentPending.isEmpty()) return
+            if (enableLogging) Log.d(LogUtils.TAG, "offline_queue flush ${currentPending.size} pending payload(s)")
 
-        // Flush on IO — each send is independent; failures are left in queue for the next cycle.
-        withContext(Dispatchers.IO) {
-            for (entry in pending) {
-                val result = trySend(entry.sessionId, entry.payload)
-                if (result.isSuccess) {
-                    queue.remove(entry.sessionId)
-                    if (enableLogging) Log.d(LogUtils.TAG, "offline_queue flushed sessionId=${entry.sessionId}")
+            // Flush on IO — each send is independent; failures are left in queue for the next cycle.
+            withContext(Dispatchers.IO) {
+                for (entry in currentPending) {
+                    val result = trySend(entry.sessionId, entry.payload)
+                    if (result.isSuccess) {
+                        queue.remove(entry.sessionId)
+                        if (enableLogging) Log.d(LogUtils.TAG, "offline_queue flushed sessionId=${entry.sessionId}")
+                    }
                 }
             }
         }
