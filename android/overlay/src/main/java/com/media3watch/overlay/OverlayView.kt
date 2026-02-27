@@ -1,19 +1,17 @@
 package com.media3watch.overlay
 
 import android.content.Context
-import android.util.AttributeSet
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.util.AttributeSet
 import android.view.Gravity
 import android.view.MotionEvent
-import android.view.ViewConfiguration
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.cardview.widget.CardView
 import com.media3watch.sdk.SessionSnapshot
 import java.util.Locale
-import kotlin.math.abs
 import kotlin.math.pow
 
 internal class OverlayView @JvmOverloads constructor(
@@ -134,7 +132,7 @@ internal class OverlayView @JvmOverloads constructor(
             lastRawY = downRawY
             true
         }
-        setOnTouchListener { view, event ->
+        setOnTouchListener { _, event ->
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
                     downRawX = event.rawX
