@@ -1,6 +1,5 @@
 plugins {
     alias(libs.plugins.android.library)
-    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.vanniktech.mavenPublish)
     alias(libs.plugins.jetbrains.dokka)
 }
