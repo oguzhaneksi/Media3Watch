@@ -9,6 +9,7 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -23,6 +24,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.ui.compose.ContentFrame
 import com.media3watch.sample.PlayerViewModel
+import com.media3watch.sample.overlay.OverlayInstaller
 import kotlinx.coroutines.delay
 
 private const val CONTROLLER_AUTO_HIDE_MS = 3_000L
@@ -36,6 +38,13 @@ fun PlayerScreen(viewModel: PlayerViewModel = viewModel()) {
     var controlsVisible by rememberSaveable { mutableStateOf(true) }
 
     BackHandler(onBack = viewModel::clearStream)
+
+    DisposableEffect(activity, viewModel) {
+        val uninstallOverlay = OverlayInstaller.install(viewModel.analyticsHandle(), activity)
+        onDispose {
+            uninstallOverlay()
+        }
+    }
 
     if (Build.VERSION.SDK_INT > 23) {
         LifecycleStartEffect(viewModel) {

@@ -1,5 +1,6 @@
 package com.media3watch.sdk
 
+import android.os.Looper
 import android.os.SystemClock
 import androidx.media3.common.Format
 import androidx.media3.common.PlaybackException
@@ -26,6 +27,8 @@ class PlayerHarness {
 
     /** Tracks the current playback state of the player. */
     private var playbackStateValue: Int = Player.STATE_IDLE
+    private var currentPositionMsValue: Long = 0L
+    private var currentVideoFormatValue: Format? = null
 
     init {
         // Mock the addition of analytics listeners.
@@ -45,6 +48,12 @@ class PlayerHarness {
 
         // Mock the playbackState property.
         doAnswer { playbackStateValue }.`when`(player).playbackState
+
+        // Main-thread analytics callbacks are a contract for snapshot observers.
+        doAnswer { Looper.getMainLooper() }.`when`(player).applicationLooper
+
+        doAnswer { currentPositionMsValue }.`when`(player).currentPosition
+        doAnswer { currentVideoFormatValue }.`when`(player).videoFormat
     }
 
     /**
@@ -102,6 +111,14 @@ class PlayerHarness {
         playbackStateValue = state
     }
 
+    fun setCurrentPosition(positionMs: Long) {
+        currentPositionMsValue = positionMs
+    }
+
+    fun setVideoFormat(bitrate: Int?) {
+        currentVideoFormatValue = bitrate?.let { Format.Builder().setAverageBitrate(it).build() }
+    }
+
     /**
      * Emits an event indicating a seek operation has started.
      */
@@ -148,6 +165,7 @@ class PlayerHarness {
      */
     fun emitVideoFormatChanged(bitrate: Int) {
         val format = Format.Builder().setAverageBitrate(bitrate).build()
+        currentVideoFormatValue = format
         analyticsListeners.forEach {
             it.onVideoInputFormatChanged(createEventTime(), format, null)
         }
