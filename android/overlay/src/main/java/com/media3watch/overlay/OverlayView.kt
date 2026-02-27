@@ -46,7 +46,6 @@ internal class OverlayView @JvmOverloads constructor(
     private var lastRawY = 0f
     private var downRawX = 0f
     private var downRawY = 0f
-    private val clickSlopPx = ViewConfiguration.get(context).scaledTouchSlop.toFloat()
 
     private var currentPillColor = COLOR_HEALTH_GREEN
     private val pillBackground = GradientDrawable().apply {
