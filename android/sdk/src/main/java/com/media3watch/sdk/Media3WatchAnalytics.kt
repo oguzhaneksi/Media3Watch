@@ -58,7 +58,6 @@ class Media3WatchAnalytics(
 
     private var playbackStatsListener: PlaybackStatsListener? = null
     private val metricsObservers = CopyOnWriteArrayList<MetricsObserver>()
-    private var currentVideoBitrate: Int? = null
 
     private val analyticsListener = object : AnalyticsListener {
         override fun onRenderedFirstFrame(
@@ -114,7 +113,6 @@ class Media3WatchAnalytics(
             format: androidx.media3.common.Format,
             decoderReuseEvaluation: androidx.media3.exoplayer.DecoderReuseEvaluation?
         ) {
-            currentVideoBitrate = format.bitrate.takeIf { it > 0 }
             reporter?.reportNow()
             notifyObservers()
         }
@@ -284,7 +282,6 @@ class Media3WatchAnalytics(
         playCommandTs = null
         startupTimeMs = null
         firstFrameRendered = false
-        currentVideoBitrate = null
     }
 
     // Called on Main; heavy work (summary building + JSON serialization) is offloaded to Default.
@@ -387,7 +384,7 @@ class Media3WatchAnalytics(
             totalSeekCount = stats?.totalSeekCount ?: 0,
             totalSeekTimeMs = stats?.totalSeekTimeMs ?: 0L,
             meanVideoFormatBitrate = stats?.meanVideoFormatBitrate,
-            currentBitrate = currentVideoBitrate ?: currentPlayer.videoFormat?.bitrate?.takeIf { it > 0 },
+            currentBitrate = currentPlayer.videoFormat?.bitrate?.takeIf { it > 0 },
             errorCount = stats?.fatalErrorCount ?: 0
         )
     }
