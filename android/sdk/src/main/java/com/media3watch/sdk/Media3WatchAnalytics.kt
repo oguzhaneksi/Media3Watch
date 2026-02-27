@@ -149,6 +149,20 @@ class Media3WatchAnalytics(
         }
     }
 
+    /**
+     * Registers a [MetricsObserver] to receive playback metric callbacks.
+     *
+     * Must be called on the main thread.
+     *
+     * If a playback session is already active when this method is called, the observer will
+     * immediately receive an [MetricsObserver.onSessionStarted] callback followed by an
+     * [MetricsObserver.onSnapshotUpdated] callback with the current session snapshot, so it
+     * can catch up with the current state.
+     *
+     * All observer callbacks are guaranteed to be invoked on the main thread.
+     *
+     * @param observer the observer to register.
+     */
     @MainThread
     fun addMetricsObserver(observer: MetricsObserver) {
         if (!metricsObservers.contains(observer)) {
@@ -161,6 +175,13 @@ class Media3WatchAnalytics(
         }
     }
 
+    /**
+     * Unregisters a previously registered [MetricsObserver].
+     *
+     * Must be called on the main thread.
+     *
+     * @param observer the observer to unregister.
+     */
     @MainThread
     fun removeMetricsObserver(observer: MetricsObserver) {
         metricsObservers.remove(observer)
