@@ -25,3 +25,4 @@ dependencyResolutionManagement {
 rootProject.name = "Media3Watch"
 include(":app")
 include(":sdk")
+include(":overlay")

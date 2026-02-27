@@ -1,9 +1,11 @@
 package com.media3watch.sdk
 
 import android.content.Context
+import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.MainThread
+import androidx.media3.common.C
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
@@ -16,6 +18,7 @@ import kotlinx.coroutines.launch
 import org.jetbrains.annotations.TestOnly
 import java.io.File
 import java.util.UUID
+import java.util.concurrent.CopyOnWriteArrayList
 
 @androidx.annotation.OptIn(UnstableApi::class)
 class Media3WatchAnalytics(
@@ -54,6 +57,7 @@ class Media3WatchAnalytics(
     }
 
     private var playbackStatsListener: PlaybackStatsListener? = null
+    private val metricsObservers = CopyOnWriteArrayList<MetricsObserver>()
 
     private val analyticsListener = object : AnalyticsListener {
         override fun onRenderedFirstFrame(
@@ -62,6 +66,7 @@ class Media3WatchAnalytics(
             renderTimeMs: Long
         ) {
             if (firstFrameRendered) {
+                notifyObservers()
                 return
             }
 
@@ -73,55 +78,62 @@ class Media3WatchAnalytics(
                 startupTimeMs = (renderTimeMs - commandTs).coerceAtLeast(0L)
                 playCommandTs = null
             }
-            
+
             reporter?.reportNow()
+            notifyObservers()
         }
-        
+
         override fun onIsPlayingChanged(
             eventTime: AnalyticsListener.EventTime,
             isPlaying: Boolean
         ) {
             reporter?.reportNow()
+            notifyObservers()
         }
-        
+
         override fun onPlaybackStateChanged(
             eventTime: AnalyticsListener.EventTime,
             state: Int
         ) {
             reporter?.reportNow()
+            notifyObservers()
         }
-        
+
         override fun onPlayWhenReadyChanged(
             eventTime: AnalyticsListener.EventTime,
             playWhenReady: Boolean,
             reason: Int
         ) {
             reporter?.reportNow()
+            notifyObservers()
         }
-        
+
         override fun onVideoInputFormatChanged(
             eventTime: AnalyticsListener.EventTime,
             format: androidx.media3.common.Format,
             decoderReuseEvaluation: androidx.media3.exoplayer.DecoderReuseEvaluation?
         ) {
             reporter?.reportNow()
+            notifyObservers()
         }
-        
+
         override fun onPlayerError(
             eventTime: AnalyticsListener.EventTime,
             error: androidx.media3.common.PlaybackException
         ) {
             reporter?.reportNow()
+            notifyObservers()
         }
-        
+
         override fun onDroppedVideoFrames(
             eventTime: AnalyticsListener.EventTime,
             droppedFrames: Int,
             elapsedMs: Long
         ) {
             reporter?.reportNow()
+            notifyObservers()
         }
-        
+
         override fun onPositionDiscontinuity(
             eventTime: AnalyticsListener.EventTime,
             oldPosition: Player.PositionInfo,
@@ -131,11 +143,54 @@ class Media3WatchAnalytics(
             if (reason == Player.DISCONTINUITY_REASON_SEEK) {
                 reporter?.reportNow()
             }
+            notifyObservers()
         }
+    }
+
+    /**
+     * Registers a [MetricsObserver] to receive playback metric callbacks.
+     *
+     * Must be called on the main thread.
+     *
+     * If a playback session is already active when this method is called, the observer will
+     * immediately receive an [MetricsObserver.onSessionStarted] callback followed by an
+     * [MetricsObserver.onSnapshotUpdated] callback with the current session snapshot, so it
+     * can catch up with the current state.
+     *
+     * All observer callbacks are guaranteed to be invoked on the main thread.
+     *
+     * @param observer the observer to register.
+     */
+    @MainThread
+    fun addMetricsObserver(observer: MetricsObserver) {
+        if (!metricsObservers.contains(observer)) {
+            metricsObservers.add(observer)
+        }
+
+        if (player != null && sessionId.isNotBlank()) {
+            safeNotifySessionStarted(observer, sessionId)
+            buildSnapshot()?.let { safeNotifySnapshotUpdated(observer, it) }
+        }
+    }
+
+    /**
+     * Unregisters a previously registered [MetricsObserver].
+     *
+     * Must be called on the main thread.
+     *
+     * @param observer the observer to unregister.
+     */
+    @MainThread
+    fun removeMetricsObserver(observer: MetricsObserver) {
+        metricsObservers.remove(observer)
     }
 
     @MainThread
     fun attach(player: ExoPlayer) {
+        require(player.applicationLooper == Looper.getMainLooper()) {
+            "Media3WatchAnalytics requires ExoPlayer.applicationLooper to be main looper."
+        }
+
         if (this.player != null) {
             // Cleanup previous session on repeated attach.
             detach()
@@ -171,6 +226,9 @@ class Media3WatchAnalytics(
             )
             reporter?.start()
         }
+
+        notifySessionStarted()
+        notifyObservers()
     }
 
     @MainThread
@@ -188,6 +246,8 @@ class Media3WatchAnalytics(
     @MainThread
     fun detach() {
         val currentPlayer = player
+        val finalSnapshot = buildSnapshot()
+        val finalSessionId = sessionId
 
         reporter?.stop()
         reporter = null
@@ -197,6 +257,10 @@ class Media3WatchAnalytics(
 
             currentPlayer.removeAnalyticsListener(analyticsListener)
             playbackStatsListener?.let { currentPlayer.removeAnalyticsListener(it) }
+        }
+
+        if (finalSessionId.isNotBlank() && finalSnapshot != null) {
+            notifySessionEnded(finalSessionId, finalSnapshot)
         }
 
         playbackStatsListener = null
@@ -265,5 +329,93 @@ class Media3WatchAnalytics(
     private fun isSessionActive(): Boolean {
         val currentPlayer = player ?: return false
         return currentPlayer.isPlaying && currentPlayer.playbackState == Player.STATE_READY
+    }
+
+    @MainThread
+    private fun notifySessionStarted() {
+        if (sessionId.isBlank()) return
+        metricsObservers.forEach { safeNotifySessionStarted(it, sessionId) }
+    }
+
+    @MainThread
+    private fun notifySessionEnded(sessionId: String, finalSnapshot: SessionSnapshot) {
+        metricsObservers.forEach { observer ->
+            try {
+                observer.onSessionEnded(sessionId, finalSnapshot)
+            } catch (t: Throwable) {
+                if (config.enableLogging) {
+                    Log.w(LogUtils.TAG, "MetricsObserver.onSessionEnded failed", t)
+                }
+            }
+        }
+    }
+
+    @MainThread
+    private fun notifyObservers() {
+        check(Looper.myLooper() == Looper.getMainLooper()) { "notifyObservers must run on main thread." }
+        if (metricsObservers.isEmpty()) return
+
+        val snapshot = buildSnapshot() ?: return
+        metricsObservers.forEach { observer ->
+            safeNotifySnapshotUpdated(observer, snapshot)
+        }
+    }
+
+    @MainThread
+    private fun buildSnapshot(nowMs: Long = SystemClock.elapsedRealtime()): SessionSnapshot? {
+        val currentPlayer = player ?: return null
+        if (sessionId.isBlank() || sessionStartTs <= 0L) return null
+
+        val stats = playbackStatsListener?.playbackStats
+        val currentPosition = currentPlayer.currentPosition.takeIf { it != C.TIME_UNSET }
+
+        return SessionSnapshot(
+            sessionId = sessionId,
+            elapsedSessionTimeMs = (nowMs - sessionStartTs).coerceAtLeast(0L),
+            playbackState = toSessionPlaybackState(currentPlayer.playbackState, currentPlayer.isPlaying),
+            isPlaying = currentPlayer.isPlaying,
+            currentPositionMs = currentPosition,
+            startupTimeMs = startupTimeMs,
+            rebufferTimeMs = stats?.totalRebufferTimeMs ?: 0L,
+            rebufferCount = stats?.totalRebufferCount ?: 0,
+            playTimeMs = stats?.totalPlayTimeMs ?: 0L,
+            rebufferRatio = stats?.rebufferTimeRatio ?: 0f,
+            totalDroppedFrames = stats?.totalDroppedFrames ?: 0L,
+            totalSeekCount = stats?.totalSeekCount ?: 0,
+            totalSeekTimeMs = stats?.totalSeekTimeMs ?: 0L,
+            meanVideoFormatBitrate = stats?.meanVideoFormatBitrate,
+            currentBitrate = currentPlayer.videoFormat?.bitrate?.takeIf { it > 0 },
+            errorCount = stats?.fatalErrorCount ?: 0
+        )
+    }
+
+    private fun toSessionPlaybackState(playerState: Int, isPlaying: Boolean): SessionPlaybackState {
+        return when (playerState) {
+            Player.STATE_IDLE -> SessionPlaybackState.IDLE
+            Player.STATE_BUFFERING -> SessionPlaybackState.BUFFERING
+            Player.STATE_ENDED -> SessionPlaybackState.ENDED
+            Player.STATE_READY -> if (isPlaying) SessionPlaybackState.PLAYING else SessionPlaybackState.PAUSED
+            else -> SessionPlaybackState.IDLE
+        }
+    }
+
+    private fun safeNotifySessionStarted(observer: MetricsObserver, sessionId: String) {
+        try {
+            observer.onSessionStarted(sessionId)
+        } catch (t: Throwable) {
+            if (config.enableLogging) {
+                Log.w(LogUtils.TAG, "MetricsObserver.onSessionStarted failed", t)
+            }
+        }
+    }
+
+    private fun safeNotifySnapshotUpdated(observer: MetricsObserver, snapshot: SessionSnapshot) {
+        try {
+            observer.onSnapshotUpdated(snapshot)
+        } catch (t: Throwable) {
+            if (config.enableLogging) {
+                Log.w(LogUtils.TAG, "MetricsObserver.onSnapshotUpdated failed", t)
+            }
+        }
     }
 }

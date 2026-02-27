@@ -58,6 +58,7 @@ dependencies {
     implementation(libs.androidx.media3.ui.compose.material3)
 
     implementation(project(":sdk"))
+    debugImplementation(project(":overlay"))
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)

@@ -209,6 +209,7 @@ class Media3WatchAnalyticsTest {
     fun attach_whenPlayerInitializationFails_propagates_andDetachStillClosesSession() {
         val analytics = Media3WatchAnalytics(context)
         val failingPlayer = mock(ExoPlayer::class.java)
+        doAnswer { Looper.getMainLooper() }.`when`(failingPlayer).applicationLooper
 
         doAnswer { throw IllegalStateException("player init failed") }
             .`when`(failingPlayer).addAnalyticsListener(any(AnalyticsListener::class.java))
@@ -1021,6 +1022,115 @@ class Media3WatchAnalyticsTest {
         server.shutdown()
     }
 
+    // ── Metrics Observer API ────────────────────────────────────────────────────
+
+    @Test
+    fun metricsObserver_attachAndDetach_emitSessionLifecycleCallbacks() {
+        val analytics = Media3WatchAnalytics(context)
+        val harness = PlayerHarness()
+        val observer = RecordingObserver()
+
+        analytics.addMetricsObserver(observer)
+        analytics.attach(harness.player)
+
+        assertEquals(1, observer.startedSessionIds.size)
+        assertTrue(observer.snapshots.isNotEmpty())
+        assertEquals(observer.startedSessionIds.last(), observer.snapshots.last().sessionId)
+
+        analytics.detach()
+
+        assertEquals(1, observer.endedSnapshots.size)
+        assertEquals(observer.startedSessionIds.last(), observer.endedSnapshots.last().first)
+        assertEquals(observer.startedSessionIds.last(), observer.endedSnapshots.last().second.sessionId)
+    }
+
+    @Test
+    fun metricsObserver_playerEvents_emitSnapshotUpdates() {
+        val analytics = Media3WatchAnalytics(context)
+        val harness = PlayerHarness()
+        val observer = RecordingObserver()
+
+        analytics.addMetricsObserver(observer)
+        analytics.attach(harness.player)
+        val initialCount = observer.snapshots.size
+
+        harness.emitIsPlayingChanged(true)
+        harness.emitPlaybackStateChanged(Player.STATE_READY)
+        harness.emitDroppedVideoFrames(2)
+        harness.emitSeekStarted()
+        harness.emitPeriodTransition()
+        harness.emitPlayerError(PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED)
+
+        assertTrue(observer.snapshots.size >= initialCount + 6)
+        analytics.detach()
+    }
+
+    @Test
+    fun metricsObserver_lateRegistration_getsImmediateStartAndSnapshot() {
+        val analytics = Media3WatchAnalytics(context)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+
+        val observer = RecordingObserver()
+        analytics.addMetricsObserver(observer)
+
+        assertEquals(1, observer.startedSessionIds.size)
+        assertEquals(1, observer.snapshots.size)
+        assertEquals(observer.startedSessionIds.last(), observer.snapshots.last().sessionId)
+
+        analytics.detach()
+    }
+
+    @Test
+    fun metricsObserver_removedObserver_noLongerReceivesCallbacks() {
+        val analytics = Media3WatchAnalytics(context)
+        val harness = PlayerHarness()
+        val observer = RecordingObserver()
+
+        analytics.addMetricsObserver(observer)
+        analytics.attach(harness.player)
+        val countBeforeRemove = observer.snapshots.size
+        analytics.removeMetricsObserver(observer)
+
+        harness.emitIsPlayingChanged(true)
+        harness.emitPlaybackStateChanged(Player.STATE_READY)
+
+        assertEquals(countBeforeRemove, observer.snapshots.size)
+        analytics.detach()
+    }
+
+    @Test
+    fun metricsObserver_currentBitrate_isUpdatedFromVideoInputFormatChanged() {
+        val analytics = Media3WatchAnalytics(context)
+        val harness = PlayerHarness()
+        val observer = RecordingObserver()
+
+        analytics.addMetricsObserver(observer)
+        analytics.attach(harness.player)
+        harness.emitVideoFormatChanged(4_200_000)
+
+        assertEquals(4_200_000, observer.snapshots.last().currentBitrate)
+        analytics.detach()
+    }
+
+    @Test
+    fun metricsObserver_currentBitrate_isFallenBackToPlayerVideoFormat() {
+        val analytics = Media3WatchAnalytics(context)
+        val harness = PlayerHarness()
+        val observer = RecordingObserver()
+
+        // Set the format on the player without firing a format-change event,
+        // simulating an observer added after the event has already fired.
+        harness.setVideoFormat(3_000_000)
+        analytics.attach(harness.player)
+        analytics.addMetricsObserver(observer)
+        harness.emitIsPlayingChanged(true)
+
+        assertEquals(3_000_000, observer.snapshots.last().currentBitrate)
+        analytics.detach()
+    }
+
     private fun lastSessionEndLog(): String? {
         return ShadowLog.getLogsForTag(TAG)
             .orEmpty()
@@ -1059,6 +1169,24 @@ class Media3WatchAnalyticsTest {
     private fun extractJsonLong(json: String, key: String): Long? {
         val regex = Regex("\"$key\":(\\d+)")
         return regex.find(json)?.groupValues?.get(1)?.toLongOrNull()
+    }
+
+    private class RecordingObserver : MetricsObserver {
+        val startedSessionIds = mutableListOf<String>()
+        val endedSnapshots = mutableListOf<Pair<String, SessionSnapshot>>()
+        val snapshots = mutableListOf<SessionSnapshot>()
+
+        override fun onSnapshotUpdated(snapshot: SessionSnapshot) {
+            snapshots += snapshot
+        }
+
+        override fun onSessionStarted(sessionId: String) {
+            startedSessionIds += sessionId
+        }
+
+        override fun onSessionEnded(sessionId: String, finalSnapshot: SessionSnapshot) {
+            endedSnapshots += sessionId to finalSnapshot
+        }
     }
 
     private companion object {

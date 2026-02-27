@@ -38,6 +38,7 @@ You ship a video app with Media3. Works great in development. Then production hi
 
 - **Android SDK**
 - **Session summary in Logcat** (plain text format, generated on session end)
+- **Debug Overlay** (floating widget — live QoE stats, color-coded health indicator, no Logcat needed)
 - **Optional Real-time Backend Upload** (HTTP POST with JSON payload, updates every 15s)
 - **Grafana Dashboards** (Visualize trends & sessions)
 
@@ -62,7 +63,7 @@ The SDK automatically tracks and summarizes:
 - [x] **Frictionless Publishing:** Maven Central availability for easy `implementation(...)` integration.
 - [x] **Solidifying ABR Telemetry:** Enhance metrics accuracy for HLS/DASH dynamic bitrate switching edge cases.
 - [x] **Offline-Resilience:** Store-and-forward caching to flush telemetry when connectivity restores.
-- [ ] **Standalone Debug Overlay:** A drop-in, offline-friendly UI component for real-time local QA testing without Logcat.
+- [x] **Standalone Debug Overlay:** Drop-in floating widget for real-time local QA — no Logcat needed.
 
 ---
 
@@ -92,16 +93,18 @@ To integrate the Media3Watch SDK into your Android project:
    }
    ```
 
-2. **Add the dependency** to your `app/build.gradle.kts`:
+2. **Add the dependencies** to your `app/build.gradle.kts`:
    ```kotlin
-   implementation("io.github.oguzhaneksi:media3watch-sdk:1.0.0-alpha01")
+   implementation("io.github.oguzhaneksi:media3watch-sdk:<version_name>")
+   debugImplementation("io.github.oguzhaneksi:media3watch-overlay:<version_name>") // optional
    ```
 
 ### Option B: Local project reference (For contributors)
 
-1. **Add the dependency** to your `app/build.gradle.kts`:
+1. **Add the dependencies** to your `app/build.gradle.kts`:
    ```kotlin
    implementation(project(":sdk"))
+   debugImplementation(project(":overlay")) // optional
    ```
 
 ---
@@ -146,6 +149,8 @@ fun releasePlayer() {
 }
 ```
 
+---
+
 ## Viewing the Summary in Logcat
 
 Filter by tag `Media3WatchAnalytics`:
@@ -174,6 +179,39 @@ session_end
   meanVideoFormatBitrate: 2500000
   errorCount: 0
 ```
+
+---
+
+## Debug Overlay
+
+A floating, collapsible widget for real-time local QA — no Logcat required. Add it to **debug builds only**.
+
+```kotlin
+private val overlay = Media3WatchOverlay(
+    config = OverlayConfig(
+        initialPosition = OverlayPosition.TOP_END,   // TOP_START | TOP_END | BOTTOM_START | BOTTOM_END
+        initialState = OverlayState.COLLAPSED         // COLLAPSED | EXPANDED
+    )
+)
+
+fun initializePlayer() {
+    analytics.attach(player)
+    overlay.attach(analytics, this) // Activity or ViewGroup
+}
+
+fun releasePlayer() {
+    overlay.detach()
+    analytics.detach()
+    player?.release()
+}
+```
+
+The collapsed **pill** shows `▶ STATE | Start Xms | Reb N | Err N` with a color-coded health indicator:
+- 🟢 Healthy
+- 🟡 Rebuffer ratio > 2%
+- 🔴 Rebuffer ratio > 5% or any error
+
+Tap `≡` to expand a full stats card. Drag to reposition — snaps to the nearest corner.
 
 ---
 

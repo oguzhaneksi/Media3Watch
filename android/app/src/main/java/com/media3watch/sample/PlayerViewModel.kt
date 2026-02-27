@@ -41,6 +41,8 @@ class PlayerViewModel(application: Application) : AndroidViewModel(application) 
 
     private var updateJob: Job? = null
 
+    fun analyticsHandle(): Media3WatchAnalytics = analytics
+
     fun selectStream(stream: Stream) {
         _selectedStream.value = stream
     }
