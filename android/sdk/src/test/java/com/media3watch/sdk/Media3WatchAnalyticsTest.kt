@@ -1114,6 +1114,23 @@ class Media3WatchAnalyticsTest {
         analytics.detach()
     }
 
+    @Test
+    fun metricsObserver_currentBitrate_isFallenBackToPlayerVideoFormat() {
+        val analytics = Media3WatchAnalytics(context)
+        val harness = PlayerHarness()
+        val observer = RecordingObserver()
+
+        // Set the format on the player without firing a format-change event,
+        // simulating an observer added after the event has already fired.
+        harness.setVideoFormat(3_000_000)
+        analytics.attach(harness.player)
+        analytics.addMetricsObserver(observer)
+        harness.emitIsPlayingChanged(true)
+
+        assertEquals(3_000_000, observer.snapshots.last().currentBitrate)
+        analytics.detach()
+    }
+
     private fun lastSessionEndLog(): String? {
         return ShadowLog.getLogsForTag(TAG)
             .orEmpty()
