@@ -387,7 +387,7 @@ class Media3WatchAnalytics(
             totalSeekCount = stats?.totalSeekCount ?: 0,
             totalSeekTimeMs = stats?.totalSeekTimeMs ?: 0L,
             meanVideoFormatBitrate = stats?.meanVideoFormatBitrate,
-            currentBitrate = currentVideoBitrate,
+            currentBitrate = currentVideoBitrate ?: currentPlayer.videoFormat?.averageBitrate?.takeIf { it > 0 },
             errorCount = stats?.fatalErrorCount ?: 0
         )
     }
