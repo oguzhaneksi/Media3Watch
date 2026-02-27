@@ -111,10 +111,30 @@ class PlayerHarness {
         playbackStateValue = state
     }
 
+    /**
+     * Sets the current playback position of the player without emitting any analytics events.
+     *
+     * This is useful in tests that need to control what the mocked player reports as its current
+     * position (for example, to verify logic that depends on `getCurrentPosition()`), without
+     * simulating a seek or position discontinuity.
+     *
+     * @param positionMs The playback position to set, in milliseconds.
+     */
     fun setCurrentPosition(positionMs: Long) {
         currentPositionMsValue = positionMs
     }
 
+    /**
+     * Sets the current video format of the player without emitting a format change event.
+     *
+     * This should be used in tests that need the mocked player to expose a specific video
+     * bitrate (for example, when asserting behavior that depends on the current format), but
+     * where an analytics callback is not required. To simulate a real format change and trigger
+     * analytics events, use [emitVideoFormatChanged] instead.
+     *
+     * @param bitrate The average bitrate of the video format in bits per second, or `null` to
+     *   clear the current video format.
+     */
     fun setVideoFormat(bitrate: Int?) {
         currentVideoFormatValue = bitrate?.let { Format.Builder().setAverageBitrate(it).build() }
     }
