@@ -114,7 +114,7 @@ class Media3WatchAnalytics(
             format: androidx.media3.common.Format,
             decoderReuseEvaluation: androidx.media3.exoplayer.DecoderReuseEvaluation?
         ) {
-            currentVideoBitrate = format.averageBitrate.takeIf { it > 0 }
+            currentVideoBitrate = format.bitrate.takeIf { it > 0 }
             reporter?.reportNow()
             notifyObservers()
         }
@@ -387,7 +387,7 @@ class Media3WatchAnalytics(
             totalSeekCount = stats?.totalSeekCount ?: 0,
             totalSeekTimeMs = stats?.totalSeekTimeMs ?: 0L,
             meanVideoFormatBitrate = stats?.meanVideoFormatBitrate,
-            currentBitrate = currentVideoBitrate ?: currentPlayer.videoFormat?.averageBitrate?.takeIf { it > 0 },
+            currentBitrate = currentVideoBitrate ?: currentPlayer.videoFormat?.bitrate?.takeIf { it > 0 },
             errorCount = stats?.fatalErrorCount ?: 0
         )
     }
