@@ -14,11 +14,6 @@ internal class HttpSender(
     private val endpointUrl: String,
     private val apiKey: String? = null
 ) {
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(10, TimeUnit.SECONDS)
-        .readTimeout(10, TimeUnit.SECONDS)
-        .build()
-
     suspend fun send(json: String, callTimeoutMs: Long? = null): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val body = json.toRequestBody(JSON_MEDIA_TYPE)
@@ -31,7 +26,7 @@ internal class HttpSender(
                 requestBuilder.addHeader("X-API-Key", apiKey)
             }
 
-            val call = client.newCall(requestBuilder.build())
+            val call = sharedClient.newCall(requestBuilder.build())
             if (callTimeoutMs != null && callTimeoutMs > 0L) {
                 call.timeout().timeout(callTimeoutMs, TimeUnit.MILLISECONDS)
             }
@@ -61,7 +56,18 @@ internal class HttpSender(
         }
     }
 
-    private companion object {
-        val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
+    companion object {
+        private val JSON_MEDIA_TYPE = "application/json; charset=utf-8".toMediaType()
+
+        /**
+         * Shared [OkHttpClient] instance. OkHttp's best practice is a single client per
+         * application, reusing the connection pool and thread pool across all callers.
+         * This is especially important when multiple [Media3WatchAnalytics] instances
+         * (e.g. multiple simultaneous players) exist in the same process.
+         */
+        private val sharedClient: OkHttpClient = OkHttpClient.Builder()
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.SECONDS)
+            .build()
     }
 }

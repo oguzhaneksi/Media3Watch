@@ -118,6 +118,10 @@ class SessionSummaryTest {
             appendLine("  totalSeekTimeMs: 120")
             appendLine("  meanVideoFormatBitrate: 2400000")
             appendLine("  errorCount: 0")
+            appendLine("  deviceModel: null")
+            appendLine("  osVersion: null")
+            appendLine("  sdkVersion: null")
+            appendLine("  connectionType: null")
         }
         assertEquals(expected, pretty)
     }

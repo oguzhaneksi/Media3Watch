@@ -53,6 +53,7 @@ The SDK automatically tracks and summarizes:
 - **Interaction Stats:** Seek count and total seek time.
 - **Quality Stats:** Mean video bitrate.
 - **Errors:** Total fatal error count.
+- **Context/Metadata:** Device model, OS version (API level), SDK version, and Network Connection Type (Wi-Fi, Cellular, etc.).
 
 ---
 
@@ -178,6 +179,10 @@ session_end
   totalSeekTimeMs: 300
   meanVideoFormatBitrate: 2500000
   errorCount: 0
+  deviceModel: Pixel 7 Pro
+  osVersion: 34
+  sdkVersion: 1.0.0-alpha01
+  connectionType: Wi-Fi
 ```
 
 ---

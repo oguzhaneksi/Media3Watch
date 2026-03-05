@@ -158,43 +158,25 @@ class TelemetryUploaderTest {
     }
 
     @Test
-    fun upload_scopeCancelled_rethrowsCancellationException() = runTest {
-        server.enqueue(MockResponse().setResponseCode(200).setBodyDelay(500, TimeUnit.MILLISECONDS))
+    fun upload_nonCancellable_completesEvenWhenScopeIsCancelled() = runBlocking {
+        // upload() runs under NonCancellable by design — it must complete even when the
+        // outer coroutine is cancelled, to avoid leaving the queue in an inconsistent state.
+        server.enqueue(MockResponse().setResponseCode(200))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        
-        // Use the implicit TestScope from runTest
         val uploader = TelemetryUploader(sender, coroutineScope = this)
 
-        // Track if CancellationException was thrown
-        var cancellationExceptionThrown = false
-        
-        // Launch upload in a supervised job that can catch the rethrown exception
+        // Launch upload, yield so the coroutine starts, then cancel the outer job.
         val job = launch {
-            try {
-                uploader.upload(sessionId = "test-cancel", payload = """{"cancel":"test"}""")
-            } catch (e: CancellationException) {
-                cancellationExceptionThrown = true
-                throw e  // Rethrow to maintain cancellation semantics
-            }
+            uploader.upload(sessionId = "test-cancel", payload = """{"cancel":"test"}""")
         }
-        
-        // Advance time to mid-upload (halfway through the 500ms response delay), then cancel
-        testScheduler.advanceTimeBy(250)
+        // Yield once: lets the launched coroutine enter upload() / NonCancellable context.
+        delay(50)
         job.cancel()
-        
-        // Process all pending coroutines
-        testScheduler.advanceUntilIdle()
-        
-        // Verify that CancellationException was thrown (and thus rethrown by our code)
-        assertTrue("CancellationException should have been rethrown", cancellationExceptionThrown)
-        
-        // Also verify that CancellationException was NOT logged
-        val logs = ShadowLog.getLogsForTag(LogUtils.TAG)
-        val cancellationLog = logs?.find { 
-            it.msg.contains("test-cancel") && 
-            (it.throwable is CancellationException || it.msg.contains("CancellationException"))
-        }
-        assertNull("CancellationException should not be logged", cancellationLog)
+
+        // The request MUST still arrive at the server because upload() is NonCancellable.
+        val request = server.takeRequest(3, TimeUnit.SECONDS)
+        assertNotNull("Non-cancellable upload should still reach the server", request)
+        assertEquals("POST", request!!.method)
     }
 
     // ── enableLogging = false: log suppression ─────────────────────────────────

@@ -1,6 +1,7 @@
 package com.media3watch.sdk
 
 import android.content.Context
+import android.os.Build
 import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
@@ -28,6 +29,9 @@ class Media3WatchAnalytics(
 
     private val analyticsScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
+    // Application-scoped context to avoid Activity leaks.
+    private val appContext = context.applicationContext
+
     private var player: ExoPlayer? = null
     private var sessionId: String = ""
 
@@ -36,6 +40,7 @@ class Media3WatchAnalytics(
     private var playCommandTs: Long? = null
     private var startupTimeMs: Long? = null
     private var reporter: SessionReporter? = null
+    private val connectivityManager = NetworkConnectivityManager(appContext)
 
     private var firstFrameRendered: Boolean = false
     private val httpSender: HttpSender? = config.backendUrl?.let {
@@ -43,7 +48,7 @@ class Media3WatchAnalytics(
     }
 
     private val fileQueue: FileQueue? = if (config.enableOfflineResilience && config.backendUrl != null) {
-        FileQueue(dir = File(context.applicationContext.cacheDir, "media3watch_queue"))
+        FileQueue(dir = File(appContext.cacheDir, "media3watch_queue"))
     } else null
 
     private val uploader: TelemetryUploader? = httpSender?.let {
@@ -291,12 +296,17 @@ class Media3WatchAnalytics(
         val now = SystemClock.elapsedRealtime()
         val sessionDurationMs = (now - sessionStartTs).coerceAtLeast(0L)
 
-        // Snapshot all Main-thread state before crossing dispatcher boundaries.
+        // Snapshot all mutable Main-thread state before crossing dispatcher boundaries.
+        // Build.MODEL, Build.VERSION.SDK_INT and BuildConfig.SDK_VERSION are immutable
+        // process-wide constants — read them inline on any thread without snapshotting.
+        // resolveConnectionType() is called here on Main so it reflects the connection state
+        // at the exact moment each report is sent rather than a stale session-start snapshot.
         val stats = statsListener.playbackStats
         val capturedSessionId = sessionId
         val capturedSessionStartWallClockMs = sessionStartWallClockMs
         val capturedSessionStartTs = sessionStartTs
         val capturedStartupTimeMs = startupTimeMs
+        val capturedConnectionTypeNow = connectivityManager.resolveConnectionType()
 
         analyticsScope.launch(Dispatchers.Default) {
             val summary = LogUtils.buildSessionSummary(
@@ -305,7 +315,11 @@ class Media3WatchAnalytics(
                 sessionStartTs = capturedSessionStartTs,
                 now = now,
                 startupTimeMs = capturedStartupTimeMs,
-                sessionEndStats = stats
+                sessionEndStats = stats,
+                deviceModel = Build.MODEL,
+                osVersion = Build.VERSION.SDK_INT,
+                sdkVersion = BuildConfig.SDK_VERSION,
+                connectionType = capturedConnectionTypeNow,
             )
 
             if (logSessionSummary && config.enableLogging)
@@ -418,4 +432,5 @@ class Media3WatchAnalytics(
             }
         }
     }
+
 }

@@ -13,11 +13,18 @@ android {
         }
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     defaultConfig {
         minSdk = 23
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
+
+        val versionName = project.property("VERSION_NAME") as String
+        buildConfigField("String", "SDK_VERSION", "\"$versionName\"")
     }
 
     buildTypes {

@@ -13,7 +13,7 @@
       "includeVars": false,
       "keepTime": true,
       "targetBlank": false,
-      "title": "← Overview",
+      "title": "\u2190 Overview",
       "tooltip": "Back to Media3Watch Overview",
       "type": "link",
       "url": "/d/m3w-overview"
@@ -21,6 +21,258 @@
   ],
   "liveNow": false,
   "panels": [
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "PostgreSQL"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "text",
+            "mode": "fixed"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "string"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 0,
+        "y": 0
+      },
+      "id": 101,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/val/",
+          "values": true,
+          "limit": 1
+        },
+        "textMode": "value"
+      },
+      "title": "Device Model",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "PostgreSQL"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(device_model, 'N/A') AS val FROM sessions WHERE session_id = '$sessionId'",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "PostgreSQL"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "text",
+            "mode": "fixed"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "string"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 6,
+        "y": 0
+      },
+      "id": 102,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/val/",
+          "values": true,
+          "limit": 1
+        },
+        "textMode": "value"
+      },
+      "title": "OS Version (API Level)",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "PostgreSQL"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(os_version::text, 'N/A') AS val FROM sessions WHERE session_id = '$sessionId'",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "PostgreSQL"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "text",
+            "mode": "fixed"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "string"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 12,
+        "y": 0
+      },
+      "id": 103,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/val/",
+          "values": true,
+          "limit": 1
+        },
+        "textMode": "value"
+      },
+      "title": "SDK Version",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "PostgreSQL"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(sdk_version, 'N/A') AS val FROM sessions WHERE session_id = '$sessionId'",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "datasource": {
+        "type": "postgres",
+        "uid": "PostgreSQL"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "fixedColor": "text",
+            "mode": "fixed"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "text",
+                "value": null
+              }
+            ]
+          },
+          "unit": "string"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 6,
+        "x": 18,
+        "y": 0
+      },
+      "id": 104,
+      "options": {
+        "colorMode": "none",
+        "graphMode": "none",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "/val/",
+          "values": true,
+          "limit": 1
+        },
+        "textMode": "value"
+      },
+      "title": "Connection Type",
+      "type": "stat",
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "PostgreSQL"
+          },
+          "editorMode": "code",
+          "format": "table",
+          "rawQuery": true,
+          "rawSql": "SELECT COALESCE(connection_type, 'N/A') AS val FROM sessions WHERE session_id = '$sessionId'",
+          "refId": "A"
+        }
+      ]
+    },
     {
       "datasource": {
         "type": "postgres",
@@ -50,7 +302,7 @@
         "h": 4,
         "w": 6,
         "x": 0,
-        "y": 0
+        "y": 4
       },
       "id": 1,
       "options": {
@@ -112,7 +364,7 @@
         "h": 4,
         "w": 4,
         "x": 6,
-        "y": 0
+        "y": 4
       },
       "id": 2,
       "options": {
@@ -173,7 +425,7 @@
         "h": 4,
         "w": 4,
         "x": 10,
-        "y": 0
+        "y": 4
       },
       "id": 3,
       "options": {
@@ -242,7 +494,7 @@
         "h": 4,
         "w": 4,
         "x": 14,
-        "y": 0
+        "y": 4
       },
       "id": 4,
       "options": {
@@ -307,7 +559,7 @@
         "h": 4,
         "w": 3,
         "x": 18,
-        "y": 0
+        "y": 4
       },
       "id": 5,
       "options": {
@@ -368,7 +620,7 @@
         "h": 4,
         "w": 3,
         "x": 21,
-        "y": 0
+        "y": 4
       },
       "id": 6,
       "options": {
@@ -437,7 +689,7 @@
         "h": 4,
         "w": 4,
         "x": 0,
-        "y": 4
+        "y": 8
       },
       "id": 7,
       "options": {
@@ -506,7 +758,7 @@
         "h": 4,
         "w": 4,
         "x": 4,
-        "y": 4
+        "y": 8
       },
       "id": 8,
       "options": {
@@ -575,7 +827,7 @@
         "h": 4,
         "w": 4,
         "x": 8,
-        "y": 4
+        "y": 8
       },
       "id": 9,
       "options": {
@@ -644,7 +896,7 @@
         "h": 4,
         "w": 4,
         "x": 12,
-        "y": 4
+        "y": 8
       },
       "id": 10,
       "options": {
@@ -705,7 +957,7 @@
         "h": 4,
         "w": 4,
         "x": 16,
-        "y": 4
+        "y": 8
       },
       "id": 11,
       "options": {
@@ -766,7 +1018,7 @@
         "h": 4,
         "w": 4,
         "x": 20,
-        "y": 4
+        "y": 8
       },
       "id": 12,
       "options": {
@@ -903,7 +1155,7 @@
         "h": 8,
         "w": 24,
         "x": 0,
-        "y": 8
+        "y": 12
       },
       "id": 13,
       "options": {
@@ -1095,7 +1347,7 @@
         "h": 9,
         "w": 24,
         "x": 0,
-        "y": 16
+        "y": 20
       },
       "id": 14,
       "options": {

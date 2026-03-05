@@ -152,7 +152,7 @@ fun Application.module(config: AppConfig = AppConfig.fromEnvironment()) {
 
     // Configure routing
     routing {
-        healthRoutes()
+        healthRoutes(dataSource)
 
         if (config.enableMetrics) {
             authenticate("api-key-auth") {
@@ -169,7 +169,7 @@ fun Application.module(config: AppConfig = AppConfig.fromEnvironment()) {
     }
 
     // Scheduled data retention cleanup — runs immediately on startup, then once daily
-    launch {
+    val retentionJob = launch {
         while (isActive) {
             withContext(Dispatchers.IO) {
                 runCatching {
@@ -181,6 +181,12 @@ fun Application.module(config: AppConfig = AppConfig.fromEnvironment()) {
             }
             delay(24.hours)
         }
+    }
+
+    // Graceful shutdown: cancel the retention job when the application stops.
+    monitor.subscribe(ApplicationStopped) {
+        logger.info("Application stopping — cancelling retention cleanup job")
+        retentionJob.cancel()
     }
 
     logger.info("Application started successfully")
