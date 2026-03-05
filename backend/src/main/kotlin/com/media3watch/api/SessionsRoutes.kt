@@ -109,7 +109,7 @@ fun Route.sessionsRoutes(
                     )
                     return@post
                 }
-                if (session.rebufferRatio != null && (session.rebufferRatio < 0f || session.rebufferRatio > 1f)) {
+                if (session.rebufferRatio != null && (session.rebufferRatio !in 0f..1f)) {
                     call.respond(
                         HttpStatusCode.BadRequest,
                         ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "rebufferRatio must be between 0 and 1 (inclusive)"))

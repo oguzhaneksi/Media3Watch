@@ -62,10 +62,11 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
-          "values": false
+          "fields": "/val/",
+          "values": true,
+          "limit": 1
         },
-        "textMode": "auto"
+        "textMode": "value"
       },
       "title": "Device Model",
       "type": "stat",
@@ -124,10 +125,11 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
-          "values": false
+          "fields": "/val/",
+          "values": true,
+          "limit": 1
         },
-        "textMode": "auto"
+        "textMode": "value"
       },
       "title": "OS Version (API Level)",
       "type": "stat",
@@ -186,10 +188,11 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
-          "values": false
+          "fields": "/val/",
+          "values": true,
+          "limit": 1
         },
-        "textMode": "auto"
+        "textMode": "value"
       },
       "title": "SDK Version",
       "type": "stat",
@@ -248,10 +251,11 @@
           "calcs": [
             "lastNotNull"
           ],
-          "fields": "",
-          "values": false
+          "fields": "/val/",
+          "values": true,
+          "limit": 1
         },
-        "textMode": "auto"
+        "textMode": "value"
       },
       "title": "Connection Type",
       "type": "stat",
