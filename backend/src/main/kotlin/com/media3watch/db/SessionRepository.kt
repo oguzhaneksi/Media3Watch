@@ -95,15 +95,15 @@ class SessionRepository(private val dataSource: DataSource) {
                         LIMIT ?
                     )
                 """.trimIndent()
-                do {
-                    val deleted = connection.prepareStatement(sql).use { stmt ->
-                        stmt.setLong(1, cutoffMs)
-                        stmt.setInt(2, batchSize)
-                        stmt.executeUpdate()
-                    }
-                    totalDeleted += deleted
-                    if (deleted < batchSize) break  // last batch — no more rows to delete
-                } while (true)
+                connection.prepareStatement(sql).use { stmt ->
+                    stmt.setLong(1, cutoffMs)
+                    stmt.setInt(2, batchSize)
+                    do {
+                        val deleted = stmt.executeUpdate()
+                        totalDeleted += deleted
+                        if (deleted < batchSize) break  // last batch — no more rows to delete
+                    } while (true)
+                }
             }
         } catch (e: SQLException) {
             logger.error("Failed to delete expired sessions (cutoffMs=$cutoffMs)", e)
