@@ -38,7 +38,7 @@ internal class NetworkConnectivityManager(context: Context) {
 
     /**
      * Uses [NetworkCapabilities] to identify the transport layer.
-     * No special permissions needed.
+     * Requires `android.permission.ACCESS_NETWORK_STATE` (see class-level KDoc).
      */
     private fun resolveConnectionTypeModern(cm: ConnectivityManager): String {
         val network = cm.activeNetwork ?: return "Unknown"
