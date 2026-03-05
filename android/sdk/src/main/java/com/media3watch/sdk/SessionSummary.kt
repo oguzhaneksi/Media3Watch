@@ -1,7 +1,6 @@
 package com.media3watch.sdk
 
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 @Serializable
@@ -19,7 +18,12 @@ internal data class SessionSummary(
     val totalSeekCount: Int?,
     val totalSeekTimeMs: Long?,
     val meanVideoFormatBitrate: Int?,
-    val errorCount: Int?
+    val errorCount: Int?,
+    // Device & SDK metadata (nullable for backward compatibility)
+    val deviceModel: String? = null,
+    val osVersion: Int? = null,
+    val sdkVersion: String? = null,
+    val connectionType: String? = null,
 )
 
 private val sessionSummaryJson = Json {
@@ -56,5 +60,9 @@ internal fun SessionSummary.toPrettyLog(): String {
         appendLine("  totalSeekTimeMs: $seekTimeMsStr")
         appendLine("  meanVideoFormatBitrate: $meanVideoFormatBitrateStr")
         appendLine("  errorCount: $errorCountStr")
+        appendLine("  deviceModel: ${deviceModel ?: "null"}")
+        appendLine("  osVersion: ${osVersion?.toString() ?: "null"}")
+        appendLine("  sdkVersion: ${sdkVersion ?: "null"}")
+        appendLine("  connectionType: ${connectionType ?: "null"}")
     }
 }

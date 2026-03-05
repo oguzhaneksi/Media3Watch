@@ -17,5 +17,10 @@ data class SessionSummary(
     val totalSeekCount: Int? = null,
     val totalSeekTimeMs: Long? = null,
     val meanVideoFormatBitrate: Int? = null,
-    val errorCount: Int? = null
+    val errorCount: Int? = null,
+    // Device & SDK metadata (nullable for backward compatibility with older SDK versions)
+    val deviceModel: String? = null,
+    val osVersion: Int? = null,
+    val sdkVersion: String? = null,
+    val connectionType: String? = null,
 )
