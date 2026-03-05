@@ -44,7 +44,7 @@ class NetworkConnectivityManagerTest {
         Shadows.shadowOf(caps).addTransportType(transport)
         val shadow = shadowConnectivityManager()
         shadow.setNetworkCapabilities(network, caps)
-        shadow.setActiveNetworkInfo(null) // clear any legacy state
+        shadow.setActiveNetwork(network)
     }
 
     // ── Modern path (API 23+) ────────────────────────────────────────────────────
@@ -52,23 +52,19 @@ class NetworkConnectivityManagerTest {
     @Test
     fun resolveConnectionType_wifi_returnsWiFi() {
         setActiveTransport(NetworkCapabilities.TRANSPORT_WIFI)
-        val result = connectivityManager.resolveConnectionType()
-        // Robolectric may not wire activeNetwork in all setups, so accept "Unknown" as a fallback.
-        assertTrue("Expected 'Wi-Fi' or 'Unknown', got: $result", result == "Wi-Fi" || result == "Unknown")
+        assertEquals("Wi-Fi", connectivityManager.resolveConnectionType())
     }
 
     @Test
     fun resolveConnectionType_cellular_returnsCellular() {
         setActiveTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
-        val result = connectivityManager.resolveConnectionType()
-        assertTrue("Expected 'Cellular' or 'Unknown', got: $result", result == "Cellular" || result == "Unknown")
+        assertEquals("Cellular", connectivityManager.resolveConnectionType())
     }
 
     @Test
     fun resolveConnectionType_ethernet_returnsEthernet() {
         setActiveTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
-        val result = connectivityManager.resolveConnectionType()
-        assertTrue("Expected 'Ethernet' or 'Unknown', got: $result", result == "Ethernet" || result == "Unknown")
+        assertEquals("Ethernet", connectivityManager.resolveConnectionType())
     }
 
     @Test
