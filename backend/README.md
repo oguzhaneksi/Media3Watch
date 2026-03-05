@@ -119,6 +119,7 @@ The stack comes with **pre-configured dashboards** automatically provisioned fro
 
 ### Available Dashboards:
 1. **Media3Watch Overview**: High-level metrics like Total Sessions, Startup Time, Rebuffer Ratio, and Error Rates.
+2. **Media3Watch Session Detail**: In-depth drill-down for individual sessions, including a dedicated stats row for Device Model, OS Version, SDK Version, and Connection Type.
 
 Changes to JSON files in `backend/grafana/dashboards/` are reflected on container restart.
 
@@ -168,7 +169,11 @@ Content-Type: application/json
   "totalSeekCount": 1,
   "totalSeekTimeMs": 300,
   "meanVideoFormatBitrate": 2500000,
-  "errorCount": 0
+  "errorCount": 0,
+  "deviceModel": "Pixel 7 Pro",
+  "osVersion": 34,
+  "sdkVersion": "1.0.0-alpha01",
+  "connectionType": "Wi-Fi"
 }
 ```
 
@@ -255,6 +260,10 @@ The following rules are enforced on the request body:
 | `totalSeekTimeMs` | Optional, must be ≥ 0 if provided |
 | `meanVideoFormatBitrate` | Optional, must be ≥ 0 if provided |
 | `errorCount` | Optional, must be ≥ 0 if provided |
+| `deviceModel` | Optional, Android device model (e.g. Pixel 7) |
+| `osVersion` | Optional, Android API level (e.g. 34) |
+| `sdkVersion` | Optional, Media3Watch SDK version |
+| `connectionType` | Optional, Network connection type at session start |
 
 **Request body limit:** 64 KB. Requests exceeding this are rejected with `413`.
 
