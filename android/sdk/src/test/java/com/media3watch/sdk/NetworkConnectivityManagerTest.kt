@@ -3,6 +3,7 @@ package com.media3watch.sdk
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.NetworkInfo
 import android.os.Build
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
@@ -15,6 +16,7 @@ import org.robolectric.Shadows
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowNetwork
 import org.robolectric.shadows.ShadowNetworkCapabilities
+import org.robolectric.shadows.ShadowNetworkInfo
 
 /**
  * Unit tests for [NetworkConnectivityManager].
@@ -39,12 +41,26 @@ class NetworkConnectivityManagerTest {
         Shadows.shadowOf(context.getSystemService(ConnectivityManager::class.java))
 
     private fun setActiveTransport(transport: Int) {
-        val network = ShadowNetwork.newInstance(100)
+        // Map transport constant → ConnectivityManager legacy network type.
+        // ShadowConnectivityManager.getActiveNetwork() resolves the active network via
+        // netIdToNetwork[activeNetworkInfo.getType()], so the Network's netId must equal
+        // the NetworkInfo type. ShadowNetwork.newInstance(id) sets getNetId() == id.
+        val networkType = when (transport) {
+            NetworkCapabilities.TRANSPORT_WIFI     -> ConnectivityManager.TYPE_WIFI
+            NetworkCapabilities.TRANSPORT_CELLULAR -> ConnectivityManager.TYPE_MOBILE
+            NetworkCapabilities.TRANSPORT_ETHERNET -> ConnectivityManager.TYPE_ETHERNET
+            else -> ConnectivityManager.TYPE_WIFI
+        }
+        val network = ShadowNetwork.newInstance(networkType)
         val caps = ShadowNetworkCapabilities.newInstance()
         Shadows.shadowOf(caps).addTransportType(transport)
+        val networkInfo = ShadowNetworkInfo.newInstance(
+            NetworkInfo.DetailedState.CONNECTED, networkType, 0, true, true
+        )
         val shadow = shadowConnectivityManager()
+        shadow.addNetwork(network, networkInfo)          // netIdToNetwork[networkType] = network
+        shadow.setActiveNetworkInfo(networkInfo)         // activeNetworkInfo.getType() == networkType
         shadow.setNetworkCapabilities(network, caps)
-        shadow.setActiveNetwork(network)
     }
 
     // ── Modern path (API 23+) ────────────────────────────────────────────────────
