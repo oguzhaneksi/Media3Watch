@@ -40,7 +40,7 @@ class Media3WatchAnalytics(
     private var playCommandTs: Long? = null
     private var startupTimeMs: Long? = null
     private var reporter: SessionReporter? = null
-    private val connectivityManager = NetworkConnectivityManager(context)
+    private val connectivityManager = NetworkConnectivityManager(appContext)
 
     private var firstFrameRendered: Boolean = false
     private val httpSender: HttpSender? = config.backendUrl?.let {
