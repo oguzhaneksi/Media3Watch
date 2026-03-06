@@ -396,7 +396,7 @@ class Media3WatchAnalytics(
             totalDroppedFrames = stats?.totalDroppedFrames ?: 0L,
             totalSeekCount = stats?.totalSeekCount ?: 0,
             totalSeekTimeMs = stats?.totalSeekTimeMs ?: 0L,
-            meanVideoFormatBitrate = stats?.meanVideoFormatBitrate,
+            meanVideoFormatBitrate = stats?.meanVideoFormatBitrate?.coerceAtLeast(0),
             currentBitrate = currentPlayer.videoFormat?.bitrate?.takeIf { it > 0 },
             errorCount = stats?.fatalErrorCount ?: 0
         )
