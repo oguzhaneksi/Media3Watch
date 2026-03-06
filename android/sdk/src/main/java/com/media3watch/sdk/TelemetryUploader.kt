@@ -23,7 +23,8 @@ import java.net.SocketTimeoutException
  *   [fileQueue] (session-keyed — one file per session). The natural retry is the next [upload]
  *   call driven by [SessionReporter]'s periodic cycle.
  * - **Upload non-retryable failure** (4xx client errors, invalid API key, bad URL): the payload
- *   is **not** queued, because retrying with the same data will never succeed.
+ *   is **not** queued, because retrying with the same data will never succeed. Any previously
+ *   queued entry for the same session (from an earlier retryable failure) is also removed.
  * - **On [flushPending]**: drains queued entries from previous sessions (called on `attach()`).
  *   If a queued entry receives a non-retryable response, it is removed from the queue.
  *
@@ -67,6 +68,9 @@ internal class TelemetryUploader(
                 }
                 is SendResult.NonRetryableFailure -> {
                     // Do NOT queue — retrying a client error (4xx, bad config) will never succeed.
+                    // Also remove any previously-queued entry for this session (from an earlier
+                    // retryable failure) so that known-doomed payloads are not retained on disk.
+                    fileQueue?.remove(sessionId)
                     if (enableLogging) {
                         Log.w(LogUtils.TAG, "session_report_dropped sessionId=$sessionId (non-retryable, not queued)", result.cause)
                     }

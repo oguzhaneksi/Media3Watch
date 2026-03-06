@@ -481,4 +481,30 @@ class TelemetryUploaderTest {
         server.takeRequest(2, TimeUnit.SECONDS)
         delay(100)
     }
+
+    @Test
+    fun upload_retryableThenNonRetryable_removesStaleQueueEntry() = runBlocking {
+        // First upload: retryable failure → payload is persisted to queue.
+        server.enqueue(MockResponse().setResponseCode(503))
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        val queue = FileQueue(dir = createTempDirectory("queue").toFile())
+        val uploader = TelemetryUploader(sender, fileQueue = queue)
+
+        uploader.upload(sessionId = "session-doomed", payload = """{"v":1}""")
+        server.takeRequest(2, TimeUnit.SECONDS)
+        delay(100)
+        assertEquals("Entry should be queued after retryable failure", 1, queue.size())
+
+        // Second upload: non-retryable failure → stale queue entry must be purged.
+        server.enqueue(MockResponse().setResponseCode(400))
+        uploader.upload(sessionId = "session-doomed", payload = """{"v":2}""")
+        server.takeRequest(2, TimeUnit.SECONDS)
+        delay(100)
+
+        assertEquals(
+            "Stale queue entry should be removed after non-retryable failure",
+            0,
+            queue.size()
+        )
+    }
 }
