@@ -9,7 +9,7 @@
   Your browser does not support the video tag.
 </video>
 
-> Status: **Android SDK (Alpha)** ✅  
+> Status: **Android SDK** ✅  
 > Backend + Grafana: **Alpha** ✅
 
 ## Requirements
@@ -34,7 +34,7 @@ You ship a video app with Media3. Works great in development. Then production hi
 
 ---
 
-## What You Get Today (Alpha)
+## What You Get Today
 
 - **Android SDK**
 - **Session summary in Logcat** (plain text format, generated on session end)
@@ -181,7 +181,7 @@ session_end
   errorCount: 0
   deviceModel: Pixel 7 Pro
   osVersion: 34
-  sdkVersion: 1.0.0-alpha01
+  sdkVersion: 1.0.1
   connectionType: Wi-Fi
 ```
 
