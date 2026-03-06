@@ -1,10 +1,8 @@
 package com.media3watch.sdk
 
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import okhttp3.mockwebserver.SocketPolicy
@@ -64,9 +62,8 @@ class TelemetryUploaderTest {
 
         uploader.upload(sessionId = "test-session-456", payload = """{"error":"test"}""")
 
-        // Wait for async upload to complete and log the error
         server.takeRequest(2, TimeUnit.SECONDS)
-        delay(100) // Give time for logging to complete
+        delay(100)
 
         val logs = ShadowLog.getLogsForTag(LogUtils.TAG)
         val failureLog = logs?.find { it.msg.contains("session_report_failed") && it.msg.contains("sessionId=test-session-456") }
@@ -213,11 +210,11 @@ class TelemetryUploaderTest {
         assertNull("Should not log upload failure when enableLogging=false", failLog)
     }
 
-    // ── Offline resilience (FileQueue) ─────────────────────────────────────────
+    // ── Offline resilience (FileQueue) — retryable errors ─────────────────────
 
     @Test
-    fun upload_failure_persistsPayloadToQueue() = runBlocking {
-        server.enqueue(MockResponse().setResponseCode(500))
+    fun upload_retryableFailure_503_persistsPayloadToQueue() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(503))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         val queue = FileQueue(dir = createTempDirectory("queue").toFile())
         val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
@@ -227,11 +224,82 @@ class TelemetryUploaderTest {
         server.takeRequest(2, TimeUnit.SECONDS)
         delay(100)
 
-        assertEquals("Failed payload should be persisted", 1, queue.size())
+        assertEquals("Retryable (503) payload should be persisted", 1, queue.size())
         val entries = queue.peekAll()
         assertEquals("offline-session", entries[0].sessionId)
         assertEquals("""{"o":1}""", entries[0].payload)
     }
+
+    @Test
+    fun upload_retryableFailure_500_persistsPayloadToQueue() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(500))
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        val queue = FileQueue(dir = createTempDirectory("queue").toFile())
+        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+
+        uploader.upload(sessionId = "offline-500", payload = """{"o":1}""")
+
+        server.takeRequest(2, TimeUnit.SECONDS)
+        delay(100)
+
+        assertEquals("Retryable (500) payload should be persisted", 1, queue.size())
+    }
+
+    // ── Offline resilience (FileQueue) — non-retryable errors ─────────────────
+
+    @Test
+    fun upload_nonRetryableFailure_400_doesNotPersistPayloadToQueue() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(400))
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        val queue = FileQueue(dir = createTempDirectory("queue").toFile())
+        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+
+        uploader.upload(sessionId = "bad-payload-session", payload = """{"invalid":"schema"}""")
+
+        server.takeRequest(2, TimeUnit.SECONDS)
+        delay(100)
+
+        assertEquals("400 Bad Request (client error) should NOT be queued", 0, queue.size())
+    }
+
+    @Test
+    fun upload_nonRetryableFailure_401_doesNotPersistPayloadToQueue() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(401))
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        val queue = FileQueue(dir = createTempDirectory("queue").toFile())
+        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+
+        uploader.upload(sessionId = "wrong-key-session", payload = """{"o":1}""")
+
+        server.takeRequest(2, TimeUnit.SECONDS)
+        delay(100)
+
+        assertEquals("401 Unauthorized (bad API key) should NOT be queued", 0, queue.size())
+    }
+
+    @Test
+    fun upload_nonRetryableFailure_400_logsDroppedWarning() = runBlocking {
+        server.enqueue(MockResponse().setResponseCode(400))
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        val queue = FileQueue(dir = createTempDirectory("queue").toFile())
+        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+
+        uploader.upload(sessionId = "dropped-session", payload = """{"bad":"data"}""")
+
+        server.takeRequest(2, TimeUnit.SECONDS)
+        delay(100)
+
+        val logs = ShadowLog.getLogsForTag(LogUtils.TAG)
+        val droppedLog = logs?.find {
+            it.msg.contains("session_report_dropped") &&
+            it.msg.contains("sessionId=dropped-session") &&
+            it.msg.contains("non-retryable")
+        }
+        assertNotNull("Should log a 'dropped' warning for non-retryable errors", droppedLog)
+        assertEquals(android.util.Log.WARN, droppedLog?.type)
+    }
+
+    // ── Success path clears queue ──────────────────────────────────────────────
 
     @Test
     fun upload_success_removesStaleQueueEntry() = runBlocking {
@@ -282,7 +350,7 @@ class TelemetryUploaderTest {
 
     @Test
     fun upload_failureThenSuccess_upsertsThenClears() = runBlocking {
-        // First upload fails — payload persisted.
+        // First upload fails (retryable) — payload persisted.
         server.enqueue(MockResponse().setResponseCode(500))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         val queue = FileQueue(dir = createTempDirectory("queue").toFile())
@@ -301,6 +369,8 @@ class TelemetryUploaderTest {
 
         assertEquals("Queue should be empty after successful upload", 0, queue.size())
     }
+
+    // ── flushPending ──────────────────────────────────────────────────────────
 
     @Test
     fun flushPending_drainsQueueOnSuccess() = runBlocking {
@@ -324,7 +394,7 @@ class TelemetryUploaderTest {
     }
 
     @Test
-    fun flushPending_continuedFailure_retainsEntries() = runBlocking {
+    fun flushPending_retryableFailure_retainsEntries() = runBlocking {
         val queue = FileQueue(dir = createTempDirectory("queue").toFile())
         queue.enqueue("prev-fail", """{"f":1}""")
 
@@ -337,7 +407,29 @@ class TelemetryUploaderTest {
         server.takeRequest(2, TimeUnit.SECONDS)
         delay(100)
 
-        assertEquals("Entry should remain in queue on continued failure", 1, queue.size())
+        assertEquals("Entry should remain in queue on retryable failure (503)", 1, queue.size())
+    }
+
+    @Test
+    fun flushPending_nonRetryableFailure_removesEntryFromQueue() = runBlocking {
+        // A queued payload responds with 400 — it should be purged, not left forever.
+        val queue = FileQueue(dir = createTempDirectory("queue").toFile())
+        queue.enqueue("stale-bad", """{"bad":"data"}""")
+
+        server.enqueue(MockResponse().setResponseCode(400))
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+
+        uploader.flushPending()
+
+        server.takeRequest(2, TimeUnit.SECONDS)
+        delay(100)
+
+        assertEquals(
+            "Non-retryable response (400) during flush should remove the queued entry",
+            0,
+            queue.size()
+        )
     }
 
     @Test
@@ -376,5 +468,17 @@ class TelemetryUploaderTest {
         server.takeRequest(2, TimeUnit.SECONDS)
         delay(100)
         // No queue to assert on — just verifying no crash.
+    }
+
+    @Test
+    fun upload_withNullFileQueue_nonRetryable_doesNotCrash() = runBlocking {
+        // Even without a queue, non-retryable errors should be silently dropped.
+        server.enqueue(MockResponse().setResponseCode(400))
+        val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
+        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = null)
+
+        uploader.upload(sessionId = "no-queue-400", payload = """{"x":1}""")
+        server.takeRequest(2, TimeUnit.SECONDS)
+        delay(100)
     }
 }

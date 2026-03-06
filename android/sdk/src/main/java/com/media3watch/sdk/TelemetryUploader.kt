@@ -2,13 +2,11 @@ package com.media3watch.sdk
 
 import android.util.Log
 import androidx.annotation.OptIn
-import androidx.annotation.VisibleForTesting
 import androidx.media3.common.util.UnstableApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -22,10 +20,13 @@ import java.net.SocketTimeoutException
  * ## Store-and-forward behavior (when [fileQueue] is non-null)
  * - **Upload success**: removes any stale queued entry for that session, then attempts to flush
  *   all other pending entries from previous sessions.
- * - **Upload failure**: upserts the payload to [fileQueue] (session-keyed — one file per
- *   session). The natural retry is the next [upload] call driven by [SessionReporter]'s periodic
- *   cycle.
+ * - **Upload retryable failure** (5xx, network error, timeout): upserts the payload to
+ *   [fileQueue] (session-keyed — one file per session). The natural retry is the next [upload]
+ *   call driven by [SessionReporter]'s periodic cycle.
+ * - **Upload non-retryable failure** (4xx client errors, invalid API key, bad URL): the payload
+ *   is **not** queued, because retrying with the same data will never succeed.
  * - **On [flushPending]**: drains queued entries from previous sessions (called on `attach()`).
+ *   If a queued entry receives a non-retryable response, it is removed from the queue.
  *
  * ## When [fileQueue] is null
  * Behaves exactly as before — fire-and-forget.
@@ -52,16 +53,25 @@ internal class TelemetryUploader(
         withContext(NonCancellable) {
             val result = trySend(sessionId, payload)
 
-            if (result.isSuccess) {
-                fileQueue?.remove(sessionId)
-                flushPending(exclude = sessionId)
-            } else {
-                fileQueue?.let { queue ->
-                    val enqueueResult = queue.enqueue(sessionId, payload)
-                    if (enqueueResult.isFailure && enableLogging) {
-                        Log.w(LogUtils.TAG, "offline_queue persist failed sessionId=$sessionId", enqueueResult.exceptionOrNull())
+            when (result) {
+                is SendResult.Success -> {
+                    fileQueue?.remove(sessionId)
+                    flushPending(exclude = sessionId)
+                }
+                is SendResult.RetryableFailure -> {
+                    fileQueue?.let { queue ->
+                        val enqueueResult = queue.enqueue(sessionId, payload)
+                        if (enqueueResult.isFailure && enableLogging) {
+                            Log.w(LogUtils.TAG, "offline_queue persist failed sessionId=$sessionId", enqueueResult.exceptionOrNull())
+                        }
+                        queue.trimToMaxSize(maxQueuedPayloads)
                     }
-                    queue.trimToMaxSize(maxQueuedPayloads)
+                }
+                is SendResult.NonRetryableFailure -> {
+                    // Do NOT queue — retrying a client error (4xx, bad config) will never succeed.
+                    if (enableLogging) {
+                        Log.w(LogUtils.TAG, "session_report_dropped sessionId=$sessionId (non-retryable, not queued)", result.cause)
+                    }
                 }
             }
         }
@@ -79,27 +89,34 @@ internal class TelemetryUploader(
     // ── Private helpers ───────────────────────────────────────────────────────
 
     @OptIn(UnstableApi::class)
-    private suspend fun trySend(sessionId: String, payload: String): Result<Unit> {
+    private suspend fun trySend(sessionId: String, payload: String): SendResult {
         return try {
             val result = sender.send(payload, callTimeoutMs = uploadTimeoutMs)
-            result
-                .onSuccess {
+            when (result) {
+                is SendResult.Success -> {
                     if (enableLogging) Log.d(LogUtils.TAG, "session_report_success sessionId=$sessionId")
                 }
-                .onFailure {
+                is SendResult.RetryableFailure -> {
                     if (enableLogging) {
-                        if (it is SocketTimeoutException || it is InterruptedIOException) {
-                            Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (timeout)", it)
+                        val cause = result.cause
+                        if (cause is SocketTimeoutException || cause is InterruptedIOException) {
+                            Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (timeout)", cause)
                         } else {
-                            Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId", it)
+                            Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId", cause)
                         }
                     }
                 }
+                is SendResult.NonRetryableFailure -> {
+                    if (enableLogging) {
+                        Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (non-retryable)", result.cause)
+                    }
+                }
+            }
             result
         } catch (t: Throwable) {
             if (t is CancellationException) throw t
             if (enableLogging) Log.w(LogUtils.TAG, "session_report_failed sessionId=$sessionId (exception)", t)
-            Result.failure(t)
+            SendResult.RetryableFailure(t)
         }
     }
 
@@ -118,18 +135,22 @@ internal class TelemetryUploader(
             withContext(Dispatchers.IO) {
                 for (entry in currentPending) {
                     val result = trySend(entry.sessionId, entry.payload)
-                    if (result.isSuccess) {
-                        queue.remove(entry.sessionId)
-                        if (enableLogging) Log.d(LogUtils.TAG, "offline_queue flushed sessionId=${entry.sessionId}")
+                    when (result) {
+                        is SendResult.Success -> {
+                            queue.remove(entry.sessionId)
+                            if (enableLogging) Log.d(LogUtils.TAG, "offline_queue flushed sessionId=${entry.sessionId}")
+                        }
+                        is SendResult.NonRetryableFailure -> {
+                            // Remove non-retryable entries from queue — they'll never succeed.
+                            queue.remove(entry.sessionId)
+                            if (enableLogging) Log.w(LogUtils.TAG, "offline_queue dropped sessionId=${entry.sessionId} (non-retryable)")
+                        }
+                        is SendResult.RetryableFailure -> {
+                            // Leave in queue for the next cycle.
+                        }
                     }
                 }
             }
         }
-    }
-
-    // Exposed for testing only.
-    @VisibleForTesting
-    internal fun launchFlushPending() {
-        coroutineScope.launch { flushPending() }
     }
 }
