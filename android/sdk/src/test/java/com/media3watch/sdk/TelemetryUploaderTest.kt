@@ -472,7 +472,7 @@ class TelemetryUploaderTest {
 
     @Test
     fun upload_withNullFileQueue_nonRetryable_doesNotCrash() = runBlocking {
-        // Even without a queue, non-retryable errors should be silently dropped.
+        // Even without a queue, non-retryable errors should be dropped (not retried) and must not crash.
         server.enqueue(MockResponse().setResponseCode(400))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = null)
