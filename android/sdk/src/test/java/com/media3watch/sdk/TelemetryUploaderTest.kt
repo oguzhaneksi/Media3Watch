@@ -43,7 +43,7 @@ class TelemetryUploaderTest {
     fun upload_success_sendsPayloadToServer() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(200))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, coroutineScope = this)
+        val uploader = TelemetryUploader(sender)
 
         uploader.upload(sessionId = "test-session-123", payload = """{"test":"data"}""")
 
@@ -58,7 +58,7 @@ class TelemetryUploaderTest {
     fun upload_serverError_logsWarning() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(500))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, coroutineScope = this)
+        val uploader = TelemetryUploader(sender)
 
         uploader.upload(sessionId = "test-session-456", payload = """{"error":"test"}""")
 
@@ -76,7 +76,7 @@ class TelemetryUploaderTest {
         // Never respond so the HTTP call/upload timeout is guaranteed to trigger.
         server.enqueue(MockResponse().setSocketPolicy(SocketPolicy.NO_RESPONSE))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, uploadTimeoutMs = 100, coroutineScope = this)
+        val uploader = TelemetryUploader(sender, uploadTimeoutMs = 100)
 
         uploader.upload(sessionId = "test-session-789", payload = """{"slow":"data"}""")
 
@@ -99,7 +99,7 @@ class TelemetryUploaderTest {
         server.enqueue(MockResponse().setResponseCode(200))
         server.enqueue(MockResponse().setResponseCode(200))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, coroutineScope = this)
+        val uploader = TelemetryUploader(sender)
 
         uploader.upload(sessionId = "session-1", payload = """{"session":1}""")
         uploader.upload(sessionId = "session-2", payload = """{"session":2}""")
@@ -117,7 +117,7 @@ class TelemetryUploaderTest {
     fun upload_unexpectedException_logsException() = runBlocking {
         // Use invalid URL to cause an exception
         val sender = HttpSender(endpointUrl = "http://invalid-host-that-does-not-exist-12345.com/sessions")
-        val uploader = TelemetryUploader(sender, uploadTimeoutMs = 1000, coroutineScope = this)
+        val uploader = TelemetryUploader(sender, uploadTimeoutMs = 1000)
 
         uploader.upload(sessionId = "session-555", payload = """{"exception":"test"}""")
 
@@ -137,7 +137,7 @@ class TelemetryUploaderTest {
     fun upload_customTimeout_respectsConfiguredValue() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(200).setBodyDelay(150, TimeUnit.MILLISECONDS))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, uploadTimeoutMs = 300, coroutineScope = this)
+        val uploader = TelemetryUploader(sender, uploadTimeoutMs = 300)
 
         uploader.upload(sessionId = "session-111", payload = """{"custom":"timeout"}""")
 
@@ -160,7 +160,7 @@ class TelemetryUploaderTest {
         // outer coroutine is cancelled, to avoid leaving the queue in an inconsistent state.
         server.enqueue(MockResponse().setResponseCode(200))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, coroutineScope = this)
+        val uploader = TelemetryUploader(sender)
 
         // Launch upload, yield so the coroutine starts, then cancel the outer job.
         val job = launch {
@@ -182,7 +182,7 @@ class TelemetryUploaderTest {
     fun upload_success_loggingDisabled_doesNotLogSuccessMessage() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(200))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, coroutineScope = this, enableLogging = false)
+        val uploader = TelemetryUploader(sender, enableLogging = false)
 
         uploader.upload(sessionId = "silent-session-ok", payload = """{"test":"data"}""")
 
@@ -198,7 +198,7 @@ class TelemetryUploaderTest {
     fun upload_failure_loggingDisabled_doesNotLogFailureMessage() = runBlocking {
         server.enqueue(MockResponse().setResponseCode(500))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, coroutineScope = this, enableLogging = false)
+        val uploader = TelemetryUploader(sender, enableLogging = false)
 
         uploader.upload(sessionId = "silent-session-fail", payload = """{"test":"data"}""")
 
@@ -217,7 +217,7 @@ class TelemetryUploaderTest {
         server.enqueue(MockResponse().setResponseCode(503))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         val queue = FileQueue(dir = createTempDirectory("queue").toFile())
-        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+        val uploader = TelemetryUploader(sender, fileQueue = queue)
 
         uploader.upload(sessionId = "offline-session", payload = """{"o":1}""")
 
@@ -235,7 +235,7 @@ class TelemetryUploaderTest {
         server.enqueue(MockResponse().setResponseCode(500))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         val queue = FileQueue(dir = createTempDirectory("queue").toFile())
-        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+        val uploader = TelemetryUploader(sender, fileQueue = queue)
 
         uploader.upload(sessionId = "offline-500", payload = """{"o":1}""")
 
@@ -252,7 +252,7 @@ class TelemetryUploaderTest {
         server.enqueue(MockResponse().setResponseCode(400))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         val queue = FileQueue(dir = createTempDirectory("queue").toFile())
-        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+        val uploader = TelemetryUploader(sender, fileQueue = queue)
 
         uploader.upload(sessionId = "bad-payload-session", payload = """{"invalid":"schema"}""")
 
@@ -267,7 +267,7 @@ class TelemetryUploaderTest {
         server.enqueue(MockResponse().setResponseCode(401))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         val queue = FileQueue(dir = createTempDirectory("queue").toFile())
-        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+        val uploader = TelemetryUploader(sender, fileQueue = queue)
 
         uploader.upload(sessionId = "wrong-key-session", payload = """{"o":1}""")
 
@@ -282,7 +282,7 @@ class TelemetryUploaderTest {
         server.enqueue(MockResponse().setResponseCode(400))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         val queue = FileQueue(dir = createTempDirectory("queue").toFile())
-        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+        val uploader = TelemetryUploader(sender, fileQueue = queue)
 
         uploader.upload(sessionId = "dropped-session", payload = """{"bad":"data"}""")
 
@@ -310,7 +310,7 @@ class TelemetryUploaderTest {
 
         server.enqueue(MockResponse().setResponseCode(200))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+        val uploader = TelemetryUploader(sender, fileQueue = queue)
 
         uploader.upload(sessionId = "session-stale", payload = """{"new":true}""")
 
@@ -331,7 +331,7 @@ class TelemetryUploaderTest {
         server.enqueue(MockResponse().setResponseCode(200)) // flush pending
 
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+        val uploader = TelemetryUploader(sender, fileQueue = queue)
 
         uploader.upload(sessionId = "session-live", payload = """{"new":"live"}""")
 
@@ -354,7 +354,7 @@ class TelemetryUploaderTest {
         server.enqueue(MockResponse().setResponseCode(500))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         val queue = FileQueue(dir = createTempDirectory("queue").toFile())
-        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+        val uploader = TelemetryUploader(sender, fileQueue = queue)
 
         uploader.upload(sessionId = "s1", payload = """{"v":1}""")
         server.takeRequest(2, TimeUnit.SECONDS)
@@ -381,7 +381,7 @@ class TelemetryUploaderTest {
         server.enqueue(MockResponse().setResponseCode(200))
         server.enqueue(MockResponse().setResponseCode(200))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+        val uploader = TelemetryUploader(sender, fileQueue = queue)
 
         uploader.flushPending()
 
@@ -400,7 +400,7 @@ class TelemetryUploaderTest {
 
         server.enqueue(MockResponse().setResponseCode(503))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+        val uploader = TelemetryUploader(sender, fileQueue = queue)
 
         uploader.flushPending()
 
@@ -418,7 +418,7 @@ class TelemetryUploaderTest {
 
         server.enqueue(MockResponse().setResponseCode(400))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+        val uploader = TelemetryUploader(sender, fileQueue = queue)
 
         uploader.flushPending()
 
@@ -443,7 +443,7 @@ class TelemetryUploaderTest {
         server.enqueue(MockResponse().setResponseCode(200))
 
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = queue)
+        val uploader = TelemetryUploader(sender, fileQueue = queue)
 
         // Launch two concurrent flushes.
         val flushJob1 = launch { uploader.flushPending() }
@@ -461,7 +461,7 @@ class TelemetryUploaderTest {
         server.enqueue(MockResponse().setResponseCode(500))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
         // No fileQueue — classic fire-and-forget.
-        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = null)
+        val uploader = TelemetryUploader(sender, fileQueue = null)
 
         // Should complete without exception even on failure.
         uploader.upload(sessionId = "no-queue-session", payload = """{"x":1}""")
@@ -475,7 +475,7 @@ class TelemetryUploaderTest {
         // Even without a queue, non-retryable errors should be dropped (not retried) and must not crash.
         server.enqueue(MockResponse().setResponseCode(400))
         val sender = HttpSender(endpointUrl = server.url("/sessions").toString())
-        val uploader = TelemetryUploader(sender, coroutineScope = this, fileQueue = null)
+        val uploader = TelemetryUploader(sender, fileQueue = null)
 
         uploader.upload(sessionId = "no-queue-400", payload = """{"x":1}""")
         server.takeRequest(2, TimeUnit.SECONDS)

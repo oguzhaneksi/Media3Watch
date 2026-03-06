@@ -54,7 +54,6 @@ class Media3WatchAnalytics(
     private val uploader: TelemetryUploader? = httpSender?.let {
         TelemetryUploader(
             sender = httpSender,
-            coroutineScope = analyticsScope,
             enableLogging = config.enableLogging,
             fileQueue = fileQueue,
             maxQueuedPayloads = config.maxQueuedPayloads,
