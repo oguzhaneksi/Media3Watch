@@ -54,7 +54,6 @@ class Media3WatchAnalytics(
     private val uploader: TelemetryUploader? = httpSender?.let {
         TelemetryUploader(
             sender = httpSender,
-            coroutineScope = analyticsScope,
             enableLogging = config.enableLogging,
             fileQueue = fileQueue,
             maxQueuedPayloads = config.maxQueuedPayloads,
@@ -397,7 +396,7 @@ class Media3WatchAnalytics(
             totalDroppedFrames = stats?.totalDroppedFrames ?: 0L,
             totalSeekCount = stats?.totalSeekCount ?: 0,
             totalSeekTimeMs = stats?.totalSeekTimeMs ?: 0L,
-            meanVideoFormatBitrate = stats?.meanVideoFormatBitrate,
+            meanVideoFormatBitrate = stats?.meanVideoFormatBitrate?.coerceAtLeast(0),
             currentBitrate = currentPlayer.videoFormat?.bitrate?.takeIf { it > 0 },
             errorCount = stats?.fatalErrorCount ?: 0
         )
