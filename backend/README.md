@@ -131,10 +131,20 @@ Changes to JSON files in `backend/grafana/dashboards/` are reflected on containe
 GET /health
 ```
 
-**Response:**
+**Success Response** (`200 OK`):
 ```json
 {
   "status": "healthy",
+  "database": "connected",
+  "timestamp": 1708000000000
+}
+```
+
+**Database Not Ready** (`503 Service Unavailable`):
+```json
+{
+  "status": "unhealthy",
+  "database": "disconnected",
   "timestamp": 1708000000000
 }
 ```
