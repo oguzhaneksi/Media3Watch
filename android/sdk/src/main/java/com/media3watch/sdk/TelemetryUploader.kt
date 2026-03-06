@@ -4,7 +4,6 @@ import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
@@ -31,14 +30,13 @@ import java.net.SocketTimeoutException
  * ## When [fileQueue] is null
  * Behaves exactly as before — fire-and-forget.
  *
- * Does NOT own a coroutine scope. The caller-provided [coroutineScope] (rooted at the shared
- * analytics SupervisorJob) is used so that all SDK coroutines live in a single hierarchy.
+ * Does NOT own a coroutine scope. All public methods are suspend functions and must be called
+ * from an appropriate coroutine context provided by the caller.
  */
 @OptIn(UnstableApi::class)
 internal class TelemetryUploader(
     private val sender: HttpSender,
     private val uploadTimeoutMs: Long = 15_000,
-    private val coroutineScope: CoroutineScope,
     private val enableLogging: Boolean = true,
     private val fileQueue: FileQueue? = null,
     private val maxQueuedPayloads: Int = 100,
