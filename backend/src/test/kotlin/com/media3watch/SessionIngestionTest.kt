@@ -19,7 +19,7 @@ import kotlin.test.assertTrue
  * No database or Docker required.
  *
  * Tests that exercise the actual SQL upsert / retention logic live in
- * [SessionRepositoryIntegrationTest] and require a running PostgreSQL instance.
+ * [SessionRepositoryIntegrationTest] and start their own PostgreSQL instance via Testcontainers.
  */
 class SessionIngestionTest {
 
