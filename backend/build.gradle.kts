@@ -19,7 +19,7 @@ val prometheus_version = "1.16.2"
 val hikari_version = "7.0.2"
 val flyway_version = "12.0.0"
 val postgres_version = "42.7.7"
-val testcontainers_version = "1.20.4"
+val testcontainers_version = "1.21.4"
 
 dependencies {
     // Ktor Server
