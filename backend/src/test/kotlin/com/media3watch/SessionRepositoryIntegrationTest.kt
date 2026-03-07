@@ -123,46 +123,6 @@ class SessionRepositoryIntegrationTest {
     }
 
     @Test
-    fun `upsert only overwrites session when incoming timestamp is newer`() {
-        val sessionId = UUID.randomUUID().toString()
-        val t1 = System.currentTimeMillis() - 2000L   // oldest
-        val t2 = t1 + 1000L                           // newer  — should overwrite
-        val t3 = t1 + 500L                            // older than t2 — should NOT overwrite
-
-        val repo = DefaultSessionRepository(buildDataSource())
-
-        fun makeSession(ts: Long, duration: Long) = SessionSummary(
-            sessionId = sessionId,
-            timestamp = ts,
-            sessionStartDateIso = "2026-01-01T00:00:00.000Z",
-            sessionDurationMs = duration
-        )
-
-        fun queryDuration(): Long {
-            getDbConnection().use { conn ->
-                conn.prepareStatement("SELECT session_duration_ms FROM sessions WHERE session_id = ?").use { stmt ->
-                    stmt.setString(1, sessionId)
-                    stmt.executeQuery().use { rs ->
-                        return if (rs.next()) rs.getLong("session_duration_ms") else -1L
-                    }
-                }
-            }
-        }
-
-        // Step 1: Insert initial session at T1
-        repo.upsertSession(makeSession(t1, 10_000))
-        assertEquals(10_000L, queryDuration(), "Initial insert should persist duration 10_000")
-
-        // Step 2: Update with T2 > T1 — should overwrite
-        repo.upsertSession(makeSession(t2, 20_000))
-        assertEquals(20_000L, queryDuration(), "Newer timestamp T2 should overwrite to duration 20_000")
-
-        // Step 3: Update with T3 < T2 — should be rejected
-        repo.upsertSession(makeSession(t3, 30_000))
-        assertEquals(20_000L, queryDuration(), "Older timestamp T3 should NOT overwrite; duration must remain 20_000")
-    }
-
-    @Test
     fun `deleteExpiredSessions removes expired sessions and keeps recent ones`() {
         val expiredId = UUID.randomUUID().toString()
         val recentId = UUID.randomUUID().toString()

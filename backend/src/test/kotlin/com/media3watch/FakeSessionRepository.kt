@@ -26,16 +26,6 @@ class FakeSessionRepository : SessionRepository {
     fun timelineForSession(sessionId: String): List<TimelineEntry> =
         _timeline.filter { it.first == sessionId }.map { it.second }
 
-    override fun upsertSession(session: SessionSummary): Result<Unit> {
-        _sessions[session.sessionId] = session
-        return Result.success(Unit)
-    }
-
-    override fun insertTimelineEvents(sessionId: String, events: List<TimelineEntry>): Result<Unit> {
-        _timeline.addAll(events.map { sessionId to it })
-        return Result.success(Unit)
-    }
-
     override fun upsertSessionWithTimeline(
         session: SessionSummary,
         timelineEvents: List<TimelineEntry>?
