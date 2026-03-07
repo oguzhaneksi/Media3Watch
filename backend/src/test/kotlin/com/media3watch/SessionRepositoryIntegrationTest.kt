@@ -114,10 +114,13 @@ class SessionRepositoryIntegrationTest {
 
         getDbConnection().use { conn ->
             fun countById(id: String): Int {
-                val rs = conn.prepareStatement("SELECT COUNT(*) FROM sessions WHERE session_id = ?")
-                    .also { it.setString(1, id) }.executeQuery()
-                rs.next()
-                return rs.getInt(1)
+                conn.prepareStatement("SELECT COUNT(*) FROM sessions WHERE session_id = ?").use { stmt ->
+                    stmt.setString(1, id)
+                    stmt.executeQuery().use { rs ->
+                        rs.next()
+                        return rs.getInt(1)
+                    }
+                }
             }
             assertEquals(0, countById(expiredId), "Expired session should be deleted")
             assertEquals(1, countById(recentId), "Recent session should still exist")
