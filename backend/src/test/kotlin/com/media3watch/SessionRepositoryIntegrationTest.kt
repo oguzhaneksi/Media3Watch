@@ -62,7 +62,8 @@ class SessionRepositoryIntegrationTest {
             override fun setLogWriter(out: java.io.PrintWriter?) {}
             override fun getLoginTimeout() = 0
             override fun setLoginTimeout(s: Int) {}
-            override fun getParentLogger(): java.util.logging.Logger? = null
+            override fun getParentLogger(): java.util.logging.Logger =
+                throw java.sql.SQLFeatureNotSupportedException()
             override fun <T : Any> unwrap(iface: Class<T>): T = throw java.sql.SQLFeatureNotSupportedException()
             override fun isWrapperFor(iface: Class<*>) = false
         }
