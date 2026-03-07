@@ -183,7 +183,20 @@ Content-Type: application/json
   "deviceModel": "Pixel 7 Pro",
   "osVersion": 34,
   "sdkVersion": "1.0.0-alpha01",
-  "connectionType": "Wi-Fi"
+  "connectionType": "Wi-Fi",
+  "timelineEvents": [
+    {
+      "timestampMs": 1708000015000,
+      "elapsedMs": 15000,
+      "playbackState": "PLAYING",
+      "currentBitrate": 2500000,
+      "networkType": "Wi-Fi",
+      "totalDroppedFrames": 12,
+      "bufferedDurationMs": 18500,
+      "rebufferCount": 2,
+      "rebufferTimeMs": 1200
+    }
+  ]
 }
 ```
 
@@ -274,8 +287,9 @@ The following rules are enforced on the request body:
 | `osVersion` | Optional, Android API level (e.g. 34) |
 | `sdkVersion` | Optional, Media3Watch SDK version |
 | `connectionType` | Optional, Network connection type at session start |
+| `timelineEvents` | Optional, list of timeline event objects |
 
-**Request body limit:** 64 KB. Requests exceeding this are rejected with `413`.
+**Request body limit:** 256 KB. Requests exceeding this are rejected with `413`.
 
 ---
 

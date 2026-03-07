@@ -52,6 +52,7 @@ The SDK automatically tracks and summarizes:
 - **Playback Stats:** Total play time, rebuffer ratio, and dropped frames.
 - **Interaction Stats:** Seek count and total seek time.
 - **Quality Stats:** Mean video bitrate.
+- **Session Timeline:** High-resolution time-series data of playback state, bitrate, network type, and buffer health.
 - **Errors:** Total fatal error count.
 - **Context/Metadata:** Device model, OS version (API level), SDK version, and Network Connection Type (Wi-Fi, Cellular, etc.).
 
@@ -65,6 +66,7 @@ The SDK automatically tracks and summarizes:
 - [x] **Solidifying ABR Telemetry:** Enhance metrics accuracy for HLS/DASH dynamic bitrate switching edge cases.
 - [x] **Offline-Resilience:** Store-and-forward caching to flush telemetry when connectivity restores.
 - [x] **Standalone Debug Overlay:** Drop-in floating widget for real-time local QA — no Logcat needed.
+- [x] **Session Timeline:** Periodic reporting of playback state, network type, and buffering changes for Grafana visualization.
 
 ---
 
