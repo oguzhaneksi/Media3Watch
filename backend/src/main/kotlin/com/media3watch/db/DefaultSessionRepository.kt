@@ -124,6 +124,10 @@ class DefaultSessionRepository(private val dataSource: DataSource) : SessionRepo
      * Batched deletes prevent table-level lock contention on large datasets. The method
      * loops until no rows remain beyond the retention window.
      *
+     * Before each batch of sessions is deleted, the corresponding `session_timeline` rows
+     * are deleted first to avoid leaving orphaned timeline rows. Pre-existing orphans
+     * (from sessions already absent in `sessions`) are also cleaned up at the start.
+     *
      * A single connection is reused across all batches to avoid pool churn.
      *
      * @return total number of rows deleted across all batches.
@@ -133,8 +137,8 @@ class DefaultSessionRepository(private val dataSource: DataSource) : SessionRepo
         var totalDeleted = 0
         try {
             dataSource.connection.use { connection ->
-                // First clean orphaned timeline rows whose parent session is expired/gone.
-                val timelineSql = """
+                // Clean pre-existing orphaned timeline rows whose parent session is already gone.
+                val orphanTimelineSql = """
                     DELETE FROM session_timeline
                     WHERE session_id IN (
                         SELECT session_id FROM session_timeline st
@@ -142,12 +146,23 @@ class DefaultSessionRepository(private val dataSource: DataSource) : SessionRepo
                         LIMIT ?
                     )
                 """.trimIndent()
-                connection.prepareStatement(timelineSql).use { stmt ->
+                connection.prepareStatement(orphanTimelineSql).use { stmt ->
                     stmt.setInt(1, batchSize)
                     stmt.executeUpdate()
                 }
 
-                val sql = """
+                // Delete timeline rows for the batch of expired sessions before deleting the sessions
+                // themselves, so that no orphaned timeline rows are left after each iteration.
+                val deleteTimelineSql = """
+                    DELETE FROM session_timeline
+                    WHERE session_id IN (
+                        SELECT session_id FROM sessions
+                        WHERE timestamp < ?
+                        LIMIT ?
+                    )
+                """.trimIndent()
+
+                val deleteSessionSql = """
                     DELETE FROM sessions
                     WHERE id IN (
                         SELECT id FROM sessions
@@ -155,14 +170,20 @@ class DefaultSessionRepository(private val dataSource: DataSource) : SessionRepo
                         LIMIT ?
                     )
                 """.trimIndent()
-                connection.prepareStatement(sql).use { stmt ->
-                    stmt.setLong(1, cutoffMs)
-                    stmt.setInt(2, batchSize)
-                    do {
-                        val deleted = stmt.executeUpdate()
-                        totalDeleted += deleted
-                        if (deleted < batchSize) break  // last batch — no more rows to delete
-                    } while (true)
+
+                connection.prepareStatement(deleteTimelineSql).use { timelineStmt ->
+                    connection.prepareStatement(deleteSessionSql).use { sessionStmt ->
+                        timelineStmt.setLong(1, cutoffMs)
+                        timelineStmt.setInt(2, batchSize)
+                        sessionStmt.setLong(1, cutoffMs)
+                        sessionStmt.setInt(2, batchSize)
+                        do {
+                            timelineStmt.executeUpdate()
+                            val deleted = sessionStmt.executeUpdate()
+                            totalDeleted += deleted
+                            if (deleted < batchSize) break  // last batch — no more rows to delete
+                        } while (true)
+                    }
                 }
             }
         } catch (e: SQLException) {
