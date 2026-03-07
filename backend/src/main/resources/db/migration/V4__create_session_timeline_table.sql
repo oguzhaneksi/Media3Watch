@@ -14,4 +14,3 @@ CREATE TABLE session_timeline (
 );
 
 CREATE INDEX idx_timeline_session_timestamp ON session_timeline (session_id, timestamp_ms);
-CREATE INDEX idx_timeline_session_id ON session_timeline (session_id);
