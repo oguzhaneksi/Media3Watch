@@ -33,10 +33,10 @@ class SessionIngestionTest {
         }
     }
 
-    // ── Persistence verification ───────────────────────────────────────────────
+    // ── In-memory persistence verification (FakeSessionRepository) ────────────
 
     @Test
-    fun `test session is persisted to database`() = testApp { fakeRepo ->
+    fun `test session is stored in FakeSessionRepository`() = testApp { fakeRepo ->
         val testSessionId = UUID.randomUUID().toString()
         val currentTime = System.currentTimeMillis()
 
