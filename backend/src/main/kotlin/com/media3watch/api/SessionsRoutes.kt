@@ -193,11 +193,28 @@ fun Route.sessionsRoutes(
                 val result = repository.upsertSession(session)
 
                 result.onSuccess {
-                    sessionsIngestedCounter.increment()
                     if (!timelineEvents.isNullOrEmpty()) {
-                        repository.insertTimelineEvents(session.sessionId, timelineEvents)
+                        val timelineResult = repository.insertTimelineEvents(session.sessionId, timelineEvents)
+                        timelineResult.onSuccess {
+                            sessionsIngestedCounter.increment()
+                            call.respond(HttpStatusCode.OK, SessionResponse("success", session.sessionId))
+                        }.onFailure { error ->
+                            sessionsFailedCounter.increment()
+                            logger.error("Failed to insert timeline events", error)
+                            call.respond(
+                                HttpStatusCode.ServiceUnavailable,
+                                ErrorResponse(
+                                    ErrorDetail(
+                                        code = ErrorCodes.DATABASE_ERROR,
+                                        message = "Temporary storage issue"
+                                    )
+                                )
+                            )
+                        }
+                    } else {
+                        sessionsIngestedCounter.increment()
+                        call.respond(HttpStatusCode.OK, SessionResponse("success", session.sessionId))
                     }
-                    call.respond(HttpStatusCode.OK, SessionResponse("success", session.sessionId))
                 }.onFailure { error ->
                     sessionsFailedCounter.increment()
                     logger.error("Failed to upsert session", error)
