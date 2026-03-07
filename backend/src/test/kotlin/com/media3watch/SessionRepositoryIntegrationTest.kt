@@ -112,10 +112,12 @@ class SessionRepositoryIntegrationTest {
     fun `deleteExpiredSessions removes expired sessions and keeps recent ones`() {
         val expiredId = UUID.randomUUID().toString()
         val recentId = UUID.randomUUID().toString()
+        val orphanId = UUID.randomUUID().toString() // no matching row in sessions
         val expiredTimestamp = System.currentTimeMillis() - (91L * 24 * 60 * 60 * 1000) // 91 days ago
         val recentTimestamp = System.currentTimeMillis()
 
         getDbConnection().use { conn ->
+            // Insert expired and recent sessions
             for ((id, ts) in listOf(expiredId to expiredTimestamp, recentId to recentTimestamp)) {
                 conn.prepareStatement(
                     "INSERT INTO sessions (session_id, timestamp, session_start_date_iso, session_duration_ms, created_at) " +
@@ -128,6 +130,23 @@ class SessionRepositoryIntegrationTest {
                     stmt.executeUpdate()
                 }
             }
+
+            // Insert timeline rows for expired session, recent session, and a pre-existing orphan
+            val insertTimelineSql =
+                "INSERT INTO session_timeline (session_id, timestamp_ms, elapsed_ms, playback_state, " +
+                "total_dropped_frames, rebuffer_count, rebuffer_time_ms) VALUES (?, ?, ?, ?, ?, ?, ?)"
+            for ((id, ts) in listOf(expiredId to expiredTimestamp, recentId to recentTimestamp, orphanId to expiredTimestamp)) {
+                conn.prepareStatement(insertTimelineSql).use { stmt ->
+                    stmt.setString(1, id)
+                    stmt.setLong(2, ts)
+                    stmt.setLong(3, 0L)
+                    stmt.setString(4, "PLAYING")
+                    stmt.setLong(5, 0L)
+                    stmt.setInt(6, 0)
+                    stmt.setLong(7, 0L)
+                    stmt.executeUpdate()
+                }
+            }
         }
 
         val deleted = DefaultSessionRepository(buildDataSource()).deleteExpiredSessions(retentionDays = 90)
@@ -135,7 +154,7 @@ class SessionRepositoryIntegrationTest {
         assertTrue(deleted >= 1, "Should have deleted at least the one expired session")
 
         getDbConnection().use { conn ->
-            fun countById(id: String): Int {
+            fun countSessionsById(id: String): Int {
                 conn.prepareStatement("SELECT COUNT(*) FROM sessions WHERE session_id = ?").use { stmt ->
                     stmt.setString(1, id)
                     stmt.executeQuery().use { rs ->
@@ -144,8 +163,22 @@ class SessionRepositoryIntegrationTest {
                     }
                 }
             }
-            assertEquals(0, countById(expiredId), "Expired session should be deleted")
-            assertEquals(1, countById(recentId), "Recent session should still exist")
+            fun countTimelineById(id: String): Int {
+                conn.prepareStatement("SELECT COUNT(*) FROM session_timeline WHERE session_id = ?").use { stmt ->
+                    stmt.setString(1, id)
+                    stmt.executeQuery().use { rs ->
+                        rs.next()
+                        return rs.getInt(1)
+                    }
+                }
+            }
+
+            assertEquals(0, countSessionsById(expiredId), "Expired session should be deleted from sessions")
+            assertEquals(1, countSessionsById(recentId), "Recent session should still exist in sessions")
+
+            assertEquals(0, countTimelineById(expiredId), "Timeline rows for expired session should be deleted")
+            assertEquals(1, countTimelineById(recentId), "Timeline rows for recent session should be preserved")
+            assertEquals(0, countTimelineById(orphanId), "Pre-existing orphan timeline rows should be cleaned up")
         }
     }
 }
