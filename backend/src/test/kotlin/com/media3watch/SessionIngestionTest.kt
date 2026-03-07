@@ -432,7 +432,7 @@ class SessionIngestionTest {
     }
 
     @Test
-    fun `timeline events are persisted to session_timeline table`() = testApp { fakeRepo ->
+    fun `timeline events are stored in session repository`() = testApp { fakeRepo ->
         val sessionId = UUID.randomUUID().toString()
         val entries = "[${timelineEntry()},${timelineEntry(elapsedMs = 15000)},${timelineEntry(elapsedMs = 30000)}]"
 
@@ -445,7 +445,7 @@ class SessionIngestionTest {
         assertEquals(HttpStatusCode.OK, response.status)
         val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
         assertEquals("success", body["status"]?.jsonPrimitive?.content)
-        assertEquals(3, fakeRepo.timelineForSession(sessionId).size, "All 3 timeline entries should be persisted")
+        assertEquals(3, fakeRepo.timelineForSession(sessionId).size, "All 3 timeline entries should be stored in the repository")
     }
 
     @Test
@@ -502,7 +502,7 @@ class SessionIngestionTest {
         }
 
         assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals(0, fakeRepo.timelineForSession(sessionId).size, "No timeline rows should exist for session without timelineEvents")
+        assertEquals(0, fakeRepo.timelineForSession(sessionId).size, "No timeline entries should exist in the repository for a session without timelineEvents")
     }
 
     @Test
@@ -516,7 +516,7 @@ class SessionIngestionTest {
         }
 
         assertEquals(HttpStatusCode.OK, response.status)
-        assertEquals(0, fakeRepo.timelineForSession(sessionId).size, "Empty timelineEvents must persist 0 rows")
+        assertEquals(0, fakeRepo.timelineForSession(sessionId).size, "Empty timelineEvents must result in 0 stored entries")
     }
 
     @Test
