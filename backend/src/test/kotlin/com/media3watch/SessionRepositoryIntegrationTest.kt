@@ -2,6 +2,11 @@ package com.media3watch
 
 import com.media3watch.db.DefaultSessionRepository
 import com.media3watch.domain.SessionSummary
+import org.flywaydb.core.Flyway
+import org.junit.jupiter.api.BeforeAll
+import org.testcontainers.containers.PostgreSQLContainer
+import org.testcontainers.junit.jupiter.Container
+import org.testcontainers.junit.jupiter.Testcontainers
 import java.sql.Connection
 import java.sql.DriverManager
 import java.util.*
@@ -13,26 +18,43 @@ import kotlin.test.assertTrue
 /**
  * Integration tests that exercise the real SQL logic inside [DefaultSessionRepository].
  *
- * These tests require a running PostgreSQL instance (e.g. via Docker):
- *   docker compose up -d
+ * These tests are fully self-contained: a PostgreSQL instance is started automatically
+ * via Testcontainers (requires Docker to be available on the host). No external database
+ * or environment variables are needed.
  *
  * They are intentionally kept separate from [SessionIngestionTest], which runs
  * entirely in-memory and does not need Docker.
  */
+@Testcontainers
 class SessionRepositoryIntegrationTest {
 
-    private fun getDbConnection(): Connection {
-        val jdbcUrl = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5433/media3watch"
-        val user = System.getenv("DATABASE_USER") ?: "m3w"
-        val password = System.getenv("DATABASE_PASSWORD") ?: "m3w"
-        return DriverManager.getConnection(jdbcUrl, user, password)
+    companion object {
+        @Container
+        @JvmStatic
+        val postgres: PostgreSQLContainer<*> = PostgreSQLContainer("postgres:16-alpine")
+            .withDatabaseName("media3watch")
+            .withUsername("m3w")
+            .withPassword("m3w")
+
+        /** Run Flyway migrations once after the container has started, before any test runs. */
+        @JvmStatic
+        @BeforeAll
+        fun runMigrations() {
+            Flyway.configure()
+                .dataSource(postgres.jdbcUrl, postgres.username, postgres.password)
+                .locations("classpath:db/migration")
+                .load()
+                .migrate()
+        }
     }
 
-    /** Thin [DataSource] backed by [DriverManager] — avoids HikariCP lifecycle in tests. */
+    private fun getDbConnection(): Connection =
+        DriverManager.getConnection(postgres.jdbcUrl, postgres.username, postgres.password)
+
     private fun buildDataSource(): DataSource {
-        val jdbcUrl = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5433/media3watch"
-        val dbUser = System.getenv("DATABASE_USER") ?: "m3w"
-        val dbPwd = System.getenv("DATABASE_PASSWORD") ?: "m3w"
+        val jdbcUrl = postgres.jdbcUrl
+        val dbUser = postgres.username
+        val dbPwd = postgres.password
         return object : DataSource {
             override fun getConnection() = DriverManager.getConnection(jdbcUrl, dbUser, dbPwd)
             override fun getConnection(u: String, p: String) = DriverManager.getConnection(jdbcUrl, u, p)
@@ -124,3 +146,4 @@ class SessionRepositoryIntegrationTest {
         }
     }
 }
+
