@@ -1,13 +1,16 @@
 package com.media3watch.sdk
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.float
 import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SessionSummaryTest {
@@ -124,5 +127,84 @@ class SessionSummaryTest {
             appendLine("  connectionType: null")
         }
         assertEquals(expected, pretty)
+    }
+
+    @Test
+    fun toJson_withTimelineEvents_serializesArray() {
+        val events = listOf(
+            TimelineEntry(
+                timestampMs = 1700000000000L,
+                elapsedMs = 0L,
+                playbackState = "IDLE",
+                totalDroppedFrames = 0L,
+                rebufferCount = 0,
+                rebufferTimeMs = 0L,
+            ),
+            TimelineEntry(
+                timestampMs = 1700000015000L,
+                elapsedMs = 15000L,
+                playbackState = "PLAYING",
+                currentBitrate = 2000000,
+                networkType = "Wi-Fi",
+                totalDroppedFrames = 2L,
+                bufferedDurationMs = 8000L,
+                rebufferCount = 0,
+                rebufferTimeMs = 0L,
+            )
+        )
+
+        val summary = SessionSummary(
+            sessionId = "test-timeline-1",
+            timestamp = System.currentTimeMillis(),
+            sessionStartDateIso = "2026-03-07T10:00:00.000Z",
+            sessionDurationMs = 30000L,
+            startupTimeMs = null,
+            rebufferTimeMs = null,
+            rebufferCount = null,
+            playTimeMs = null,
+            rebufferRatio = null,
+            totalDroppedFrames = null,
+            totalSeekCount = null,
+            totalSeekTimeMs = null,
+            meanVideoFormatBitrate = null,
+            errorCount = null,
+            timelineEvents = events,
+        )
+
+        val jsonObject = Json.parseToJsonElement(summary.toJson()).jsonObject
+        val timelineJson = jsonObject["timelineEvents"]
+        assertTrue("timelineEvents must be a JsonArray", timelineJson is JsonArray)
+        assertEquals(2, timelineJson!!.jsonArray.size)
+
+        val firstEntry = timelineJson.jsonArray[0].jsonObject
+        assertEquals(1700000000000L, firstEntry["timestampMs"]!!.jsonPrimitive.long)
+        assertEquals("IDLE", firstEntry["playbackState"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun toJson_withNullTimelineEvents_serializesAsNull() {
+        val summary = SessionSummary(
+            sessionId = "test-timeline-2",
+            timestamp = System.currentTimeMillis(),
+            sessionStartDateIso = "2026-03-07T10:00:00.000Z",
+            sessionDurationMs = 30000L,
+            startupTimeMs = null,
+            rebufferTimeMs = null,
+            rebufferCount = null,
+            playTimeMs = null,
+            rebufferRatio = null,
+            totalDroppedFrames = null,
+            totalSeekCount = null,
+            totalSeekTimeMs = null,
+            meanVideoFormatBitrate = null,
+            errorCount = null,
+            timelineEvents = null,
+        )
+
+        val jsonObject = Json.parseToJsonElement(summary.toJson()).jsonObject
+        assertTrue(
+            "timelineEvents should be null or omitted when set to null",
+            !jsonObject.containsKey("timelineEvents") || jsonObject["timelineEvents"] == JsonNull
+        )
     }
 }

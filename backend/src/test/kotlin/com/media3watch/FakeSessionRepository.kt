@@ -1,0 +1,44 @@
+package com.media3watch
+
+import com.media3watch.db.SessionRepository
+import com.media3watch.domain.SessionSummary
+import com.media3watch.domain.TimelineEntry
+
+/**
+ * In-memory [SessionRepository] for unit / API-layer tests.
+ *
+ * No database required — data is stored in plain Kotlin collections.
+ * Note: unlike [com.media3watch.db.DefaultSessionRepository], upsert does NOT enforce timestamp-based
+ * conflict resolution; that logic is covered by [SessionRepositoryIntegrationTest].
+ */
+class FakeSessionRepository : SessionRepository {
+
+    private val _sessions = mutableMapOf<String, SessionSummary>()
+    private val _timeline = mutableListOf<Pair<String, TimelineEntry>>()
+
+    /** When true, [upsertSessionWithTimeline] returns failure and leaves nothing persisted. */
+    var failTimelineInsert: Boolean = false
+
+    /** Read-only view of all upserted sessions, keyed by sessionId. */
+    val sessions: Map<String, SessionSummary> get() = _sessions
+
+    /** Returns all timeline entries recorded for the given sessionId. */
+    fun timelineForSession(sessionId: String): List<TimelineEntry> =
+        _timeline.filter { it.first == sessionId }.map { it.second }
+
+    override fun upsertSessionWithTimeline(
+        session: SessionSummary,
+        timelineEvents: List<TimelineEntry>?
+    ): Result<Unit> {
+        if (failTimelineInsert) {
+            return Result.failure(RuntimeException("Simulated timeline insert failure"))
+        }
+        _sessions[session.sessionId] = session
+        if (!timelineEvents.isNullOrEmpty()) {
+            _timeline.addAll(timelineEvents.map { session.sessionId to it })
+        }
+        return Result.success(Unit)
+    }
+
+    override fun deleteExpiredSessions(retentionDays: Int, batchSize: Int): Int = 0
+}

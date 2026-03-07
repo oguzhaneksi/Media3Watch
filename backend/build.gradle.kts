@@ -19,6 +19,7 @@ val prometheus_version = "1.16.2"
 val hikari_version = "7.0.2"
 val flyway_version = "12.0.0"
 val postgres_version = "42.7.7"
+val testcontainers_version = "1.21.4"
 
 dependencies {
     // Ktor Server
@@ -49,6 +50,11 @@ dependencies {
     // Testing
     testImplementation("io.ktor:ktor-server-test-host:$ktor_version")
     testImplementation(kotlin("test"))
+    testImplementation("org.testcontainers:testcontainers:$testcontainers_version")
+    testImplementation("org.testcontainers:postgresql:$testcontainers_version")
+    testImplementation("org.testcontainers:junit-jupiter:$testcontainers_version")
+    testImplementation("org.flywaydb:flyway-core:$flyway_version")
+    testImplementation("org.flywaydb:flyway-database-postgresql:$flyway_version")
 }
 
 application {
@@ -68,7 +74,4 @@ kotlin {
 tasks.test {
     useJUnitPlatform()
     environment("M3W_API_KEY", "dev-key")
-    environment("DATABASE_URL", "jdbc:postgresql://localhost:5433/media3watch")
-    environment("DATABASE_USER", "m3w")
-    environment("DATABASE_PASSWORD", "m3w")
 }

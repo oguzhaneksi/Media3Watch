@@ -61,6 +61,7 @@ class Media3WatchAnalytics(
     }
 
     private var playbackStatsListener: PlaybackStatsListener? = null
+    private var timelineCollector: SessionTimelineCollector? = null
     private val metricsObservers = CopyOnWriteArrayList<MetricsObserver>()
 
     private val analyticsListener = object : AnalyticsListener {
@@ -83,6 +84,7 @@ class Media3WatchAnalytics(
                 playCommandTs = null
             }
 
+            captureTimeline()
             reporter?.reportNow()
             notifyObservers()
         }
@@ -91,6 +93,7 @@ class Media3WatchAnalytics(
             eventTime: AnalyticsListener.EventTime,
             isPlaying: Boolean
         ) {
+            captureTimeline()
             reporter?.reportNow()
             notifyObservers()
         }
@@ -99,6 +102,7 @@ class Media3WatchAnalytics(
             eventTime: AnalyticsListener.EventTime,
             state: Int
         ) {
+            captureTimeline()
             reporter?.reportNow()
             notifyObservers()
         }
@@ -108,6 +112,7 @@ class Media3WatchAnalytics(
             playWhenReady: Boolean,
             reason: Int
         ) {
+            captureTimeline()
             reporter?.reportNow()
             notifyObservers()
         }
@@ -117,6 +122,7 @@ class Media3WatchAnalytics(
             format: androidx.media3.common.Format,
             decoderReuseEvaluation: androidx.media3.exoplayer.DecoderReuseEvaluation?
         ) {
+            captureTimeline()
             reporter?.reportNow()
             notifyObservers()
         }
@@ -125,6 +131,7 @@ class Media3WatchAnalytics(
             eventTime: AnalyticsListener.EventTime,
             error: androidx.media3.common.PlaybackException
         ) {
+            captureTimeline()
             reporter?.reportNow()
             notifyObservers()
         }
@@ -134,6 +141,7 @@ class Media3WatchAnalytics(
             droppedFrames: Int,
             elapsedMs: Long
         ) {
+            captureTimeline()
             reporter?.reportNow()
             notifyObservers()
         }
@@ -145,6 +153,7 @@ class Media3WatchAnalytics(
             reason: Int
         ) {
             if (reason == Player.DISCONTINUITY_REASON_SEEK) {
+                captureTimeline()
                 reporter?.reportNow()
             }
             notifyObservers()
@@ -208,6 +217,7 @@ class Media3WatchAnalytics(
         sessionId = UUID.randomUUID().toString()
         sessionStartTs = SystemClock.elapsedRealtime()
         sessionStartWallClockMs = System.currentTimeMillis()
+        timelineCollector = SessionTimelineCollector()
 
         this.player = player
 
@@ -224,7 +234,7 @@ class Media3WatchAnalytics(
             reporter = SessionReporter(
                 intervalMs = config.reportingIntervalMs,
                 isActiveCheck = ::isSessionActive,
-                onReport = { buildAndUploadSummary() },
+                onReport = { captureTimeline(); buildAndUploadSummary() },
                 nowMsProvider = { SystemClock.elapsedRealtime() },
                 coroutineScope = analyticsScope
             )
@@ -286,6 +296,8 @@ class Media3WatchAnalytics(
         playCommandTs = null
         startupTimeMs = null
         firstFrameRendered = false
+        timelineCollector?.clear()
+        timelineCollector = null
     }
 
     // Called on Main; heavy work (summary building + JSON serialization) is offloaded to Default.
@@ -306,6 +318,7 @@ class Media3WatchAnalytics(
         val capturedSessionStartTs = sessionStartTs
         val capturedStartupTimeMs = startupTimeMs
         val capturedConnectionTypeNow = connectivityManager.resolveConnectionType()
+        val capturedTimelineEvents = timelineCollector?.drain().orEmpty()
 
         analyticsScope.launch(Dispatchers.Default) {
             val summary = LogUtils.buildSessionSummary(
@@ -319,7 +332,7 @@ class Media3WatchAnalytics(
                 osVersion = Build.VERSION.SDK_INT,
                 sdkVersion = BuildConfig.SDK_VERSION,
                 connectionType = capturedConnectionTypeNow,
-            )
+            ).copy(timelineEvents = capturedTimelineEvents.ifEmpty { null })
 
             if (logSessionSummary && config.enableLogging)
                 Log.d(LogUtils.TAG, summary.toPrettyLog())
@@ -397,19 +410,9 @@ class Media3WatchAnalytics(
             totalSeekCount = stats?.totalSeekCount ?: 0,
             totalSeekTimeMs = stats?.totalSeekTimeMs ?: 0L,
             meanVideoFormatBitrate = stats?.meanVideoFormatBitrate?.coerceAtLeast(0),
-            currentBitrate = currentPlayer.videoFormat?.bitrate?.takeIf { it > 0 },
+            currentBitrate = currentPlayer.currentBitrate,
             errorCount = stats?.fatalErrorCount ?: 0
         )
-    }
-
-    private fun toSessionPlaybackState(playerState: Int, isPlaying: Boolean): SessionPlaybackState {
-        return when (playerState) {
-            Player.STATE_IDLE -> SessionPlaybackState.IDLE
-            Player.STATE_BUFFERING -> SessionPlaybackState.BUFFERING
-            Player.STATE_ENDED -> SessionPlaybackState.ENDED
-            Player.STATE_READY -> if (isPlaying) SessionPlaybackState.PLAYING else SessionPlaybackState.PAUSED
-            else -> SessionPlaybackState.IDLE
-        }
     }
 
     private fun safeNotifySessionStarted(observer: MetricsObserver, sessionId: String) {
@@ -430,6 +433,21 @@ class Media3WatchAnalytics(
                 Log.w(LogUtils.TAG, "MetricsObserver.onSnapshotUpdated failed", t)
             }
         }
+    }
+
+    @MainThread
+    private fun captureTimeline() {
+        val currentPlayer = player ?: return
+        val nowElapsed = SystemClock.elapsedRealtime()
+        val nowWallClock = System.currentTimeMillis()
+        timelineCollector?.capture(
+            player = currentPlayer,
+            stats = playbackStatsListener?.playbackStats,
+            sessionStartTs = sessionStartTs,
+            nowElapsedMs = nowElapsed,
+            nowWallClockMs = nowWallClock,
+            connectionType = connectivityManager.resolveConnectionType(),
+        )
     }
 
 }

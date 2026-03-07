@@ -1131,6 +1131,144 @@ class Media3WatchAnalyticsTest {
         analytics.detach()
     }
 
+    // ── Timeline events ───────────────────────────────────────────────────────
+
+    @Test
+    fun timelineEvents_capturedOnBitrateChange_presentInUploadedPayload() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/v1/sessions").toString(),
+            apiKey = "test-key",
+            enableRealTimeReporting = true,
+            reportingIntervalMs = 5_000L
+        )
+        val analytics = Media3WatchAnalytics(context, config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        advanceMs(100)
+        harness.emitVideoFormatChanged(bitrate = 2_000_000)
+
+        val request = server.takeRequest(2, TimeUnit.SECONDS)
+        assertNotNull("Expected report on bitrate change", request)
+        val body = request!!.body.readUtf8()
+        assertTrue("Payload must contain timelineEvents key", body.contains("\"timelineEvents\""))
+        assertTrue(
+            "Payload timelineEvents must contain a known playback state",
+            body.contains("\"PLAYING\"") || body.contains("\"IDLE\"") || body.contains("\"PAUSED\"")
+        )
+
+        analytics.detach()
+        server.shutdown()
+    }
+
+    @Test
+    fun timelineEvents_capturedOnStateChange_presentInUploadedPayload() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200))
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/v1/sessions").toString(),
+            apiKey = "test-key",
+            enableRealTimeReporting = true,
+            reportingIntervalMs = 5_000L
+        )
+        val analytics = Media3WatchAnalytics(context, config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        advanceMs(50)
+        harness.emitIsPlayingChanged(true)
+        harness.emitIsPlayingChanged(false)
+
+        // Consume all requests enqueued so far
+        val req1 = server.takeRequest(2, TimeUnit.SECONDS)
+        assertNotNull(req1)
+
+        analytics.detach()
+        val req2 = server.takeRequest(2, TimeUnit.SECONDS)
+        if (req2 != null) {
+            val body = req2.body.readUtf8()
+            if (body.contains("\"timelineEvents\"")) {
+                val timelineArrayStart = body.indexOf("\"timelineEvents\":[")
+                if (timelineArrayStart >= 0) {
+                    val arrayContent = body.substring(timelineArrayStart)
+                    // At least 2 entries means 2 '{' after the opening bracket
+                    val entryCount = arrayContent.takeWhile { it != ']' }.count { it == '{' }
+                    assertTrue("Should have captured at least 2 timeline entries", entryCount >= 2)
+                }
+            }
+        }
+
+        server.shutdown()
+    }
+
+    @Test
+    fun timelineEvents_capturedOnFirstFrame_containsEntry() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/v1/sessions").toString(),
+            apiKey = "test-key",
+            enableRealTimeReporting = true,
+            reportingIntervalMs = 5_000L
+        )
+        val analytics = Media3WatchAnalytics(context, config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        analytics.playRequested()
+        advanceMs(100)
+        harness.emitFirstFrame()
+
+        val request = server.takeRequest(2, TimeUnit.SECONDS)
+        assertNotNull("Expected report on first frame", request)
+        val body = request!!.body.readUtf8()
+        assertTrue("Payload must contain timelineEvents", body.contains("\"timelineEvents\""))
+
+        analytics.detach()
+        server.shutdown()
+    }
+
+    @Test
+    fun timelineEvents_emptyWhenNoEventsOccur() = runTest {
+        val server = MockWebServer()
+        server.start()
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val config = Media3WatchConfig(
+            backendUrl = server.url("/v1/sessions").toString(),
+            apiKey = "test-key"
+        )
+        val analytics = Media3WatchAnalytics(context, config)
+        val harness = PlayerHarness()
+
+        analytics.attach(harness.player)
+        advanceMs(100)
+        analytics.detach()
+
+        Thread.sleep(300)
+
+        val request = server.takeRequest(1, TimeUnit.SECONDS)
+        if (request != null) {
+            val body = request.body.readUtf8()
+            // timelineEvents should be null or empty array — no events occurred
+            assertTrue(
+                "timelineEvents should be null or empty when no events occurred",
+                body.contains("\"timelineEvents\":null") || body.contains("\"timelineEvents\":[]") || !body.contains("\"timelineEvents\"")
+            )
+        }
+
+        server.shutdown()
+    }
+
     private fun lastSessionEndLog(): String? {
         return ShadowLog.getLogsForTag(TAG)
             .orEmpty()

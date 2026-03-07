@@ -7,34 +7,39 @@ import io.ktor.server.testing.*
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlin.test.*
-import java.util.UUID
-import java.sql.Connection
-import java.sql.DriverManager
-import com.media3watch.module
-import com.media3watch.db.SessionRepository
+import java.util.*
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 
+/**
+ * API-layer tests that run entirely in-memory via [FakeSessionRepository].
+ * No database or Docker required.
+ *
+ * Tests that exercise the actual SQL upsert / retention logic live in
+ * [SessionRepositoryIntegrationTest] and start their own PostgreSQL instance via Testcontainers.
+ */
 class SessionIngestionTest {
-    
+
     private val testApiKey = "dev-key"
-    
-    private fun getDbConnection(): Connection {
-        val jdbcUrl = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5433/media3watch"
-        val user = System.getenv("DATABASE_USER") ?: "m3w"
-        val password = System.getenv("DATABASE_PASSWORD") ?: "m3w"
-        return DriverManager.getConnection(jdbcUrl, user, password)
-    }
-    
-    @Test
-    fun `test session is persisted to database`() = testApplication {
-        application {
-            module()
+
+    private fun testApp(block: suspend ApplicationTestBuilder.(FakeSessionRepository) -> Unit) {
+        val fakeRepo = FakeSessionRepository()
+        testApplication {
+            application { module(repository = fakeRepo) }
+            block(fakeRepo)
         }
-        
+    }
+
+    // ── In-memory persistence verification (FakeSessionRepository) ────────────
+
+    @Test
+    fun `test session is stored in FakeSessionRepository`() = testApp { fakeRepo ->
         val testSessionId = UUID.randomUUID().toString()
         val currentTime = System.currentTimeMillis()
-        
-        // Prepare test payload
+
         val payload = """
             {
               "sessionId": "$testSessionId",
@@ -53,47 +58,32 @@ class SessionIngestionTest {
               "errorCount": 0
             }
         """.trimIndent()
-        
-        // Send POST request
+
         val response = client.post("/v1/sessions") {
             header("X-API-Key", testApiKey)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
             setBody(payload)
         }
-        
-        // Assert API response
+
         assertEquals(HttpStatusCode.OK, response.status)
         val responseBody = Json.parseToJsonElement(response.bodyAsText()).jsonObject
         assertEquals("success", responseBody["status"]?.jsonPrimitive?.content)
         assertEquals(testSessionId, responseBody["sessionId"]?.jsonPrimitive?.content)
-        
-        // Verify data was written to database
-        getDbConnection().use { conn ->
-            val stmt = conn.prepareStatement(
-                "SELECT session_id, session_duration_ms, rebuffer_count, error_count FROM sessions WHERE session_id = ?"
-            )
-            stmt.setString(1, testSessionId)
-            val rs = stmt.executeQuery()
-            
-            assertTrue(rs.next(), "Session should be persisted to database")
-            assertEquals(testSessionId, rs.getString("session_id"))
-            assertEquals(45000L, rs.getLong("session_duration_ms"))
-            assertEquals(2, rs.getInt("rebuffer_count"))
-            assertEquals(0, rs.getInt("error_count"))
-            assertFalse(rs.next(), "Should only have one record")
-        }
+
+        val persisted = fakeRepo.sessions[testSessionId]
+        assertNotNull(persisted, "Session should be persisted")
+        assertEquals(testSessionId, persisted.sessionId)
+        assertEquals(45000L, persisted.sessionDurationMs)
+        assertEquals(2, persisted.rebufferCount)
+        assertEquals(0, persisted.errorCount)
+        assertEquals(1, fakeRepo.sessions.size, "Should only have one record")
     }
-    
+
     @Test
-    fun `test multiple sessions are persisted independently`() = testApplication {
-        application {
-            module()
-        }
-        
+    fun `test multiple sessions are persisted independently`() = testApp { fakeRepo ->
         val session1Id = UUID.randomUUID().toString()
         val session2Id = UUID.randomUUID().toString()
-        
-        // Send two sessions
+
         listOf(session1Id, session2Id).forEach { sessionId ->
             client.post("/v1/sessions") {
                 header("X-API-Key", testApiKey)
@@ -110,207 +100,149 @@ class SessionIngestionTest {
                 """.trimIndent())
             }
         }
-        
-        // Verify both are in database
-        getDbConnection().use { conn ->
-            val stmt = conn.prepareStatement(
-                "SELECT COUNT(*) as count FROM sessions WHERE session_id IN (?, ?)"
-            )
-            stmt.setString(1, session1Id)
-            stmt.setString(2, session2Id)
-            val rs = stmt.executeQuery()
-            
-            assertTrue(rs.next())
-            assertEquals(2, rs.getInt("count"), "Both sessions should be persisted")
-        }
-    }
-    
-    @Test
-    fun `test invalid session is rejected and not persisted`() = testApplication {
-        application {
-            module()
-        }
-        
-        val invalidPayload = """{"sessionId": ""}""" // Missing required fields
-        
-        val response = client.post("/v1/sessions") {
-            header("X-API-Key", testApiKey)
-            header(HttpHeaders.ContentType, ContentType.Application.Json)
-            setBody(invalidPayload)
-        }
-        
-        // Assert error response - missing required fields causes deserialization failure
-        assertEquals(HttpStatusCode.BadRequest, response.status)
-    }
-    
-    @Test
-    fun `test session with negative duration is rejected`() = testApplication {
-        application {
-            module()
-        }
-        
-        val testSessionId = UUID.randomUUID().toString()
-        val invalidPayload = """
-            {
-              "sessionId": "$testSessionId",
-              "timestamp": ${System.currentTimeMillis()},
-              "sessionStartDateIso": "2026-02-15T10:00:00.000Z",
-              "sessionDurationMs": -1000
-            }
-        """.trimIndent()
-        
-        val response = client.post("/v1/sessions") {
-            header("X-API-Key", testApiKey)
-            header(HttpHeaders.ContentType, ContentType.Application.Json)
-            setBody(invalidPayload)
-        }
-        
-        assertEquals(HttpStatusCode.BadRequest, response.status)
-        val responseBody = response.bodyAsText()
-        assertTrue(responseBody.contains("sessionDurationMs"), "Error message should mention sessionDurationMs")
-    }
-    
-    @Test
-    fun `test session with zero duration is rejected`() = testApplication {
-        application {
-            module()
-        }
-        
-        val testSessionId = UUID.randomUUID().toString()
-        val invalidPayload = """
-            {
-              "sessionId": "$testSessionId",
-              "timestamp": ${System.currentTimeMillis()},
-              "sessionStartDateIso": "2026-02-15T10:00:00.000Z",
-              "sessionDurationMs": 0
-            }
-        """.trimIndent()
-        
-        val response = client.post("/v1/sessions") {
-            header("X-API-Key", testApiKey)
-            header(HttpHeaders.ContentType, ContentType.Application.Json)
-            setBody(invalidPayload)
-        }
-        
-        assertEquals(HttpStatusCode.BadRequest, response.status)
-        val responseBody = response.bodyAsText()
-        assertTrue(responseBody.contains("sessionDurationMs"), "Error message should mention sessionDurationMs")
-    }
-    
-    @Test
-    fun `test session with zero timestamp is rejected`() = testApplication {
-        application {
-            module()
-        }
-        
-        val testSessionId = UUID.randomUUID().toString()
-        val invalidPayload = """
-            {
-              "sessionId": "$testSessionId",
-              "timestamp": 0,
-              "sessionStartDateIso": "2026-02-15T10:00:00.000Z",
-              "sessionDurationMs": 30000
-            }
-        """.trimIndent()
-        
-        val response = client.post("/v1/sessions") {
-            header("X-API-Key", testApiKey)
-            header(HttpHeaders.ContentType, ContentType.Application.Json)
-            setBody(invalidPayload)
-        }
-        
-        assertEquals(HttpStatusCode.BadRequest, response.status)
-        val responseBody = response.bodyAsText()
-        assertTrue(responseBody.contains("timestamp"), "Error message should mention timestamp")
-    }
-    
-    @Test
-    fun `test session with negative timestamp is rejected`() = testApplication {
-        application {
-            module()
-        }
-        
-        val testSessionId = UUID.randomUUID().toString()
-        val invalidPayload = """
-            {
-              "sessionId": "$testSessionId",
-              "timestamp": -123456,
-              "sessionStartDateIso": "2026-02-15T10:00:00.000Z",
-              "sessionDurationMs": 30000
-            }
-        """.trimIndent()
-        
-        val response = client.post("/v1/sessions") {
-            header("X-API-Key", testApiKey)
-            header(HttpHeaders.ContentType, ContentType.Application.Json)
-            setBody(invalidPayload)
-        }
-        
-        assertEquals(HttpStatusCode.BadRequest, response.status)
-        val responseBody = response.bodyAsText()
-        assertTrue(responseBody.contains("timestamp"), "Error message should mention timestamp")
-    }
-    
-    @Test
-    fun `test session with blank sessionStartDateIso is rejected`() = testApplication {
-        application {
-            module()
-        }
-        
-        val testSessionId = UUID.randomUUID().toString()
-        val invalidPayload = """
-            {
-              "sessionId": "$testSessionId",
-              "timestamp": ${System.currentTimeMillis()},
-              "sessionStartDateIso": "   ",
-              "sessionDurationMs": 30000
-            }
-        """.trimIndent()
-        
-        val response = client.post("/v1/sessions") {
-            header("X-API-Key", testApiKey)
-            header(HttpHeaders.ContentType, ContentType.Application.Json)
-            setBody(invalidPayload)
-        }
-        
-        assertEquals(HttpStatusCode.BadRequest, response.status)
-        val responseBody = response.bodyAsText()
-        assertTrue(responseBody.contains("sessionStartDateIso"), "Error message should mention sessionStartDateIso")
-    }
-    
-    @Test
-    fun `test session with empty sessionStartDateIso is rejected`() = testApplication {
-        application {
-            module()
-        }
-        
-        val testSessionId = UUID.randomUUID().toString()
-        val invalidPayload = """
-            {
-              "sessionId": "$testSessionId",
-              "timestamp": ${System.currentTimeMillis()},
-              "sessionStartDateIso": "",
-              "sessionDurationMs": 30000
-            }
-        """.trimIndent()
-        
-        val response = client.post("/v1/sessions") {
-            header("X-API-Key", testApiKey)
-            header(HttpHeaders.ContentType, ContentType.Application.Json)
-            setBody(invalidPayload)
-        }
-        
-        assertEquals(HttpStatusCode.BadRequest, response.status)
-        val responseBody = response.bodyAsText()
-        assertTrue(responseBody.contains("sessionStartDateIso"), "Error message should mention sessionStartDateIso")
+
+        assertEquals(2, fakeRepo.sessions.size, "Both sessions should be persisted")
+        assertTrue(fakeRepo.sessions.containsKey(session1Id))
+        assertTrue(fakeRepo.sessions.containsKey(session2Id))
     }
 
-    // ── New hardening: sessionId validation ────────────────────────────────────
+    // ── Validation: required fields ────────────────────────────────────────────
 
     @Test
-    fun `test sessionId exceeding 128 characters is rejected`() = testApplication {
-        application { module() }
+    fun `test invalid session is rejected and not persisted`() = testApp { _ ->
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody("""{"sessionId": ""}""")
+        }
 
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+    }
+
+    @Test
+    fun `test session with negative duration is rejected`() = testApp { _ ->
+        val testSessionId = UUID.randomUUID().toString()
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody("""
+                {
+                  "sessionId": "$testSessionId",
+                  "timestamp": ${System.currentTimeMillis()},
+                  "sessionStartDateIso": "2026-02-15T10:00:00.000Z",
+                  "sessionDurationMs": -1000
+                }
+            """.trimIndent())
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("sessionDurationMs"), "Error message should mention sessionDurationMs")
+    }
+
+    @Test
+    fun `test session with zero duration is rejected`() = testApp { _ ->
+        val testSessionId = UUID.randomUUID().toString()
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody("""
+                {
+                  "sessionId": "$testSessionId",
+                  "timestamp": ${System.currentTimeMillis()},
+                  "sessionStartDateIso": "2026-02-15T10:00:00.000Z",
+                  "sessionDurationMs": 0
+                }
+            """.trimIndent())
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("sessionDurationMs"), "Error message should mention sessionDurationMs")
+    }
+
+    @Test
+    fun `test session with zero timestamp is rejected`() = testApp { _ ->
+        val testSessionId = UUID.randomUUID().toString()
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody("""
+                {
+                  "sessionId": "$testSessionId",
+                  "timestamp": 0,
+                  "sessionStartDateIso": "2026-02-15T10:00:00.000Z",
+                  "sessionDurationMs": 30000
+                }
+            """.trimIndent())
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("timestamp"), "Error message should mention timestamp")
+    }
+
+    @Test
+    fun `test session with negative timestamp is rejected`() = testApp { _ ->
+        val testSessionId = UUID.randomUUID().toString()
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody("""
+                {
+                  "sessionId": "$testSessionId",
+                  "timestamp": -123456,
+                  "sessionStartDateIso": "2026-02-15T10:00:00.000Z",
+                  "sessionDurationMs": 30000
+                }
+            """.trimIndent())
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("timestamp"), "Error message should mention timestamp")
+    }
+
+    @Test
+    fun `test session with blank sessionStartDateIso is rejected`() = testApp { _ ->
+        val testSessionId = UUID.randomUUID().toString()
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody("""
+                {
+                  "sessionId": "$testSessionId",
+                  "timestamp": ${System.currentTimeMillis()},
+                  "sessionStartDateIso": "   ",
+                  "sessionDurationMs": 30000
+                }
+            """.trimIndent())
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("sessionStartDateIso"), "Error message should mention sessionStartDateIso")
+    }
+
+    @Test
+    fun `test session with empty sessionStartDateIso is rejected`() = testApp { _ ->
+        val testSessionId = UUID.randomUUID().toString()
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody("""
+                {
+                  "sessionId": "$testSessionId",
+                  "timestamp": ${System.currentTimeMillis()},
+                  "sessionStartDateIso": "",
+                  "sessionDurationMs": 30000
+                }
+            """.trimIndent())
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("sessionStartDateIso"), "Error message should mention sessionStartDateIso")
+    }
+
+    // ── Validation: sessionId ──────────────────────────────────────────────────
+
+    @Test
+    fun `test sessionId exceeding 128 characters is rejected`() = testApp { _ ->
         val longId = "a".repeat(129)
         val response = client.post("/v1/sessions") {
             header("X-API-Key", testApiKey)
@@ -323,9 +255,7 @@ class SessionIngestionTest {
     }
 
     @Test
-    fun `test sessionId with non-UUID format is rejected`() = testApplication {
-        application { module() }
-
+    fun `test sessionId with non-UUID format is rejected`() = testApp { _ ->
         val response = client.post("/v1/sessions") {
             header("X-API-Key", testApiKey)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
@@ -336,12 +266,10 @@ class SessionIngestionTest {
         assertTrue(response.bodyAsText().contains("UUID"), "Error should mention UUID")
     }
 
-    // ── New hardening: numeric range validation ────────────────────────────────
+    // ── Validation: numeric ranges ─────────────────────────────────────────────
 
     @Test
-    fun `test negative startupTimeMs is rejected`() = testApplication {
-        application { module() }
-
+    fun `test negative startupTimeMs is rejected`() = testApp { _ ->
         val sessionId = UUID.randomUUID().toString()
         val response = client.post("/v1/sessions") {
             header("X-API-Key", testApiKey)
@@ -354,9 +282,7 @@ class SessionIngestionTest {
     }
 
     @Test
-    fun `test negative rebufferCount is rejected`() = testApplication {
-        application { module() }
-
+    fun `test negative rebufferCount is rejected`() = testApp { _ ->
         val sessionId = UUID.randomUUID().toString()
         val response = client.post("/v1/sessions") {
             header("X-API-Key", testApiKey)
@@ -369,9 +295,7 @@ class SessionIngestionTest {
     }
 
     @Test
-    fun `test rebufferRatio above 1 is rejected`() = testApplication {
-        application { module() }
-
+    fun `test rebufferRatio above 1 is rejected`() = testApp { _ ->
         val sessionId = UUID.randomUUID().toString()
         val response = client.post("/v1/sessions") {
             header("X-API-Key", testApiKey)
@@ -384,9 +308,7 @@ class SessionIngestionTest {
     }
 
     @Test
-    fun `test negative rebufferRatio is rejected`() = testApplication {
-        application { module() }
-
+    fun `test negative rebufferRatio is rejected`() = testApp { _ ->
         val sessionId = UUID.randomUUID().toString()
         val response = client.post("/v1/sessions") {
             header("X-API-Key", testApiKey)
@@ -399,9 +321,7 @@ class SessionIngestionTest {
     }
 
     @Test
-    fun `test negative errorCount is rejected`() = testApplication {
-        application { module() }
-
+    fun `test negative errorCount is rejected`() = testApp { _ ->
         val sessionId = UUID.randomUUID().toString()
         val response = client.post("/v1/sessions") {
             header("X-API-Key", testApiKey)
@@ -414,9 +334,7 @@ class SessionIngestionTest {
     }
 
     @Test
-    fun `test multiple out-of-range fields are reported together`() = testApplication {
-        application { module() }
-
+    fun `test multiple out-of-range fields are reported together`() = testApp { _ ->
         val sessionId = UUID.randomUUID().toString()
         val response = client.post("/v1/sessions") {
             header("X-API-Key", testApiKey)
@@ -430,12 +348,10 @@ class SessionIngestionTest {
         assertTrue(body.contains("rebufferCount"), "Error should mention rebufferCount")
     }
 
-    // ── New hardening: no exception leakage ───────────────────────────────────
+    // ── Error safety ───────────────────────────────────────────────────────────
 
     @Test
-    fun `test malformed json does not leak exception class names in response`() = testApplication {
-        application { module() }
-
+    fun `test malformed json does not leak exception class names in response`() = testApp { _ ->
         val response = client.post("/v1/sessions") {
             header("X-API-Key", testApiKey)
             header(HttpHeaders.ContentType, ContentType.Application.Json)
@@ -449,10 +365,8 @@ class SessionIngestionTest {
     }
 
     @Test
-    fun `test oversized payload is rejected with 413`() = testApplication {
-        application { module() }
-
-        val oversizedBody = "{\"data\":\"${"x".repeat(65 * 1024)}\"}" // > 64 KB
+    fun `test oversized payload is rejected with 413`() = testApp { _ ->
+        val oversizedBody = "{\"data\":\"${"x".repeat(257 * 1024)}\"}" // > 256 KB body limit
 
         val response = client.post("/v1/sessions") {
             header("X-API-Key", testApiKey)
@@ -463,21 +377,16 @@ class SessionIngestionTest {
         assertEquals(HttpStatusCode.PayloadTooLarge, response.status)
     }
 
-    // ── New hardening: /metrics authentication ────────────────────────────────
+    // ── Metrics endpoint ───────────────────────────────────────────────────────
 
     @Test
-    fun `test metrics endpoint requires api key`() = testApplication {
-        application { module() }
-
+    fun `test metrics endpoint requires api key`() = testApp { _ ->
         val response = client.get("/metrics")
-
         assertEquals(HttpStatusCode.Unauthorized, response.status)
     }
 
     @Test
-    fun `test metrics endpoint is accessible with valid api key`() = testApplication {
-        application { module() }
-
+    fun `test metrics endpoint is accessible with valid api key`() = testApp { _ ->
         val response = client.get("/metrics") {
             header("X-API-Key", testApiKey)
         }
@@ -486,113 +395,265 @@ class SessionIngestionTest {
         assertTrue(response.bodyAsText().contains("sessions_ingested_total"), "Prometheus response should contain counter")
     }
 
-    // ── New hardening: timestamp-based conflict resolution ────────────────────
+    // ── Timeline ingestion tests ───────────────────────────────────────────────
+
+    private fun validPayloadWithTimeline(sessionId: String, timelineJson: String): String = """
+        {
+          "sessionId": "$sessionId",
+          "timestamp": ${System.currentTimeMillis()},
+          "sessionStartDateIso": "2026-03-07T10:00:00.000Z",
+          "sessionDurationMs": 30000,
+          "timelineEvents": $timelineJson
+        }
+    """.trimIndent()
+
+    private fun timelineEntry(
+        timestampMs: Long = System.currentTimeMillis(),
+        elapsedMs: Long = 0,
+        playbackState: String = "PLAYING",
+        currentBitrate: Int? = 2000000,
+        networkType: String? = "Wi-Fi",
+        totalDroppedFrames: Long = 0,
+        bufferedDurationMs: Long? = 8000,
+        rebufferCount: Int = 0,
+        rebufferTimeMs: Long = 0,
+    ): String = buildString {
+        append("{")
+        append("\"timestampMs\":$timestampMs,")
+        append("\"elapsedMs\":$elapsedMs,")
+        append("\"playbackState\":\"$playbackState\",")
+        if (currentBitrate != null) append("\"currentBitrate\":$currentBitrate,") else append("\"currentBitrate\":null,")
+        if (networkType != null) append("\"networkType\":\"$networkType\",") else append("\"networkType\":null,")
+        append("\"totalDroppedFrames\":$totalDroppedFrames,")
+        if (bufferedDurationMs != null) append("\"bufferedDurationMs\":$bufferedDurationMs,") else append("\"bufferedDurationMs\":null,")
+        append("\"rebufferCount\":$rebufferCount,")
+        append("\"rebufferTimeMs\":$rebufferTimeMs")
+        append("}")
+    }
 
     @Test
-    fun `test upsert only overwrites session when incoming timestamp is newer`() {
+    fun `timeline events are stored in session repository`() = testApp { fakeRepo ->
         val sessionId = UUID.randomUUID().toString()
-        val t1 = System.currentTimeMillis() - 2000L   // oldest
-        val t2 = t1 + 1000L                           // newer  — should overwrite
-        val t3 = t1 + 500L                            // older than t2 — should NOT overwrite
+        val entries = "[${timelineEntry()},${timelineEntry(elapsedMs = 15000)},${timelineEntry(elapsedMs = 30000)}]"
 
-        val jdbcUrl = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5433/media3watch"
-        val dbUser = System.getenv("DATABASE_USER") ?: "m3w"
-        val dbPwd = System.getenv("DATABASE_PASSWORD") ?: "m3w"
-        val dataSource = object : javax.sql.DataSource {
-            override fun getConnection() = DriverManager.getConnection(jdbcUrl, dbUser, dbPwd)
-            override fun getConnection(u: String, p: String) = DriverManager.getConnection(jdbcUrl, u, p)
-            override fun getLogWriter(): java.io.PrintWriter? = null
-            override fun setLogWriter(out: java.io.PrintWriter?) {}
-            override fun getLoginTimeout() = 0
-            override fun setLoginTimeout(s: Int) {}
-            override fun getParentLogger(): java.util.logging.Logger? = null
-            override fun <T : Any> unwrap(iface: Class<T>): T = throw java.sql.SQLFeatureNotSupportedException()
-            override fun isWrapperFor(iface: Class<*>) = false
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(validPayloadWithTimeline(sessionId, entries))
         }
-        val repo = SessionRepository(dataSource)
 
-        fun makeSession(ts: Long, duration: Long) = com.media3watch.domain.SessionSummary(
-            sessionId = sessionId,
-            timestamp = ts,
-            sessionStartDateIso = "2026-01-01T00:00:00.000Z",
-            sessionDurationMs = duration
+        assertEquals(HttpStatusCode.OK, response.status)
+        val body = Json.parseToJsonElement(response.bodyAsText()).jsonObject
+        assertEquals("success", body["status"]?.jsonPrimitive?.content)
+        assertEquals(3, fakeRepo.timelineForSession(sessionId).size, "All 3 timeline entries should be stored in the repository")
+    }
+
+    @Test
+    fun `timeline entry fields are correctly stored`() = testApp { fakeRepo ->
+        val sessionId = UUID.randomUUID().toString()
+        val ts = 1700000000000L
+        val entry = timelineEntry(
+            timestampMs = ts,
+            elapsedMs = 5000,
+            playbackState = "BUFFERING",
+            currentBitrate = 3000000,
+            networkType = "Wi-Fi",
+            totalDroppedFrames = 4,
+            bufferedDurationMs = 8000,
+            rebufferCount = 1,
+            rebufferTimeMs = 500,
         )
 
-        fun queryDuration(): Long {
-            getDbConnection().use { conn ->
-                val rs = conn.prepareStatement("SELECT session_duration_ms, timestamp FROM sessions WHERE session_id = ?")
-                    .also { it.setString(1, sessionId) }.executeQuery()
-                return if (rs.next()) rs.getLong("session_duration_ms") else -1L
-            }
+        client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(validPayloadWithTimeline(sessionId, "[$entry]"))
         }
 
-        // Step 1: Insert initial session at T1 with duration 10_000
-        repo.upsertSession(makeSession(t1, 10_000))
-        assertEquals(10_000L, queryDuration(), "Initial insert should persist duration 10_000")
-
-        // Step 2: Update with T2 > T1 and duration 20_000 — should succeed
-        repo.upsertSession(makeSession(t2, 20_000))
-        assertEquals(20_000L, queryDuration(), "Newer timestamp T2 should overwrite to duration 20_000")
-
-        // Step 3: Update with T3 < T2 and duration 30_000 — should be rejected
-        repo.upsertSession(makeSession(t3, 30_000))
-        assertEquals(20_000L, queryDuration(), "Older timestamp T3 should NOT overwrite; duration must remain 20_000")
+        val stored = fakeRepo.timelineForSession(sessionId).firstOrNull()
+        assertNotNull(stored, "Timeline entry must be stored in FakeSessionRepository")
+        assertEquals(ts, stored.timestampMs)
+        assertEquals(5000L, stored.elapsedMs)
+        assertEquals("BUFFERING", stored.playbackState)
+        assertEquals(3000000, stored.currentBitrate)
+        assertEquals("Wi-Fi", stored.networkType)
+        assertEquals(4L, stored.totalDroppedFrames)
+        assertEquals(8000L, stored.bufferedDurationMs)
+        assertEquals(1, stored.rebufferCount)
+        assertEquals(500L, stored.rebufferTimeMs)
     }
-
-    // ── New hardening: retention cleanup ──────────────────────────────────────
 
     @Test
-    fun `test deleteExpiredSessions removes expired sessions and keeps recent ones`() {
-        val expiredId = UUID.randomUUID().toString()
-        val recentId = UUID.randomUUID().toString()
-        // 91 days ago in epoch-ms — beyond the 90-day retention window
-        val expiredTimestamp = System.currentTimeMillis() - (91L * 24 * 60 * 60 * 1000)
-        val recentTimestamp = System.currentTimeMillis()
-
-        getDbConnection().use { conn ->
-            for ((id, ts) in listOf(expiredId to expiredTimestamp, recentId to recentTimestamp)) {
-                conn.prepareStatement(
-                    "INSERT INTO sessions (session_id, timestamp, session_start_date_iso, session_duration_ms, created_at) " +
-                    "VALUES (?, ?, ?, ?, NOW()) ON CONFLICT (session_id) DO NOTHING"
-                ).use { stmt ->
-                    stmt.setString(1, id)
-                    stmt.setLong(2, ts)
-                    stmt.setString(3, "2026-01-01T00:00:00.000Z")
-                    stmt.setLong(4, 30_000)
-                    stmt.executeUpdate()
-                }
+    fun `missing timelineEvents field is backward compatible`() = testApp { fakeRepo ->
+        val sessionId = UUID.randomUUID().toString()
+        val payload = """
+            {
+              "sessionId": "$sessionId",
+              "timestamp": ${System.currentTimeMillis()},
+              "sessionStartDateIso": "2026-03-07T10:00:00.000Z",
+              "sessionDurationMs": 30000
             }
+        """.trimIndent()
+
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(payload)
         }
 
-        // Thin DataSource wrapper backed by DriverManager — avoids HikariCP lifecycle in tests
-        val jdbcUrl = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5433/media3watch"
-        val dbUser = System.getenv("DATABASE_USER") ?: "m3w"
-        val dbPwd = System.getenv("DATABASE_PASSWORD") ?: "m3w"
-        val dataSource = object : javax.sql.DataSource {
-            override fun getConnection() = DriverManager.getConnection(jdbcUrl, dbUser, dbPwd)
-            override fun getConnection(u: String, p: String) = DriverManager.getConnection(jdbcUrl, u, p)
-            override fun getLogWriter(): java.io.PrintWriter? = null
-            override fun setLogWriter(out: java.io.PrintWriter?) {}
-            override fun getLoginTimeout() = 0
-            override fun setLoginTimeout(s: Int) {}
-            override fun getParentLogger(): java.util.logging.Logger? = null
-            override fun <T : Any> unwrap(iface: Class<T>): T = throw java.sql.SQLFeatureNotSupportedException()
-            override fun isWrapperFor(iface: Class<*>) = false
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(0, fakeRepo.timelineForSession(sessionId).size, "No timeline entries should exist in the repository for a session without timelineEvents")
+    }
+
+    @Test
+    fun `empty timelineEvents array is accepted`() = testApp { fakeRepo ->
+        val sessionId = UUID.randomUUID().toString()
+
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(validPayloadWithTimeline(sessionId, "[]"))
         }
 
-        val deleted = SessionRepository(dataSource).deleteExpiredSessions(retentionDays = 90)
+        assertEquals(HttpStatusCode.OK, response.status)
+        assertEquals(0, fakeRepo.timelineForSession(sessionId).size, "Empty timelineEvents must result in 0 stored entries")
+    }
 
-        assertTrue(deleted >= 1, "Should have deleted at least the one expired session")
+    @Test
+    fun `timeline entry with negative timestampMs is rejected`() = testApp { _ ->
+        val sessionId = UUID.randomUUID().toString()
+        val entry = timelineEntry(timestampMs = -1)
 
-        getDbConnection().use { conn ->
-            fun countById(id: String): Int {
-                val rs = conn.prepareStatement("SELECT COUNT(*) FROM sessions WHERE session_id = ?")
-                    .also { it.setString(1, id) }.executeQuery()
-                rs.next()
-                return rs.getInt(1)
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(validPayloadWithTimeline(sessionId, "[$entry]"))
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("timestampMs"))
+    }
+
+    @Test
+    fun `timeline entry with negative elapsedMs is rejected`() = testApp { _ ->
+        val sessionId = UUID.randomUUID().toString()
+        val entry = timelineEntry(elapsedMs = -500)
+
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(validPayloadWithTimeline(sessionId, "[$entry]"))
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("elapsedMs"))
+    }
+
+    @Test
+    fun `timeline entry with unknown playbackState is rejected`() = testApp { _ ->
+        val sessionId = UUID.randomUUID().toString()
+        val entry = timelineEntry(playbackState = "UNKNOWN_STATE")
+
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(validPayloadWithTimeline(sessionId, "[$entry]"))
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("playbackState"))
+    }
+
+    @Test
+    fun `timeline entry with negative currentBitrate is rejected`() = testApp { _ ->
+        val sessionId = UUID.randomUUID().toString()
+        val entry = timelineEntry(currentBitrate = -100)
+
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(validPayloadWithTimeline(sessionId, "[$entry]"))
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("currentBitrate"))
+    }
+
+    @Test
+    fun `timeline entry with networkType exceeding max length is rejected`() = testApp { _ ->
+        val sessionId = UUID.randomUUID().toString()
+        val entry = timelineEntry(networkType = "A".repeat(17))
+
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(validPayloadWithTimeline(sessionId, "[$entry]"))
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("networkType"))
+    }
+
+    @Test
+    fun `exceeding max timeline entries limit is rejected`() = testApp { _ ->
+        val sessionId = UUID.randomUUID().toString()
+        val entries = (1..501).joinToString(",") { timelineEntry(elapsedMs = it.toLong() * 1000) }
+
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(validPayloadWithTimeline(sessionId, "[$entries]"))
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        val body = response.bodyAsText()
+        assertTrue(body.contains("timelineEvents") || body.contains("500"))
+    }
+
+    @Test
+    fun `session and timeline are not persisted when storage fails (atomicity)`() {
+        val fakeRepo = FakeSessionRepository().also { it.failTimelineInsert = true }
+        testApplication {
+            application { module(repository = fakeRepo) }
+            val sessionId = UUID.randomUUID().toString()
+            val entry = timelineEntry()
+
+            val response = client.post("/v1/sessions") {
+                header("X-API-Key", testApiKey)
+                header(HttpHeaders.ContentType, ContentType.Application.Json)
+                setBody(validPayloadWithTimeline(sessionId, "[$entry]"))
             }
-            assertEquals(0, countById(expiredId), "Expired session should be deleted")
-            assertEquals(1, countById(recentId), "Recent session should still exist")
+
+            assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+            assertFalse(fakeRepo.sessions.containsKey(sessionId), "Session must not be persisted when ingestion fails atomically")
+            assertEquals(0, fakeRepo.timelineForSession(sessionId).size, "Timeline must not be persisted when ingestion fails atomically")
         }
     }
+
+    @Test
+    fun `upsert preserves existing timeline rows`() = testApp { fakeRepo ->
+        val sessionId = UUID.randomUUID().toString()
+        val ts = System.currentTimeMillis()
+
+        // First POST: 2 timeline entries
+        client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(validPayloadWithTimeline(sessionId,
+                "[${timelineEntry(timestampMs = ts)},${timelineEntry(timestampMs = ts + 15000, elapsedMs = 15000)}]"
+            ))
+        }
+
+        // Second POST: 3 more timeline entries
+        client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(validPayloadWithTimeline(sessionId,
+                "[${timelineEntry(timestampMs = ts + 30000, elapsedMs = 30000)},${timelineEntry(timestampMs = ts + 45000, elapsedMs = 45000)},${timelineEntry(timestampMs = ts + 60000, elapsedMs = 60000)}]"
+            ))
+        }
+
+        assertEquals(5, fakeRepo.timelineForSession(sessionId).size, "Total timeline rows should be 5 after two POSTs")
+    }
 }
+

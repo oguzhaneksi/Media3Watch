@@ -23,4 +23,5 @@ data class SessionSummary(
     val osVersion: Int? = null,
     val sdkVersion: String? = null,
     val connectionType: String? = null,
+    val timelineEvents: List<TimelineEntry>? = null,
 )

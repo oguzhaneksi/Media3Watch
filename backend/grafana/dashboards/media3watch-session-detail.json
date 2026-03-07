@@ -1378,6 +1378,320 @@
           "refId": "A"
         }
       ]
+    },
+    {
+      "id": 201,
+      "type": "state-timeline",
+      "title": "Playback State",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 29
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "PostgreSQL"
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "never",
+        "alignValue": "left",
+        "rowHeight": 0.9,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "spanNulls": false
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "PLAYING": {
+                  "color": "green",
+                  "index": 0
+                },
+                "BUFFERING": {
+                  "color": "yellow",
+                  "index": 1
+                },
+                "PAUSED": {
+                  "color": "blue",
+                  "index": 2
+                },
+                "IDLE": {
+                  "color": "gray",
+                  "index": 3
+                },
+                "ENDED": {
+                  "color": "red",
+                  "index": 4
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "PostgreSQL"
+          },
+          "rawSql": "SELECT to_timestamp(timestamp_ms / 1000.0) AS time, playback_state AS \"State\" FROM session_timeline WHERE session_id = '$sessionId' ORDER BY timestamp_ms",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 202,
+      "type": "timeseries",
+      "title": "Bitrate Over Time",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 37
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "PostgreSQL"
+      },
+      "options": {
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "kbits",
+          "custom": {
+            "lineInterpolation": "stepAfter",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "PostgreSQL"
+          },
+          "rawSql": "SELECT to_timestamp(timestamp_ms / 1000.0) AS time, current_bitrate / 1000.0 AS \"Bitrate (kbps)\" FROM session_timeline WHERE session_id = '$sessionId' AND current_bitrate IS NOT NULL ORDER BY timestamp_ms",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 203,
+      "type": "timeseries",
+      "title": "Buffer Health",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 45
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "PostgreSQL"
+      },
+      "options": {
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "spanNulls": false
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 0.5
+              },
+              {
+                "color": "green",
+                "value": 2
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "PostgreSQL"
+          },
+          "rawSql": "SELECT to_timestamp(timestamp_ms / 1000.0) AS time, buffered_duration_ms / 1000.0 AS \"Buffer (seconds)\" FROM session_timeline WHERE session_id = '$sessionId' AND buffered_duration_ms IS NOT NULL ORDER BY timestamp_ms",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 204,
+      "type": "state-timeline",
+      "title": "Network Type",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 53
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "PostgreSQL"
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "never",
+        "alignValue": "left",
+        "rowHeight": 0.9,
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "lineWidth": 1,
+            "fillOpacity": 70,
+            "spanNulls": false
+          },
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "Wi-Fi": {
+                  "color": "green",
+                  "index": 0
+                },
+                "Cellular": {
+                  "color": "orange",
+                  "index": 1
+                },
+                "Ethernet": {
+                  "color": "blue",
+                  "index": 2
+                },
+                "Unknown": {
+                  "color": "gray",
+                  "index": 3
+                }
+              }
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "PostgreSQL"
+          },
+          "rawSql": "SELECT to_timestamp(timestamp_ms / 1000.0) AS time, network_type AS \"Network\" FROM session_timeline WHERE session_id = '$sessionId' AND network_type IS NOT NULL ORDER BY timestamp_ms",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ]
+    },
+    {
+      "id": 205,
+      "type": "timeseries",
+      "title": "Dropped Frames (Delta)",
+      "gridPos": {
+        "h": 8,
+        "w": 24,
+        "x": 0,
+        "y": 61
+      },
+      "datasource": {
+        "type": "postgres",
+        "uid": "PostgreSQL"
+      },
+      "options": {
+        "tooltip": {
+          "mode": "single",
+          "sort": "none"
+        },
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "spanNulls": false
+          },
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "red"
+          }
+        },
+        "overrides": []
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "postgres",
+            "uid": "PostgreSQL"
+          },
+          "rawSql": "SELECT to_timestamp(timestamp_ms / 1000.0) AS time, total_dropped_frames - LAG(total_dropped_frames, 1, 0) OVER (ORDER BY timestamp_ms) AS \"New Dropped Frames\" FROM session_timeline WHERE session_id = '$sessionId' ORDER BY timestamp_ms",
+          "format": "time_series",
+          "refId": "A"
+        }
+      ]
     }
   ],
   "refresh": "30s",

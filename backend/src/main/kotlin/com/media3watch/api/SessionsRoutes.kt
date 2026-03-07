@@ -21,6 +21,9 @@ private val UUID_PATTERN = Regex(
     RegexOption.IGNORE_CASE
 )
 private const val MAX_SESSION_ID_LENGTH = 128
+private const val MAX_TIMELINE_ENTRIES = 500
+private const val MAX_NETWORK_TYPE_LENGTH = 16
+private val VALID_PLAYBACK_STATES = setOf("IDLE", "BUFFERING", "PLAYING", "PAUSED", "ENDED")
 
 @Serializable
 data class SessionResponse(
@@ -117,14 +120,84 @@ fun Route.sessionsRoutes(
                     return@post
                 }
 
-                val result = repository.upsertSession(session)
+                // Validate timelineEvents if present
+                val timelineEvents = session.timelineEvents
+                if (timelineEvents != null) {
+                    if (timelineEvents.size > MAX_TIMELINE_ENTRIES) {
+                        call.respond(
+                            HttpStatusCode.BadRequest,
+                            ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents exceeds maximum of $MAX_TIMELINE_ENTRIES entries"))
+                        )
+                        return@post
+                    }
+                    timelineEvents.forEachIndexed { index, entry ->
+                        if (entry.timestampMs <= 0) {
+                            call.respond(
+                                HttpStatusCode.BadRequest,
+                                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents[$index].timestampMs must be positive"))
+                            )
+                            return@post
+                        }
+                        if (entry.elapsedMs < 0) {
+                            call.respond(
+                                HttpStatusCode.BadRequest,
+                                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents[$index].elapsedMs must be non-negative"))
+                            )
+                            return@post
+                        }
+                        if (entry.playbackState !in VALID_PLAYBACK_STATES) {
+                            call.respond(
+                                HttpStatusCode.BadRequest,
+                                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents[$index].playbackState '${entry.playbackState}' is not a valid playbackState"))
+                            )
+                            return@post
+                        }
+                        if (entry.currentBitrate != null && entry.currentBitrate < 0) {
+                            call.respond(
+                                HttpStatusCode.BadRequest,
+                                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents[$index].currentBitrate must be non-negative"))
+                            )
+                            return@post
+                        }
+                        if (entry.totalDroppedFrames < 0) {
+                            call.respond(
+                                HttpStatusCode.BadRequest,
+                                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents[$index].totalDroppedFrames must be non-negative"))
+                            )
+                            return@post
+                        }
+                        if (entry.rebufferCount < 0) {
+                            call.respond(
+                                HttpStatusCode.BadRequest,
+                                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents[$index].rebufferCount must be non-negative"))
+                            )
+                            return@post
+                        }
+                        if (entry.rebufferTimeMs < 0) {
+                            call.respond(
+                                HttpStatusCode.BadRequest,
+                                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents[$index].rebufferTimeMs must be non-negative"))
+                            )
+                            return@post
+                        }
+                        if (entry.networkType != null && entry.networkType.length > MAX_NETWORK_TYPE_LENGTH) {
+                            call.respond(
+                                HttpStatusCode.BadRequest,
+                                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents[$index].networkType exceeds maximum length of $MAX_NETWORK_TYPE_LENGTH characters"))
+                            )
+                            return@post
+                        }
+                    }
+                }
+
+                val result = repository.upsertSessionWithTimeline(session, timelineEvents)
 
                 result.onSuccess {
                     sessionsIngestedCounter.increment()
                     call.respond(HttpStatusCode.OK, SessionResponse("success", session.sessionId))
                 }.onFailure { error ->
                     sessionsFailedCounter.increment()
-                    logger.error("Failed to upsert session", error)
+                    logger.error("Failed to upsert session with timeline", error)
                     call.respond(
                         HttpStatusCode.ServiceUnavailable,
                         ErrorResponse(
