@@ -16,6 +16,9 @@ class FakeSessionRepository : SessionRepository {
     private val _sessions = mutableMapOf<String, SessionSummary>()
     private val _timeline = mutableListOf<Pair<String, TimelineEntry>>()
 
+    /** When true, [upsertSessionWithTimeline] returns failure and leaves nothing persisted. */
+    var failTimelineInsert: Boolean = false
+
     /** Read-only view of all upserted sessions, keyed by sessionId. */
     val sessions: Map<String, SessionSummary> get() = _sessions
 
@@ -30,6 +33,20 @@ class FakeSessionRepository : SessionRepository {
 
     override fun insertTimelineEvents(sessionId: String, events: List<TimelineEntry>): Result<Unit> {
         _timeline.addAll(events.map { sessionId to it })
+        return Result.success(Unit)
+    }
+
+    override fun upsertSessionWithTimeline(
+        session: SessionSummary,
+        timelineEvents: List<TimelineEntry>?
+    ): Result<Unit> {
+        if (failTimelineInsert) {
+            return Result.failure(RuntimeException("Simulated timeline insert failure"))
+        }
+        _sessions[session.sessionId] = session
+        if (!timelineEvents.isNullOrEmpty()) {
+            _timeline.addAll(timelineEvents.map { session.sessionId to it })
+        }
         return Result.success(Unit)
     }
 

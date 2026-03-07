@@ -611,6 +611,26 @@ class SessionIngestionTest {
     }
 
     @Test
+    fun `session and timeline are not persisted when storage fails (atomicity)`() {
+        val fakeRepo = FakeSessionRepository().also { it.failTimelineInsert = true }
+        testApplication {
+            application { module(repository = fakeRepo) }
+            val sessionId = UUID.randomUUID().toString()
+            val entry = timelineEntry()
+
+            val response = client.post("/v1/sessions") {
+                header("X-API-Key", testApiKey)
+                header(HttpHeaders.ContentType, ContentType.Application.Json)
+                setBody(validPayloadWithTimeline(sessionId, "[$entry]"))
+            }
+
+            assertEquals(HttpStatusCode.ServiceUnavailable, response.status)
+            assertFalse(fakeRepo.sessions.containsKey(sessionId), "Session must not be persisted when ingestion fails atomically")
+            assertEquals(0, fakeRepo.timelineForSession(sessionId).size, "Timeline must not be persisted when ingestion fails atomically")
+        }
+    }
+
+    @Test
     fun `upsert preserves existing timeline rows`() = testApp { fakeRepo ->
         val sessionId = UUID.randomUUID().toString()
         val ts = System.currentTimeMillis()

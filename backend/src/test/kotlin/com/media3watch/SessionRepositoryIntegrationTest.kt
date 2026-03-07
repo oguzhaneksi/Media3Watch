@@ -2,6 +2,7 @@ package com.media3watch
 
 import com.media3watch.db.DefaultSessionRepository
 import com.media3watch.domain.SessionSummary
+import com.media3watch.domain.TimelineEntry
 import org.flywaydb.core.Flyway
 import org.junit.jupiter.api.BeforeAll
 import org.testcontainers.containers.PostgreSQLContainer
@@ -66,6 +67,58 @@ class SessionRepositoryIntegrationTest {
                 throw java.sql.SQLFeatureNotSupportedException()
             override fun <T : Any> unwrap(iface: Class<T>): T = throw java.sql.SQLFeatureNotSupportedException()
             override fun isWrapperFor(iface: Class<*>) = false
+        }
+    }
+
+    @Test
+    fun `upsertSessionWithTimeline persists session and timeline atomically`() {
+        val sessionId = UUID.randomUUID().toString()
+        val ts = System.currentTimeMillis()
+        val repo = DefaultSessionRepository(buildDataSource())
+
+        val session = SessionSummary(
+            sessionId = sessionId,
+            timestamp = ts,
+            sessionStartDateIso = "2026-01-01T00:00:00.000Z",
+            sessionDurationMs = 30_000
+        )
+        val events = listOf(
+            TimelineEntry(
+                timestampMs = ts,
+                elapsedMs = 0,
+                playbackState = "PLAYING",
+                totalDroppedFrames = 0,
+                rebufferCount = 0,
+                rebufferTimeMs = 0
+            ),
+            TimelineEntry(
+                timestampMs = ts + 10_000,
+                elapsedMs = 10_000,
+                playbackState = "BUFFERING",
+                totalDroppedFrames = 2,
+                rebufferCount = 1,
+                rebufferTimeMs = 300
+            )
+        )
+
+        val result = repo.upsertSessionWithTimeline(session, events)
+        assertTrue(result.isSuccess, "upsertSessionWithTimeline should succeed")
+
+        getDbConnection().use { conn ->
+            conn.prepareStatement("SELECT COUNT(*) FROM sessions WHERE session_id = ?").use { stmt ->
+                stmt.setString(1, sessionId)
+                stmt.executeQuery().use { rs ->
+                    rs.next()
+                    assertEquals(1, rs.getInt(1), "Session row must be present after atomic upsert")
+                }
+            }
+            conn.prepareStatement("SELECT COUNT(*) FROM session_timeline WHERE session_id = ?").use { stmt ->
+                stmt.setString(1, sessionId)
+                stmt.executeQuery().use { rs ->
+                    rs.next()
+                    assertEquals(2, rs.getInt(1), "Both timeline rows must be present after atomic upsert")
+                }
+            }
         }
     }
 
