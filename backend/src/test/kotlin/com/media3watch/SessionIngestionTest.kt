@@ -580,6 +580,21 @@ class SessionIngestionTest {
     }
 
     @Test
+    fun `timeline entry with networkType exceeding max length is rejected`() = testApp { _ ->
+        val sessionId = UUID.randomUUID().toString()
+        val entry = timelineEntry(networkType = "A".repeat(17))
+
+        val response = client.post("/v1/sessions") {
+            header("X-API-Key", testApiKey)
+            header(HttpHeaders.ContentType, ContentType.Application.Json)
+            setBody(validPayloadWithTimeline(sessionId, "[$entry]"))
+        }
+
+        assertEquals(HttpStatusCode.BadRequest, response.status)
+        assertTrue(response.bodyAsText().contains("networkType"))
+    }
+
+    @Test
     fun `exceeding max timeline entries limit is rejected`() = testApp { _ ->
         val sessionId = UUID.randomUUID().toString()
         val entries = (1..501).joinToString(",") { timelineEntry(elapsedMs = it.toLong() * 1000) }
