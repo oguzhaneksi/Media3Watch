@@ -156,37 +156,62 @@ class DefaultSessionRepository(private val dataSource: DataSource) : SessionRepo
 
                 // Delete timeline rows for the batch of expired sessions before deleting the sessions
                 // themselves, so that no orphaned timeline rows are left after each iteration.
-                val deleteTimelineSql = """
-                    DELETE FROM session_timeline
-                    WHERE session_id IN (
-                        SELECT session_id FROM sessions
-                        WHERE timestamp < ?
-                        LIMIT ?
-                    )
+                // To ensure both deletes operate on the same batch, first select the expired session
+                // IDs once per loop iteration and then use those IDs for both delete statements.
+                val selectExpiredSessionsSql = """
+                    SELECT id, session_id
+                    FROM sessions
+                    WHERE timestamp < ?
+                    LIMIT ?
                 """.trimIndent()
 
-                val deleteSessionSql = """
-                    DELETE FROM sessions
-                    WHERE id IN (
-                        SELECT id FROM sessions
-                        WHERE timestamp < ?
-                        LIMIT ?
-                    )
-                """.trimIndent()
+                connection.prepareStatement(selectExpiredSessionsSql).use { selectStmt ->
+                    do {
+                        // Select one batch of expired sessions.
+                        selectStmt.setLong(1, cutoffMs)
+                        selectStmt.setInt(2, batchSize)
 
-                connection.prepareStatement(deleteTimelineSql).use { timelineStmt ->
-                    connection.prepareStatement(deleteSessionSql).use { sessionStmt ->
-                        timelineStmt.setLong(1, cutoffMs)
-                        timelineStmt.setInt(2, batchSize)
-                        sessionStmt.setLong(1, cutoffMs)
-                        sessionStmt.setInt(2, batchSize)
-                        do {
+                        val sessionIds = mutableListOf<String>()
+                        val ids = mutableListOf<Long>()
+
+                        selectStmt.executeQuery().use { rs ->
+                            while (rs.next()) {
+                                ids.add(rs.getLong("id"))
+                                sessionIds.add(rs.getString("session_id"))
+                            }
+                        }
+
+                        if (ids.isEmpty()) {
+                            // No more expired sessions to delete.
+                            break
+                        }
+
+                        // Delete timeline rows for the selected expired sessions.
+                        val timelinePlaceholders = sessionIds.joinToString(",") { "?" }
+                        val deleteTimelineSql = "DELETE FROM session_timeline WHERE session_id IN ($timelinePlaceholders)"
+                        connection.prepareStatement(deleteTimelineSql).use { timelineStmt ->
+                            sessionIds.forEachIndexed { index, sessionId ->
+                                timelineStmt.setString(index + 1, sessionId)
+                            }
                             timelineStmt.executeUpdate()
+                        }
+
+                        // Delete the sessions themselves.
+                        val sessionPlaceholders = ids.joinToString(",") { "?" }
+                        val deleteSessionSql = "DELETE FROM sessions WHERE id IN ($sessionPlaceholders)"
+                        connection.prepareStatement(deleteSessionSql).use { sessionStmt ->
+                            ids.forEachIndexed { index, id ->
+                                sessionStmt.setLong(index + 1, id)
+                            }
                             val deleted = sessionStmt.executeUpdate()
                             totalDeleted += deleted
-                            if (deleted < batchSize) break  // last batch — no more rows to delete
-                        } while (true)
-                    }
+                        }
+
+                        // If we fetched fewer than batchSize rows, we've reached the last batch.
+                        if (ids.size < batchSize) {
+                            break
+                        }
+                    } while (true)
                 }
             }
         } catch (e: SQLException) {
