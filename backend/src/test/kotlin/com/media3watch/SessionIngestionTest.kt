@@ -471,7 +471,7 @@ class SessionIngestionTest {
         }
 
         val stored = fakeRepo.timelineForSession(sessionId).firstOrNull()
-        assertNotNull(stored, "Row must exist in session_timeline")
+        assertNotNull(stored, "Timeline entry must be stored in FakeSessionRepository")
         assertEquals(ts, stored.timestampMs)
         assertEquals(5000L, stored.elapsedMs)
         assertEquals("BUFFERING", stored.playbackState)
