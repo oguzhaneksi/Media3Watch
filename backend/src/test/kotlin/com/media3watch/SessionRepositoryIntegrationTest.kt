@@ -64,9 +64,12 @@ class SessionRepositoryIntegrationTest {
 
         fun queryDuration(): Long {
             getDbConnection().use { conn ->
-                val rs = conn.prepareStatement("SELECT session_duration_ms FROM sessions WHERE session_id = ?")
-                    .also { it.setString(1, sessionId) }.executeQuery()
-                return if (rs.next()) rs.getLong("session_duration_ms") else -1L
+                conn.prepareStatement("SELECT session_duration_ms FROM sessions WHERE session_id = ?").use { stmt ->
+                    stmt.setString(1, sessionId)
+                    stmt.executeQuery().use { rs ->
+                        return if (rs.next()) rs.getLong("session_duration_ms") else -1L
+                    }
+                }
             }
         }
 
