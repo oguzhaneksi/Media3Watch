@@ -22,6 +22,7 @@ private val UUID_PATTERN = Regex(
 )
 private const val MAX_SESSION_ID_LENGTH = 128
 private const val MAX_TIMELINE_ENTRIES = 500
+private const val MAX_NETWORK_TYPE_LENGTH = 16
 private val VALID_PLAYBACK_STATES = setOf("IDLE", "BUFFERING", "PLAYING", "PAUSED", "ENDED")
 
 @Serializable
@@ -176,6 +177,13 @@ fun Route.sessionsRoutes(
                             call.respond(
                                 HttpStatusCode.BadRequest,
                                 ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents[$index].rebufferTimeMs must be non-negative"))
+                            )
+                            return@post
+                        }
+                        if (entry.networkType != null && entry.networkType.length > MAX_NETWORK_TYPE_LENGTH) {
+                            call.respond(
+                                HttpStatusCode.BadRequest,
+                                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents[$index].networkType exceeds maximum length of $MAX_NETWORK_TYPE_LENGTH characters"))
                             )
                             return@post
                         }
