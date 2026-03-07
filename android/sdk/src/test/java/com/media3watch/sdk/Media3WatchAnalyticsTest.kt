@@ -1200,7 +1200,7 @@ class Media3WatchAnalyticsTest {
                     val arrayContent = body.substring(timelineArrayStart)
                     // At least 2 entries means 2 '{' after the opening bracket
                     val entryCount = arrayContent.takeWhile { it != ']' }.count { it == '{' }
-                    assertTrue("Should have captured at least 2 timeline entries", entryCount >= 1)
+                    assertTrue("Should have captured at least 2 timeline entries", entryCount >= 2)
                 }
             }
         }
