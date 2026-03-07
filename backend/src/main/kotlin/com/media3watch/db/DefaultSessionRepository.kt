@@ -140,15 +140,18 @@ class DefaultSessionRepository(private val dataSource: DataSource) : SessionRepo
                 // Clean pre-existing orphaned timeline rows whose parent session is already gone.
                 val orphanTimelineSql = """
                     DELETE FROM session_timeline
-                    WHERE session_id IN (
-                        SELECT session_id FROM session_timeline st
+                    WHERE id IN (
+                        SELECT id FROM session_timeline st
                         WHERE NOT EXISTS (SELECT 1 FROM sessions s WHERE s.session_id = st.session_id)
                         LIMIT ?
                     )
                 """.trimIndent()
-                connection.prepareStatement(orphanTimelineSql).use { stmt ->
+                connection.prepareStatement(timelineSql).use { stmt ->
                     stmt.setInt(1, batchSize)
-                    stmt.executeUpdate()
+                    do {
+                        val deleted = stmt.executeUpdate()
+                        if (deleted < batchSize) break  // last batch — no more orphan rows to delete
+                    } while (true)
                 }
 
                 // Delete timeline rows for the batch of expired sessions before deleting the sessions
