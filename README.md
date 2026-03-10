@@ -5,7 +5,7 @@
 > [!TIP]
 > **Check out the demo video:**
 
-<video src="https://github.com/user-attachments/assets/8ac95523-b171-480e-a8f5-76e834495e90" controls="controls" style="max-width: 100%;">
+<video src="https://github.com/user-attachments/assets/7798ad6a-0fe6-4c9f-9259-f69c6cd63a29" controls="controls" style="max-width: 100%;">
   Your browser does not support the video tag.
 </video>
 
