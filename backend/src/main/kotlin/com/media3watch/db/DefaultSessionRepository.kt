@@ -123,14 +123,13 @@ class DefaultSessionRepository(private val dataSource: DataSource) : SessionRepo
      * Batched deletes prevent table-level lock contention on large datasets. The method
      * loops until no rows remain beyond the retention window.
      *
-     * Before each batch of sessions is deleted, the corresponding `session_timeline` rows
-     * are deleted first to avoid leaving orphaned timeline rows. Pre-existing orphans
-     * (from sessions already absent in `sessions`) are also cleaned up at the start.
+     * Each batch uses a data-modifying CTE that selects the target session ids once and
+     * feeds the same set to both the `session_timeline` delete and the `sessions` delete,
+     * so the two operations are guaranteed to act on identical rows within a single
+     * statement. Pre-existing orphans (timeline rows whose parent session is already absent)
+     * are cleaned up at the start.
      *
      * A single connection is reused across all batches to avoid pool churn.
-     *
-     * SQL statements use stable subquery patterns so prepared statement caches can be
-     * reused across iterations, avoiding per-batch string allocation and GC pressure.
      *
      * @return total number of rows deleted across all batches.
      */
@@ -156,41 +155,33 @@ class DefaultSessionRepository(private val dataSource: DataSource) : SessionRepo
                     } while (true)
                 }
 
-                // Stable, subquery-based DELETE statements: their SQL text never changes across
-                // iterations, so the JDBC driver and connection pool can cache the compiled plan.
-                val deleteTimelineSql = """
-                    DELETE FROM session_timeline
-                    WHERE session_id IN (
-                        SELECT session_id FROM sessions WHERE timestamp < ? LIMIT ?
+                // A single data-modifying CTE selects the batch of expired sessions once
+                // and reuses it for both deletes, guaranteeing that the timeline rows and the
+                // session rows always refer to the exact same set of ids. This prevents the race
+                // condition that would arise if two independent LIMIT subqueries were evaluated
+                // separately and happened to select different rows.
+                val deleteBatchSql = """
+                    WITH batch AS (
+                        SELECT id, session_id FROM sessions WHERE timestamp < ? ORDER BY timestamp ASC, id ASC LIMIT ?
+                    ),
+                    deleted_timeline AS (
+                        DELETE FROM session_timeline
+                        WHERE session_id IN (SELECT session_id FROM batch)
                     )
-                """.trimIndent()
-
-                val deleteSessionSql = """
                     DELETE FROM sessions
-                    WHERE id IN (
-                        SELECT id FROM sessions WHERE timestamp < ? LIMIT ?
-                    )
+                    WHERE id IN (SELECT id FROM batch)
                 """.trimIndent()
 
-                connection.prepareStatement(deleteTimelineSql).use { timelineStmt ->
-                    connection.prepareStatement(deleteSessionSql).use { sessionStmt ->
-                        do {
-                            // Delete timeline rows for the next batch of expired sessions first
-                            // to avoid leaving orphaned timeline rows after the session delete.
-                            timelineStmt.setLong(1, cutoffMs)
-                            timelineStmt.setInt(2, batchSize)
-                            timelineStmt.executeUpdate()
+                connection.prepareStatement(deleteBatchSql).use { stmt ->
+                    do {
+                        stmt.setLong(1, cutoffMs)
+                        stmt.setInt(2, batchSize)
+                        val deleted = stmt.executeUpdate()
+                        totalDeleted += deleted
 
-                            // Delete the batch of expired sessions.
-                            sessionStmt.setLong(1, cutoffMs)
-                            sessionStmt.setInt(2, batchSize)
-                            val deleted = sessionStmt.executeUpdate()
-                            totalDeleted += deleted
-
-                            // Fewer rows than batchSize means we have reached the last batch.
-                            if (deleted < batchSize) break
-                        } while (true)
-                    }
+                        // Fewer rows than batchSize means we have reached the last batch.
+                        if (deleted < batchSize) break
+                    } while (true)
                 }
             }
         } catch (e: SQLException) {
