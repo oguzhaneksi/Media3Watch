@@ -84,67 +84,15 @@ class Media3WatchAnalytics(
                 playCommandTs = null
             }
 
-            captureTimeline()
-            reporter?.reportNow()
-            notifyObservers()
+            onPlaybackEvent()
         }
 
-        override fun onIsPlayingChanged(
-            eventTime: AnalyticsListener.EventTime,
-            isPlaying: Boolean
-        ) {
-            captureTimeline()
-            reporter?.reportNow()
-            notifyObservers()
-        }
-
-        override fun onPlaybackStateChanged(
-            eventTime: AnalyticsListener.EventTime,
-            state: Int
-        ) {
-            captureTimeline()
-            reporter?.reportNow()
-            notifyObservers()
-        }
-
-        override fun onPlayWhenReadyChanged(
-            eventTime: AnalyticsListener.EventTime,
-            playWhenReady: Boolean,
-            reason: Int
-        ) {
-            captureTimeline()
-            reporter?.reportNow()
-            notifyObservers()
-        }
-
-        override fun onVideoInputFormatChanged(
-            eventTime: AnalyticsListener.EventTime,
-            format: androidx.media3.common.Format,
-            decoderReuseEvaluation: androidx.media3.exoplayer.DecoderReuseEvaluation?
-        ) {
-            captureTimeline()
-            reporter?.reportNow()
-            notifyObservers()
-        }
-
-        override fun onPlayerError(
-            eventTime: AnalyticsListener.EventTime,
-            error: androidx.media3.common.PlaybackException
-        ) {
-            captureTimeline()
-            reporter?.reportNow()
-            notifyObservers()
-        }
-
-        override fun onDroppedVideoFrames(
-            eventTime: AnalyticsListener.EventTime,
-            droppedFrames: Int,
-            elapsedMs: Long
-        ) {
-            captureTimeline()
-            reporter?.reportNow()
-            notifyObservers()
-        }
+        override fun onIsPlayingChanged(eventTime: AnalyticsListener.EventTime, isPlaying: Boolean) = onPlaybackEvent()
+        override fun onPlaybackStateChanged(eventTime: AnalyticsListener.EventTime, state: Int) = onPlaybackEvent()
+        override fun onPlayWhenReadyChanged(eventTime: AnalyticsListener.EventTime, playWhenReady: Boolean, reason: Int) = onPlaybackEvent()
+        override fun onVideoInputFormatChanged(eventTime: AnalyticsListener.EventTime, format: androidx.media3.common.Format, decoderReuseEvaluation: androidx.media3.exoplayer.DecoderReuseEvaluation?) = onPlaybackEvent()
+        override fun onPlayerError(eventTime: AnalyticsListener.EventTime, error: androidx.media3.common.PlaybackException) = onPlaybackEvent()
+        override fun onDroppedVideoFrames(eventTime: AnalyticsListener.EventTime, droppedFrames: Int, elapsedMs: Long) = onPlaybackEvent()
 
         override fun onPositionDiscontinuity(
             eventTime: AnalyticsListener.EventTime,
@@ -152,12 +100,16 @@ class Media3WatchAnalytics(
             newPosition: Player.PositionInfo,
             reason: Int
         ) {
-            if (reason == Player.DISCONTINUITY_REASON_SEEK) {
-                captureTimeline()
-                reporter?.reportNow()
-            }
-            notifyObservers()
+            if (reason == Player.DISCONTINUITY_REASON_SEEK) onPlaybackEvent()
+            else notifyObservers()
         }
+    }
+
+    @MainThread
+    private fun onPlaybackEvent() {
+        captureTimeline()
+        reporter?.reportNow()
+        notifyObservers()
     }
 
     /**
@@ -181,8 +133,9 @@ class Media3WatchAnalytics(
         }
 
         if (player != null && sessionId.isNotBlank()) {
-            safeNotifySessionStarted(observer, sessionId)
-            buildSnapshot()?.let { safeNotifySnapshotUpdated(observer, it) }
+            val id = sessionId
+            safeNotify(observer, "onSessionStarted") { observer.onSessionStarted(id) }
+            buildSnapshot()?.let { snapshot -> safeNotify(observer, "onSnapshotUpdated") { observer.onSnapshotUpdated(snapshot) } }
         }
     }
 
@@ -321,18 +274,27 @@ class Media3WatchAnalytics(
         val capturedTimelineEvents = timelineCollector?.drain().orEmpty()
 
         analyticsScope.launch(Dispatchers.Default) {
-            val summary = LogUtils.buildSessionSummary(
+            val summary = SessionSummary(
                 sessionId = capturedSessionId,
-                sessionStartWallClockMs = capturedSessionStartWallClockMs,
-                sessionStartTs = capturedSessionStartTs,
-                now = now,
+                timestamp = System.currentTimeMillis(),
+                sessionStartDateIso = LogUtils.toIsoDateTime(capturedSessionStartWallClockMs),
+                sessionDurationMs = (now - capturedSessionStartTs).coerceAtLeast(0L),
                 startupTimeMs = capturedStartupTimeMs,
-                sessionEndStats = stats,
+                rebufferTimeMs = stats?.totalRebufferTimeMs,
+                rebufferCount = stats?.totalRebufferCount,
+                playTimeMs = stats?.totalPlayTimeMs,
+                rebufferRatio = stats?.rebufferTimeRatio,
+                totalDroppedFrames = stats?.totalDroppedFrames,
+                totalSeekCount = stats?.totalSeekCount,
+                totalSeekTimeMs = stats?.totalSeekTimeMs,
+                meanVideoFormatBitrate = stats?.meanVideoFormatBitrate,
+                errorCount = stats?.fatalErrorCount,
                 deviceModel = Build.MODEL,
                 osVersion = Build.VERSION.SDK_INT,
                 sdkVersion = BuildConfig.SDK_VERSION,
                 connectionType = capturedConnectionTypeNow,
-            ).copy(timelineEvents = capturedTimelineEvents.ifEmpty { null })
+                timelineEvents = capturedTimelineEvents.ifEmpty { null },
+            )
 
             if (logSessionSummary && config.enableLogging)
                 Log.d(LogUtils.TAG, summary.toPrettyLog())
@@ -360,20 +322,13 @@ class Media3WatchAnalytics(
     @MainThread
     private fun notifySessionStarted() {
         if (sessionId.isBlank()) return
-        metricsObservers.forEach { safeNotifySessionStarted(it, sessionId) }
+        val id = sessionId
+        metricsObservers.forEach { observer -> safeNotify(observer, "onSessionStarted") { observer.onSessionStarted(id) } }
     }
 
     @MainThread
     private fun notifySessionEnded(sessionId: String, finalSnapshot: SessionSnapshot) {
-        metricsObservers.forEach { observer ->
-            try {
-                observer.onSessionEnded(sessionId, finalSnapshot)
-            } catch (t: Throwable) {
-                if (config.enableLogging) {
-                    Log.w(LogUtils.TAG, "MetricsObserver.onSessionEnded failed", t)
-                }
-            }
-        }
+        metricsObservers.forEach { observer -> safeNotify(observer, "onSessionEnded") { observer.onSessionEnded(sessionId, finalSnapshot) } }
     }
 
     @MainThread
@@ -382,9 +337,7 @@ class Media3WatchAnalytics(
         if (metricsObservers.isEmpty()) return
 
         val snapshot = buildSnapshot() ?: return
-        metricsObservers.forEach { observer ->
-            safeNotifySnapshotUpdated(observer, snapshot)
-        }
+        metricsObservers.forEach { observer -> safeNotify(observer, "onSnapshotUpdated") { observer.onSnapshotUpdated(snapshot) } }
     }
 
     @MainThread
@@ -415,23 +368,11 @@ class Media3WatchAnalytics(
         )
     }
 
-    private fun safeNotifySessionStarted(observer: MetricsObserver, sessionId: String) {
+    private inline fun safeNotify(observer: MetricsObserver, label: String, block: () -> Unit) {
         try {
-            observer.onSessionStarted(sessionId)
+            block()
         } catch (t: Throwable) {
-            if (config.enableLogging) {
-                Log.w(LogUtils.TAG, "MetricsObserver.onSessionStarted failed", t)
-            }
-        }
-    }
-
-    private fun safeNotifySnapshotUpdated(observer: MetricsObserver, snapshot: SessionSnapshot) {
-        try {
-            observer.onSnapshotUpdated(snapshot)
-        } catch (t: Throwable) {
-            if (config.enableLogging) {
-                Log.w(LogUtils.TAG, "MetricsObserver.onSnapshotUpdated failed", t)
-            }
+            if (config.enableLogging) Log.w(LogUtils.TAG, "MetricsObserver.$label failed", t)
         }
     }
 

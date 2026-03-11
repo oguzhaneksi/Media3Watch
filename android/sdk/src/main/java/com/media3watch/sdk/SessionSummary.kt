@@ -33,37 +33,24 @@ private val sessionSummaryJson = Json {
 
 internal fun SessionSummary.toJson(): String = sessionSummaryJson.encodeToString(this)
 
-internal fun SessionSummary.toPrettyLog(): String {
-    val startupStr = startupTimeMs?.toString() ?: "null"
-    val rebufferTimeStr = rebufferTimeMs?.toString() ?: "null"
-    val rebufferCountStr = rebufferCount?.toString() ?: "null"
-    val playTimeStr = playTimeMs?.toString() ?: "null"
-    val rebufferRatioStr = rebufferRatio?.toString() ?: "null"
-    val errorCountStr = errorCount?.toString() ?: "null"
-    val droppedFramesStr = totalDroppedFrames?.toString() ?: "null"
-    val seekCountStr = totalSeekCount?.toString() ?: "null"
-    val seekTimeMsStr = totalSeekTimeMs?.toString() ?: "null"
-    val meanVideoFormatBitrateStr = meanVideoFormatBitrate?.toString() ?: "null"
-
-    return buildString {
-        appendLine("session_end")
-        appendLine("  sessionId: $sessionId")
-        appendLine("  timestamp: $timestamp")
-        appendLine("  sessionStartDateIso: $sessionStartDateIso")
-        appendLine("  sessionDurationMs: $sessionDurationMs")
-        appendLine("  startupTimeMs: $startupStr")
-        appendLine("  rebufferTimeMs: $rebufferTimeStr")
-        appendLine("  rebufferCount: $rebufferCountStr")
-        appendLine("  playTimeMs: $playTimeStr")
-        appendLine("  rebufferRatio: $rebufferRatioStr")
-        appendLine("  totalDroppedFrames: $droppedFramesStr")
-        appendLine("  totalSeekCount: $seekCountStr")
-        appendLine("  totalSeekTimeMs: $seekTimeMsStr")
-        appendLine("  meanVideoFormatBitrate: $meanVideoFormatBitrateStr")
-        appendLine("  errorCount: $errorCountStr")
-        appendLine("  deviceModel: ${deviceModel ?: "null"}")
-        appendLine("  osVersion: ${osVersion?.toString() ?: "null"}")
-        appendLine("  sdkVersion: ${sdkVersion ?: "null"}")
-        appendLine("  connectionType: ${connectionType ?: "null"}")
-    }
+internal fun SessionSummary.toPrettyLog(): String = buildString {
+    appendLine("session_end")
+    appendLine("  sessionId: $sessionId")
+    appendLine("  timestamp: $timestamp")
+    appendLine("  sessionStartDateIso: $sessionStartDateIso")
+    appendLine("  sessionDurationMs: $sessionDurationMs")
+    appendLine("  startupTimeMs: $startupTimeMs")
+    appendLine("  rebufferTimeMs: $rebufferTimeMs")
+    appendLine("  rebufferCount: $rebufferCount")
+    appendLine("  playTimeMs: $playTimeMs")
+    appendLine("  rebufferRatio: $rebufferRatio")
+    appendLine("  totalDroppedFrames: $totalDroppedFrames")
+    appendLine("  totalSeekCount: $totalSeekCount")
+    appendLine("  totalSeekTimeMs: $totalSeekTimeMs")
+    appendLine("  meanVideoFormatBitrate: $meanVideoFormatBitrate")
+    appendLine("  errorCount: $errorCount")
+    appendLine("  deviceModel: $deviceModel")
+    appendLine("  osVersion: $osVersion")
+    appendLine("  sdkVersion: $sdkVersion")
+    appendLine("  connectionType: $connectionType")
 }

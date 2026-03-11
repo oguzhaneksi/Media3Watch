@@ -1,7 +1,6 @@
 package com.media3watch.sdk
 
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.analytics.PlaybackStats
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -26,40 +25,6 @@ internal object LogUtils {
             }
     }
 
-    fun buildSessionSummary(
-        sessionId: String,
-        sessionStartWallClockMs: Long,
-        sessionStartTs: Long,
-        now: Long,
-        startupTimeMs: Long?,
-        sessionEndStats: PlaybackStats?,
-        deviceModel: String? = null,
-        osVersion: Int? = null,
-        sdkVersion: String? = null,
-        connectionType: String? = null,
-    ): SessionSummary {
-        return SessionSummary(
-            sessionId = sessionId,
-            timestamp = System.currentTimeMillis(),
-            sessionStartDateIso = toIsoDateTime(sessionStartWallClockMs),
-            sessionDurationMs = (now - sessionStartTs).coerceAtLeast(0L),
-            startupTimeMs = startupTimeMs,
-            rebufferTimeMs = sessionEndStats?.totalRebufferTimeMs,
-            rebufferCount = sessionEndStats?.totalRebufferCount,
-            playTimeMs = sessionEndStats?.totalPlayTimeMs,
-            rebufferRatio = sessionEndStats?.rebufferTimeRatio,
-            totalDroppedFrames = sessionEndStats?.totalDroppedFrames,
-            totalSeekCount = sessionEndStats?.totalSeekCount,
-            totalSeekTimeMs = sessionEndStats?.totalSeekTimeMs,
-            meanVideoFormatBitrate = sessionEndStats?.meanVideoFormatBitrate,
-            errorCount = sessionEndStats?.fatalErrorCount,
-            deviceModel = deviceModel,
-            osVersion = osVersion,
-            sdkVersion = sdkVersion,
-            connectionType = connectionType,
-        )
-    }
-
     fun toIsoDateTime(epochMillis: Long): String {
         if (epochMillis <= 0L) return "null"
         val formatter = ISO_FORMATTER.get() ?: SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
@@ -68,3 +33,4 @@ internal object LogUtils {
         return formatter.format(Date(epochMillis))
     }
 }
+

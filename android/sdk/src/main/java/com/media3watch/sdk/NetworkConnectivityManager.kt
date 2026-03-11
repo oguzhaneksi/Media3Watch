@@ -29,25 +29,16 @@ internal class NetworkConnectivityManager(context: Context) {
         return try {
             val cm = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
                 ?: return "Unknown"
-
-            resolveConnectionTypeModern(cm)
+            val network = cm.activeNetwork ?: return "Unknown"
+            val caps = cm.getNetworkCapabilities(network) ?: return "Unknown"
+            when {
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "Wi-Fi"
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "Cellular"
+                caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "Ethernet"
+                else -> "Unknown"
+            }
         } catch (_: Exception) {
             "Unknown"
-        }
-    }
-
-    /**
-     * Uses [NetworkCapabilities] to identify the transport layer.
-     * Requires `android.permission.ACCESS_NETWORK_STATE` (see class-level KDoc).
-     */
-    private fun resolveConnectionTypeModern(cm: ConnectivityManager): String {
-        val network = cm.activeNetwork ?: return "Unknown"
-        val caps = cm.getNetworkCapabilities(network) ?: return "Unknown"
-        return when {
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "Wi-Fi"
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "Cellular"
-            caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "Ethernet"
-            else -> "Unknown"
         }
     }
 }
