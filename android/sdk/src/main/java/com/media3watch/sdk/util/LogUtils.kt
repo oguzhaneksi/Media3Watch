@@ -1,4 +1,4 @@
-package com.media3watch.sdk
+package com.media3watch.sdk.util
 
 import androidx.media3.common.util.UnstableApi
 import java.text.SimpleDateFormat

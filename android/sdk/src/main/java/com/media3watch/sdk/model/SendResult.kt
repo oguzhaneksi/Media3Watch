@@ -1,7 +1,7 @@
-package com.media3watch.sdk
+package com.media3watch.sdk.model
 
 /**
- * Sealed result type for [HttpSender.send].
+ * Sealed result type for [com.media3watch.sdk.transport.HttpSender.send].
  *
  * Distinguishes between outcomes that are worth retrying (transient) vs. those that are
  * permanent client-side errors and should never be queued for offline retry.

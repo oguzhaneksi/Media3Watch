@@ -1,9 +1,10 @@
-package com.media3watch.sdk
+package com.media3watch.sdk.util
 
 import androidx.annotation.OptIn
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import com.media3watch.sdk.model.SessionPlaybackState
 
 internal fun toSessionPlaybackState(playerState: Int, isPlaying: Boolean): SessionPlaybackState {
     return when (playerState) {

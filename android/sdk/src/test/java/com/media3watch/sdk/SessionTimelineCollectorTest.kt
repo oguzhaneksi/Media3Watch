@@ -5,6 +5,7 @@ import android.os.SystemClock
 import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
+import com.media3watch.sdk.collector.SessionTimelineCollector
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test

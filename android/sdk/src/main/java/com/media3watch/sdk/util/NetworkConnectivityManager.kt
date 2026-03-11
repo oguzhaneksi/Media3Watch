@@ -1,4 +1,4 @@
-package com.media3watch.sdk
+package com.media3watch.sdk.util
 
 import android.content.Context
 import android.net.ConnectivityManager
@@ -7,7 +7,7 @@ import android.net.NetworkCapabilities
 /**
  * Internal helper that resolves the current network connection type.
  *
- * All network-related logic is centralized here so [Media3WatchAnalytics]
+ * All network-related logic is centralized here so [com.media3watch.sdk.Media3WatchAnalytics]
  * remains focused on playback-session responsibilities (SRP).
  *
  * Requires `android.permission.ACCESS_NETWORK_STATE`, which is declared in the SDK's own
@@ -21,7 +21,7 @@ internal class NetworkConnectivityManager(context: Context) {
     /**
      * Returns one of: `"Wi-Fi"`, `"Cellular"`, `"Ethernet"`, or `"Unknown"`.
      *
-     * Uses [ConnectivityManager.getNetworkCapabilities] (requires `ACCESS_NETWORK_STATE`).
+     * Uses [android.net.ConnectivityManager.getNetworkCapabilities] (requires `ACCESS_NETWORK_STATE`).
      *
      * Must be called on the **Main thread** (ConnectivityManager is not thread-safe).
      */

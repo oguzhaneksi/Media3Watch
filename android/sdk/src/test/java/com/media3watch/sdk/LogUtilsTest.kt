@@ -1,15 +1,16 @@
 package com.media3watch.sdk
 
 import androidx.media3.common.util.UnstableApi
+import com.media3watch.sdk.util.LogUtils
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Unit tests for [LogUtils].
+ * Unit tests for [com.media3watch.sdk.util.LogUtils].
  *
- * These tests run on the JVM (no Robolectric required) because [LogUtils] is pure Kotlin/Java
+ * These tests run on the JVM (no Robolectric required) because [com.media3watch.sdk.util.LogUtils] is pure Kotlin/Java
  * with no Android framework dependencies beyond [android.util.Log] — which is not exercised in
  * the formatter tests below.
  */

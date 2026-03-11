@@ -1,11 +1,13 @@
 package com.media3watch.sdk
 
+import com.media3watch.sdk.model.SessionSnapshot
+
 /**
  * Observer interface for receiving real-time playback and session metrics.
  *
  * Implement this interface and register it with the SDK to receive callbacks when:
  *
- * - A new [SessionSnapshot] is available for the currently active session via [onSnapshotUpdated].
+ * - A new [com.media3watch.sdk.model.SessionSnapshot] is available for the currently active session via [onSnapshotUpdated].
  * - A new session begins tracking via [onSessionStarted].
  * - An existing session finishes and its final metrics are available via [onSessionEnded].
  *
@@ -44,7 +46,7 @@ interface MetricsObserver {
      * The SDK invokes this method on the main (UI) thread, typically whenever playback
      * state changes or at configured intervals while a session is active.
      *
-     * @param snapshot the latest [SessionSnapshot] describing the current session state
+     * @param snapshot the latest [com.media3watch.sdk.model.SessionSnapshot] describing the current session state
      * and metrics at the time of the callback.
      */
     fun onSnapshotUpdated(snapshot: SessionSnapshot)
