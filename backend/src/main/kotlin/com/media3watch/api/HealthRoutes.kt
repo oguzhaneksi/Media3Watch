@@ -1,11 +1,12 @@
 package com.media3watch.api
 
+import com.media3watch.config.ApiConstants
 import io.ktor.http.*
 import io.ktor.server.response.*
 import io.ktor.server.routing.*
-import kotlinx.serialization.Serializable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
 import org.slf4j.LoggerFactory
 import javax.sql.DataSource
 
@@ -19,11 +20,11 @@ data class HealthResponse(
 )
 
 fun Route.healthRoutes(dataSource: DataSource) {
-    get("/health") {
+    get(ApiConstants.Routes.HEALTH) {
         val dbStatus = withContext(Dispatchers.IO) {
             try {
                 dataSource.connection.use { conn ->
-                    conn.prepareStatement("SELECT 1").use { stmt ->
+                    conn.prepareStatement(ApiConstants.Database.HEALTH_CHECK_SQL).use { stmt ->
                         stmt.executeQuery().close()
                     }
                 }
@@ -37,12 +38,12 @@ fun Route.healthRoutes(dataSource: DataSource) {
         if (dbStatus) {
             call.respond(
                 HttpStatusCode.OK,
-                HealthResponse(status = "healthy", database = "connected")
+                HealthResponse(status = ApiConstants.HealthStatus.HEALTHY, database = ApiConstants.HealthStatus.CONNECTED)
             )
         } else {
             call.respond(
                 HttpStatusCode.ServiceUnavailable,
-                HealthResponse(status = "unhealthy", database = "disconnected")
+                HealthResponse(status = ApiConstants.HealthStatus.UNHEALTHY, database = ApiConstants.HealthStatus.DISCONNECTED)
             )
         }
     }
