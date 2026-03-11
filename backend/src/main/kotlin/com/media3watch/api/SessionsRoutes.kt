@@ -1,5 +1,6 @@
 package com.media3watch.api
 
+import com.media3watch.config.ApiConstants
 import com.media3watch.db.SessionRepository
 import com.media3watch.domain.SessionSummary
 import com.media3watch.observability.ErrorCodes
@@ -14,16 +15,8 @@ import io.micrometer.core.instrument.Counter
 import kotlinx.serialization.Serializable
 import org.slf4j.LoggerFactory
 
-private val logger = LoggerFactory.getLogger("SessionsRoutes")
 
-private val UUID_PATTERN = Regex(
-    "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
-    RegexOption.IGNORE_CASE
-)
-private const val MAX_SESSION_ID_LENGTH = 128
-private const val MAX_TIMELINE_ENTRIES = 500
-private const val MAX_NETWORK_TYPE_LENGTH = 16
-private val VALID_PLAYBACK_STATES = setOf("IDLE", "BUFFERING", "PLAYING", "PAUSED", "ENDED")
+private val logger = LoggerFactory.getLogger("SessionsRoutes")
 
 @Serializable
 data class SessionResponse(
@@ -36,157 +29,25 @@ fun Route.sessionsRoutes(
     sessionsIngestedCounter: Counter,
     sessionsFailedCounter: Counter
 ) {
-    authenticate("api-key-auth") {
-        post("/v1/sessions") {
+    authenticate(ApiConstants.AUTH_CONFIG_NAME) {
+        post(ApiConstants.Routes.SESSIONS) {
             try {
                 val session = call.receive<SessionSummary>()
 
-                // Validate sessionId: non-blank, max length, UUID format
-                if (session.sessionId.isBlank()) {
-                    call.respond(
-                        HttpStatusCode.BadRequest,
-                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "Missing or empty required field: sessionId"))
-                    )
+                // Validate top-level session fields
+                val sessionError = SessionValidator.validate(session)
+                if (sessionError != null) {
+                    call.respondValidationError(sessionError)
                     return@post
                 }
 
-                if (session.sessionId.length > MAX_SESSION_ID_LENGTH) {
-                    call.respond(
-                        HttpStatusCode.BadRequest,
-                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "sessionId exceeds maximum length of $MAX_SESSION_ID_LENGTH characters"))
-                    )
-                    return@post
-                }
-
-                if (!UUID_PATTERN.matches(session.sessionId)) {
-                    call.respond(
-                        HttpStatusCode.BadRequest,
-                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "sessionId must be in UUID format"))
-                    )
-                    return@post
-                }
-
-                // Validate sessionDurationMs
-                if (session.sessionDurationMs <= 0) {
-                    call.respond(
-                        HttpStatusCode.BadRequest,
-                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "Invalid value for sessionDurationMs: must be positive"))
-                    )
-                    return@post
-                }
-
-                // Validate timestamp
-                if (session.timestamp <= 0) {
-                    call.respond(
-                        HttpStatusCode.BadRequest,
-                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "Invalid value for timestamp: must be positive"))
-                    )
-                    return@post
-                }
-
-                // Validate sessionStartDateIso
-                if (session.sessionStartDateIso.isBlank()) {
-                    call.respond(
-                        HttpStatusCode.BadRequest,
-                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "Missing or empty required field: sessionStartDateIso"))
-                    )
-                    return@post
-                }
-
-                // Validate nullable numeric fields: all must be non-negative if provided
-                val outOfRangeFields = buildList {
-                    if (session.startupTimeMs != null && session.startupTimeMs < 0) add("startupTimeMs")
-                    if (session.rebufferTimeMs != null && session.rebufferTimeMs < 0) add("rebufferTimeMs")
-                    if (session.rebufferCount != null && session.rebufferCount < 0) add("rebufferCount")
-                    if (session.playTimeMs != null && session.playTimeMs < 0) add("playTimeMs")
-                    if (session.totalDroppedFrames != null && session.totalDroppedFrames < 0) add("totalDroppedFrames")
-                    if (session.totalSeekCount != null && session.totalSeekCount < 0) add("totalSeekCount")
-                    if (session.totalSeekTimeMs != null && session.totalSeekTimeMs < 0) add("totalSeekTimeMs")
-                    if (session.errorCount != null && session.errorCount < 0) add("errorCount")
-                    if (session.meanVideoFormatBitrate != null && session.meanVideoFormatBitrate < 0) add("meanVideoFormatBitrate")
-                }
-                if (outOfRangeFields.isNotEmpty()) {
-                    call.respond(
-                        HttpStatusCode.BadRequest,
-                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "Out-of-range value for field(s): ${outOfRangeFields.joinToString()}: must be non-negative"))
-                    )
-                    return@post
-                }
-                if (session.rebufferRatio != null && (session.rebufferRatio !in 0f..1f)) {
-                    call.respond(
-                        HttpStatusCode.BadRequest,
-                        ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "rebufferRatio must be between 0 and 1 (inclusive)"))
-                    )
-                    return@post
-                }
-
-                // Validate timelineEvents if present
+                // Validate timeline entries if present
                 val timelineEvents = session.timelineEvents
                 if (timelineEvents != null) {
-                    if (timelineEvents.size > MAX_TIMELINE_ENTRIES) {
-                        call.respond(
-                            HttpStatusCode.BadRequest,
-                            ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents exceeds maximum of $MAX_TIMELINE_ENTRIES entries"))
-                        )
+                    val timelineError = SessionValidator.validateTimeline(timelineEvents)
+                    if (timelineError != null) {
+                        call.respondValidationError(timelineError)
                         return@post
-                    }
-                    timelineEvents.forEachIndexed { index, entry ->
-                        if (entry.timestampMs <= 0) {
-                            call.respond(
-                                HttpStatusCode.BadRequest,
-                                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents[$index].timestampMs must be positive"))
-                            )
-                            return@post
-                        }
-                        if (entry.elapsedMs < 0) {
-                            call.respond(
-                                HttpStatusCode.BadRequest,
-                                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents[$index].elapsedMs must be non-negative"))
-                            )
-                            return@post
-                        }
-                        if (entry.playbackState !in VALID_PLAYBACK_STATES) {
-                            call.respond(
-                                HttpStatusCode.BadRequest,
-                                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents[$index].playbackState '${entry.playbackState}' is not a valid playbackState"))
-                            )
-                            return@post
-                        }
-                        if (entry.currentBitrate != null && entry.currentBitrate < 0) {
-                            call.respond(
-                                HttpStatusCode.BadRequest,
-                                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents[$index].currentBitrate must be non-negative"))
-                            )
-                            return@post
-                        }
-                        if (entry.totalDroppedFrames < 0) {
-                            call.respond(
-                                HttpStatusCode.BadRequest,
-                                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents[$index].totalDroppedFrames must be non-negative"))
-                            )
-                            return@post
-                        }
-                        if (entry.rebufferCount < 0) {
-                            call.respond(
-                                HttpStatusCode.BadRequest,
-                                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents[$index].rebufferCount must be non-negative"))
-                            )
-                            return@post
-                        }
-                        if (entry.rebufferTimeMs < 0) {
-                            call.respond(
-                                HttpStatusCode.BadRequest,
-                                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents[$index].rebufferTimeMs must be non-negative"))
-                            )
-                            return@post
-                        }
-                        if (entry.networkType != null && entry.networkType.length > MAX_NETWORK_TYPE_LENGTH) {
-                            call.respond(
-                                HttpStatusCode.BadRequest,
-                                ErrorResponse(ErrorDetail(code = ErrorCodes.INVALID_SCHEMA, message = "timelineEvents[$index].networkType exceeds maximum length of $MAX_NETWORK_TYPE_LENGTH characters"))
-                            )
-                            return@post
-                        }
                     }
                 }
 
@@ -223,4 +84,3 @@ fun Route.sessionsRoutes(
         }
     }
 }
-

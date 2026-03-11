@@ -129,6 +129,9 @@ class DefaultSessionRepository(private val dataSource: DataSource) : SessionRepo
      *
      * A single connection is reused across all batches to avoid pool churn.
      *
+     * SQL statements use stable subquery patterns so prepared statement caches can be
+     * reused across iterations, avoiding per-batch string allocation and GC pressure.
+     *
      * @return total number of rows deleted across all batches.
      */
     override fun deleteExpiredSessions(retentionDays: Int, batchSize: Int): Int {
@@ -153,64 +156,41 @@ class DefaultSessionRepository(private val dataSource: DataSource) : SessionRepo
                     } while (true)
                 }
 
-                // Delete timeline rows for the batch of expired sessions before deleting the sessions
-                // themselves, so that no orphaned timeline rows are left after each iteration.
-                // To ensure both deletes operate on the same batch, first select the expired session
-                // IDs once per loop iteration and then use those IDs for both delete statements.
-                val selectExpiredSessionsSql = """
-                    SELECT id, session_id
-                    FROM sessions
-                    WHERE timestamp < ?
-                    LIMIT ?
+                // Stable, subquery-based DELETE statements: their SQL text never changes across
+                // iterations, so the JDBC driver and connection pool can cache the compiled plan.
+                val deleteTimelineSql = """
+                    DELETE FROM session_timeline
+                    WHERE session_id IN (
+                        SELECT session_id FROM sessions WHERE timestamp < ? LIMIT ?
+                    )
                 """.trimIndent()
 
-                connection.prepareStatement(selectExpiredSessionsSql).use { selectStmt ->
-                    do {
-                        // Select one batch of expired sessions.
-                        selectStmt.setLong(1, cutoffMs)
-                        selectStmt.setInt(2, batchSize)
+                val deleteSessionSql = """
+                    DELETE FROM sessions
+                    WHERE id IN (
+                        SELECT id FROM sessions WHERE timestamp < ? LIMIT ?
+                    )
+                """.trimIndent()
 
-                        val sessionIds = mutableListOf<String>()
-                        val ids = mutableListOf<Long>()
-
-                        selectStmt.executeQuery().use { rs ->
-                            while (rs.next()) {
-                                ids.add(rs.getLong("id"))
-                                sessionIds.add(rs.getString("session_id"))
-                            }
-                        }
-
-                        if (ids.isEmpty()) {
-                            // No more expired sessions to delete.
-                            break
-                        }
-
-                        // Delete timeline rows for the selected expired sessions.
-                        val timelinePlaceholders = sessionIds.joinToString(",") { "?" }
-                        val deleteTimelineSql = "DELETE FROM session_timeline WHERE session_id IN ($timelinePlaceholders)"
-                        connection.prepareStatement(deleteTimelineSql).use { timelineStmt ->
-                            sessionIds.forEachIndexed { index, sessionId ->
-                                timelineStmt.setString(index + 1, sessionId)
-                            }
+                connection.prepareStatement(deleteTimelineSql).use { timelineStmt ->
+                    connection.prepareStatement(deleteSessionSql).use { sessionStmt ->
+                        do {
+                            // Delete timeline rows for the next batch of expired sessions first
+                            // to avoid leaving orphaned timeline rows after the session delete.
+                            timelineStmt.setLong(1, cutoffMs)
+                            timelineStmt.setInt(2, batchSize)
                             timelineStmt.executeUpdate()
-                        }
 
-                        // Delete the sessions themselves.
-                        val sessionPlaceholders = ids.joinToString(",") { "?" }
-                        val deleteSessionSql = "DELETE FROM sessions WHERE id IN ($sessionPlaceholders)"
-                        connection.prepareStatement(deleteSessionSql).use { sessionStmt ->
-                            ids.forEachIndexed { index, id ->
-                                sessionStmt.setLong(index + 1, id)
-                            }
+                            // Delete the batch of expired sessions.
+                            sessionStmt.setLong(1, cutoffMs)
+                            sessionStmt.setInt(2, batchSize)
                             val deleted = sessionStmt.executeUpdate()
                             totalDeleted += deleted
-                        }
 
-                        // If we fetched fewer than batchSize rows, we've reached the last batch.
-                        if (ids.size < batchSize) {
-                            break
-                        }
-                    } while (true)
+                            // Fewer rows than batchSize means we have reached the last batch.
+                            if (deleted < batchSize) break
+                        } while (true)
+                    }
                 }
             }
         } catch (e: SQLException) {

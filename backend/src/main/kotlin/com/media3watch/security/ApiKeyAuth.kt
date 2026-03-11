@@ -1,5 +1,6 @@
 package com.media3watch.security
 
+import com.media3watch.config.ApiConstants
 import com.media3watch.observability.ErrorCodes
 import com.media3watch.observability.ErrorDetail
 import com.media3watch.observability.ErrorResponse
@@ -22,7 +23,7 @@ class ApiKeyAuthenticationProvider internal constructor(
     }
 
     override suspend fun onAuthenticate(context: AuthenticationContext) {
-        val apiKey = context.call.request.headers["X-API-Key"]
+        val apiKey = context.call.request.headers[ApiConstants.API_KEY_HEADER]
         val expectedKey = keyProvider()
 
         // Constant-time comparison prevents timing side-channel attacks
@@ -35,7 +36,7 @@ class ApiKeyAuthenticationProvider internal constructor(
         if (isValid) {
             context.principal(ApiKeyPrincipal(expectedKey))
         } else {
-            context.challenge("ApiKeyAuth", AuthenticationFailedCause.InvalidCredentials) { challenge, call ->
+            context.challenge(ApiConstants.AUTH_CHALLENGE_KEY, AuthenticationFailedCause.InvalidCredentials) { challenge, call ->
                 call.respond(
                     HttpStatusCode.Unauthorized,
                     ErrorResponse(
@@ -58,4 +59,3 @@ fun AuthenticationConfig.apiKey(
     val provider = ApiKeyAuthenticationProvider.Config(name).apply(configure).build()
     register(provider)
 }
-

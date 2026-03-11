@@ -1,6 +1,7 @@
 package com.media3watch.db
 
 import com.media3watch.config.AppConfig
+import com.media3watch.config.ApiConstants
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
 import org.flywaydb.core.Flyway
@@ -16,7 +17,7 @@ object DatabaseFactory {
             jdbcUrl = config.databaseUrl
             username = config.databaseUser
             password = config.databasePassword
-            driverClassName = "org.postgresql.Driver"
+            driverClassName = ApiConstants.Database.DRIVER
 
             // Pool settings
             maximumPoolSize = config.hikariMaxPoolSize
@@ -40,11 +41,10 @@ object DatabaseFactory {
         logger.info("Running Flyway database migrations")
         val flyway = Flyway.configure()
             .dataSource(dataSource)
-            .locations("classpath:db/migration")
+            .locations(ApiConstants.Database.MIGRATION_LOCATION)
             .load()
 
         val result = flyway.migrate()
         logger.info("Applied ${result.migrationsExecuted} migrations successfully")
     }
 }
-
