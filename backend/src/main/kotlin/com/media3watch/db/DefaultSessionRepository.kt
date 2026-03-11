@@ -162,7 +162,7 @@ class DefaultSessionRepository(private val dataSource: DataSource) : SessionRepo
                 // separately and happened to select different rows.
                 val deleteBatchSql = """
                     WITH batch AS (
-                        SELECT id, session_id FROM sessions WHERE timestamp < ? LIMIT ?
+                        SELECT id, session_id FROM sessions WHERE timestamp < ? ORDER BY timestamp ASC, id ASC LIMIT ?
                     ),
                     deleted_timeline AS (
                         DELETE FROM session_timeline
