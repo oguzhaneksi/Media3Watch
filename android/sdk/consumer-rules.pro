@@ -47,5 +47,5 @@
 -keep public class com.media3watch.sdk.Media3WatchAnalytics { *; }
 -keep public class com.media3watch.sdk.Media3WatchConfig { *; }
 -keep public interface com.media3watch.sdk.MetricsObserver { *; }
--keep public class com.media3watch.sdk.SessionSnapshot { *; }
--keep public enum com.media3watch.sdk.SessionPlaybackState { *; }
+-keep public class com.media3watch.sdk.model.SessionSnapshot { *; }
+-keep public enum com.media3watch.sdk.model.SessionPlaybackState { *; }

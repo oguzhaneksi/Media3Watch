@@ -1,5 +1,7 @@
 package com.media3watch.sdk
 
+import com.media3watch.sdk.model.SendResult
+import com.media3watch.sdk.transport.HttpSender
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer

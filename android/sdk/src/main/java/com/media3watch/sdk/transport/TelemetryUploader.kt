@@ -1,8 +1,10 @@
-package com.media3watch.sdk
+package com.media3watch.sdk.transport
 
 import android.util.Log
 import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
+import com.media3watch.sdk.util.LogUtils
+import com.media3watch.sdk.model.SendResult
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -21,7 +23,7 @@ import java.net.SocketTimeoutException
  *   all other pending entries from previous sessions.
  * - **Upload retryable failure** (5xx, network error, timeout): upserts the payload to
  *   [fileQueue] (session-keyed — one file per session). The natural retry is the next [upload]
- *   call driven by [SessionReporter]'s periodic cycle.
+ *   call driven by [com.media3watch.sdk.collector.SessionReporter]'s periodic cycle.
  * - **Upload non-retryable failure** (4xx client errors, invalid API key, bad URL): the payload
  *   is **not** queued, because retrying with the same data will never succeed. Any previously
  *   queued entry for the same session (from an earlier retryable failure) is also removed.
@@ -50,29 +52,37 @@ internal class TelemetryUploader(
         // the queue in an inconsistent state (e.g. a stale entry after a successful send, or
         // enqueue without trimToMaxSize after a failure).
         withContext(NonCancellable) {
-            val result = trySend(sessionId, payload)
-
-            when (result) {
+            when (val result = trySend(sessionId, payload)) {
                 is SendResult.Success -> {
                     fileQueue?.remove(sessionId)
                     flushPending(exclude = sessionId)
                 }
+
                 is SendResult.RetryableFailure -> {
                     fileQueue?.let { queue ->
                         val enqueueResult = queue.enqueue(sessionId, payload)
                         if (enqueueResult.isFailure && enableLogging) {
-                            Log.w(LogUtils.TAG, "offline_queue persist failed sessionId=$sessionId", enqueueResult.exceptionOrNull())
+                            Log.w(
+                                LogUtils.TAG,
+                                "offline_queue persist failed sessionId=$sessionId",
+                                enqueueResult.exceptionOrNull()
+                            )
                         }
                         queue.trimToMaxSize(maxQueuedPayloads)
                     }
                 }
+
                 is SendResult.NonRetryableFailure -> {
                     // Do NOT queue — retrying a client error (4xx, bad config) will never succeed.
                     // Also remove any previously-queued entry for this session (from an earlier
                     // retryable failure) so that known-doomed payloads are not retained on disk.
                     fileQueue?.remove(sessionId)
                     if (enableLogging) {
-                        Log.w(LogUtils.TAG, "session_report_dropped sessionId=$sessionId (non-retryable, not queued)", result.cause)
+                        Log.w(
+                            LogUtils.TAG,
+                            "session_report_dropped sessionId=$sessionId (non-retryable, not queued)",
+                            result.cause
+                        )
                     }
                 }
             }
@@ -81,7 +91,7 @@ internal class TelemetryUploader(
 
     /**
      * Drains all entries in [fileQueue] from previous sessions.
-     * Intended to be called from [Media3WatchAnalytics.attach] to flush payloads that survived a
+     * Intended to be called from [com.media3watch.sdk.Media3WatchAnalytics.attach] to flush payloads that survived a
      * process restart.
      */
     suspend fun flushPending() {
@@ -140,13 +150,21 @@ internal class TelemetryUploader(
                     when (result) {
                         is SendResult.Success -> {
                             queue.remove(entry.sessionId)
-                            if (enableLogging) Log.d(LogUtils.TAG, "offline_queue flushed sessionId=${entry.sessionId}")
+                            if (enableLogging) Log.d(
+                                LogUtils.TAG,
+                                "offline_queue flushed sessionId=${entry.sessionId}"
+                            )
                         }
+
                         is SendResult.NonRetryableFailure -> {
                             // Remove non-retryable entries from queue — they'll never succeed.
                             queue.remove(entry.sessionId)
-                            if (enableLogging) Log.w(LogUtils.TAG, "offline_queue dropped sessionId=${entry.sessionId} (non-retryable)")
+                            if (enableLogging) Log.w(
+                                LogUtils.TAG,
+                                "offline_queue dropped sessionId=${entry.sessionId} (non-retryable)"
+                            )
                         }
+
                         is SendResult.RetryableFailure -> {
                             // Leave in queue for the next cycle.
                         }

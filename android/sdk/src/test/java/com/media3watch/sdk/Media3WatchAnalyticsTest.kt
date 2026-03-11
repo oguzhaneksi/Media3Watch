@@ -8,6 +8,7 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.AnalyticsListener
 import androidx.test.core.app.ApplicationProvider
+import com.media3watch.sdk.model.SessionSnapshot
 import kotlinx.coroutines.test.runTest
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
@@ -1169,8 +1170,11 @@ class Media3WatchAnalyticsTest {
     fun timelineEvents_capturedOnStateChange_presentInUploadedPayload() = runTest {
         val server = MockWebServer()
         server.start()
-        server.enqueue(MockResponse().setResponseCode(200))
-        server.enqueue(MockResponse().setResponseCode(200))
+        // Each emitIsPlayingChanged triggers its own immediate upload (drain clears the
+        // buffer after each), plus detach triggers a final upload → 3 responses needed.
+        server.enqueue(MockResponse().setResponseCode(200)) // from emitIsPlayingChanged(true)
+        server.enqueue(MockResponse().setResponseCode(200)) // from emitIsPlayingChanged(false)
+        server.enqueue(MockResponse().setResponseCode(200)) // from detach()
 
         val config = Media3WatchConfig(
             backendUrl = server.url("/v1/sessions").toString(),
@@ -1183,27 +1187,41 @@ class Media3WatchAnalyticsTest {
 
         analytics.attach(harness.player)
         advanceMs(50)
+
+        // First state change → fires immediately (lastReportTimeMs == 0, no throttle yet).
         harness.emitIsPlayingChanged(true)
+
+        // Advance past minIntervalMs (1 s) so the second event is NOT throttled by
+        // SessionReporter's rate-limiter and fires its own separate upload.
+        advanceMs(1_100)
+
+        // Second state change → fires its own upload after the cooldown.
         harness.emitIsPlayingChanged(false)
 
-        // Consume all requests enqueued so far
+        // Both state-change reports must arrive. Each carries exactly the events
+        // captured since the previous drain (≥ 1 entry per report).
         val req1 = server.takeRequest(2, TimeUnit.SECONDS)
-        assertNotNull(req1)
+        assertNotNull("Expected report from first isPlayingChanged", req1)
+        val body1 = req1!!.body.readUtf8()
+        assertTrue("First report must contain timelineEvents", body1.contains("\"timelineEvents\""))
+        val entryCount1 = body1.indexOf("\"timelineEvents\":[").let { start ->
+            if (start < 0) 0
+            else body1.substring(start).takeWhile { it != ']' }.count { it == '{' }
+        }
+        assertTrue("First state-change report should have >= 1 timeline entry", entryCount1 >= 1)
+
+        val req2 = server.takeRequest(2, TimeUnit.SECONDS)
+        assertNotNull("Expected report from second isPlayingChanged", req2)
+        val body2 = req2!!.body.readUtf8()
+        assertTrue("Second report must contain timelineEvents", body2.contains("\"timelineEvents\""))
+        val entryCount2 = body2.indexOf("\"timelineEvents\":[").let { start ->
+            if (start < 0) 0
+            else body2.substring(start).takeWhile { it != ']' }.count { it == '{' }
+        }
+        assertTrue("Second state-change report should have >= 1 timeline entry", entryCount2 >= 1)
 
         analytics.detach()
-        val req2 = server.takeRequest(2, TimeUnit.SECONDS)
-        if (req2 != null) {
-            val body = req2.body.readUtf8()
-            if (body.contains("\"timelineEvents\"")) {
-                val timelineArrayStart = body.indexOf("\"timelineEvents\":[")
-                if (timelineArrayStart >= 0) {
-                    val arrayContent = body.substring(timelineArrayStart)
-                    // At least 2 entries means 2 '{' after the opening bracket
-                    val entryCount = arrayContent.takeWhile { it != ']' }.count { it == '{' }
-                    assertTrue("Should have captured at least 2 timeline entries", entryCount >= 2)
-                }
-            }
-        }
+        server.takeRequest(2, TimeUnit.SECONDS) // consume the detach report
 
         server.shutdown()
     }

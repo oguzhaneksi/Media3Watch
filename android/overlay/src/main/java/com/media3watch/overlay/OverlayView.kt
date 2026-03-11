@@ -10,7 +10,7 @@ import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.cardview.widget.CardView
-import com.media3watch.sdk.SessionSnapshot
+import com.media3watch.sdk.model.SessionSnapshot
 import java.util.Locale
 import kotlin.math.pow
 

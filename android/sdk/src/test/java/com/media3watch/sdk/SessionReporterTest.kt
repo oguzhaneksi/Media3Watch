@@ -1,5 +1,6 @@
 package com.media3watch.sdk
 
+import com.media3watch.sdk.collector.SessionReporter
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.test.TestScope

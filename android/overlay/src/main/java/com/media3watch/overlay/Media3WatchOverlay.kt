@@ -7,7 +7,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import com.media3watch.sdk.Media3WatchAnalytics
 import com.media3watch.sdk.MetricsObserver
-import com.media3watch.sdk.SessionSnapshot
+import com.media3watch.sdk.model.SessionSnapshot
 
 /**
  * Defines the corner of the screen where the debug overlay widget is anchored.

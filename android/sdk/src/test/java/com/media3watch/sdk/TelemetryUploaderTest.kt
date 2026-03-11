@@ -1,5 +1,9 @@
 package com.media3watch.sdk
 
+import com.media3watch.sdk.transport.FileQueue
+import com.media3watch.sdk.transport.HttpSender
+import com.media3watch.sdk.transport.TelemetryUploader
+import com.media3watch.sdk.util.LogUtils
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -116,7 +120,8 @@ class TelemetryUploaderTest {
     @Test
     fun upload_unexpectedException_logsException() = runBlocking {
         // Use invalid URL to cause an exception
-        val sender = HttpSender(endpointUrl = "http://invalid-host-that-does-not-exist-12345.com/sessions")
+        val sender =
+            HttpSender(endpointUrl = "http://invalid-host-that-does-not-exist-12345.com/sessions")
         val uploader = TelemetryUploader(sender, uploadTimeoutMs = 1000)
 
         uploader.upload(sessionId = "session-555", payload = """{"exception":"test"}""")

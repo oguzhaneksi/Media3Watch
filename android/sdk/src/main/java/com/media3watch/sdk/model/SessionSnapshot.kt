@@ -1,4 +1,4 @@
-package com.media3watch.sdk
+package com.media3watch.sdk.model
 
 /**
  * Represents a snapshot of the current state of a playback session at a given point in time.
@@ -15,7 +15,7 @@ package com.media3watch.sdk
  * @property rebufferCount Total number of rebuffering events that have occurred.
  * @property playTimeMs Total time the player has been actively playing content, in milliseconds.
  * @property rebufferRatio Ratio of rebuffer time to total session time (rebufferTimeMs / elapsedSessionTimeMs).
- *   Typically in the range [0.0, 1.0] under normal conditions; a value of 0.0 means no rebuffering occurred.
+ *   Typically, in the range [0.0, 1.0] under normal conditions; a value of 0.0 means no rebuffering occurred.
  * @property totalDroppedFrames Total number of video frames dropped during playback.
  * @property totalSeekCount Total number of seek operations performed during the session.
  * @property totalSeekTimeMs Total time spent seeking during the session, in milliseconds.

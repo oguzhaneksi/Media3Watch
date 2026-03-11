@@ -1,4 +1,4 @@
-package com.media3watch.sdk
+package com.media3watch.sdk.model
 
 enum class SessionPlaybackState {
     IDLE,

@@ -1,4 +1,4 @@
-package com.media3watch.sdk
+package com.media3watch.sdk.collector
 
 import android.os.SystemClock
 import kotlinx.coroutines.CoroutineDispatcher

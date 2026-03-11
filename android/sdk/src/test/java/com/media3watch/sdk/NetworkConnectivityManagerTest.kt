@@ -6,6 +6,7 @@ import android.net.NetworkCapabilities
 import android.net.NetworkInfo
 import android.os.Build
 import androidx.test.core.app.ApplicationProvider
+import com.media3watch.sdk.util.NetworkConnectivityManager
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before

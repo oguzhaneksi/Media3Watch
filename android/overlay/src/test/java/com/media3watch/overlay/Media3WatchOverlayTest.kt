@@ -7,8 +7,8 @@ import android.view.MotionEvent
 import android.widget.FrameLayout
 import androidx.test.core.app.ApplicationProvider
 import com.media3watch.sdk.Media3WatchAnalytics
-import com.media3watch.sdk.SessionPlaybackState
-import com.media3watch.sdk.SessionSnapshot
+import com.media3watch.sdk.model.SessionPlaybackState
+import com.media3watch.sdk.model.SessionSnapshot
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

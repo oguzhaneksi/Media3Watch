@@ -1,4 +1,4 @@
-package com.media3watch.sdk
+package com.media3watch.sdk.transport
 
 import androidx.core.util.AtomicFile
 import kotlinx.coroutines.Dispatchers

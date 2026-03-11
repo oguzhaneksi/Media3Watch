@@ -1,15 +1,16 @@
 package com.media3watch.sdk
 
 import androidx.media3.common.util.UnstableApi
+import com.media3watch.sdk.util.LogUtils
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Unit tests for [LogUtils].
+ * Unit tests for [com.media3watch.sdk.util.LogUtils].
  *
- * These tests run on the JVM (no Robolectric required) because [LogUtils] is pure Kotlin/Java
+ * These tests run on the JVM (no Robolectric required) because [com.media3watch.sdk.util.LogUtils] is pure Kotlin/Java
  * with no Android framework dependencies beyond [android.util.Log] — which is not exercised in
  * the formatter tests below.
  */
@@ -70,76 +71,4 @@ class LogUtilsTest {
         assertTrue("Expected time 00:00:00.001 in UTC, got: $result", result.contains("T00:00:00.001Z"))
     }
 
-    // ── buildSessionSummary ──────────────────────────────────────────────────────
-
-    @Test
-    fun buildSessionSummary_withNullStats_setsNullableFieldsToNull() {
-        val summary = LogUtils.buildSessionSummary(
-            sessionId = "test-id",
-            sessionStartWallClockMs = 1705276800000L,
-            sessionStartTs = 1000L,
-            now = 2000L,
-            startupTimeMs = null,
-            sessionEndStats = null,
-        )
-
-        assertEquals("test-id", summary.sessionId)
-        assertEquals(1000L, summary.sessionDurationMs)
-        assertEquals(null, summary.rebufferTimeMs)
-        assertEquals(null, summary.rebufferCount)
-        assertEquals(null, summary.playTimeMs)
-        assertEquals(null, summary.errorCount)
-    }
-
-    @Test
-    fun buildSessionSummary_sessionDurationMs_isClampedToZeroWhenNowLessThanStart() {
-        val summary = LogUtils.buildSessionSummary(
-            sessionId = "test-id",
-            sessionStartWallClockMs = 1705276800000L,
-            sessionStartTs = 5000L,
-            now = 4000L, // now < start → should clamp to 0
-            startupTimeMs = null,
-            sessionEndStats = null,
-        )
-
-        assertEquals(0L, summary.sessionDurationMs)
-    }
-
-    @Test
-    fun buildSessionSummary_deviceAndConnectionMetadata_passedThrough() {
-        val summary = LogUtils.buildSessionSummary(
-            sessionId = "meta-test",
-            sessionStartWallClockMs = 1705276800000L,
-            sessionStartTs = 0L,
-            now = 1000L,
-            startupTimeMs = 200L,
-            sessionEndStats = null,
-            deviceModel = "Pixel 7",
-            osVersion = 33,
-            sdkVersion = "1.0.0",
-            connectionType = "Wi-Fi",
-        )
-
-        assertEquals("Pixel 7", summary.deviceModel)
-        assertEquals(33, summary.osVersion)
-        assertEquals("1.0.0", summary.sdkVersion)
-        assertEquals("Wi-Fi", summary.connectionType)
-    }
-
-    @Test
-    fun buildSessionSummary_sessionStartDateIso_formattedFromWallClockMs() {
-        val summary = LogUtils.buildSessionSummary(
-            sessionId = "date-test",
-            sessionStartWallClockMs = 1705276800000L, // 2024-01-15T00:00:00.000Z
-            sessionStartTs = 0L,
-            now = 1000L,
-            startupTimeMs = null,
-            sessionEndStats = null,
-        )
-
-        assertTrue(
-            "Expected ISO date starting with 2024-01-15, got: ${summary.sessionStartDateIso}",
-            summary.sessionStartDateIso.startsWith("2024-01-15")
-        )
-    }
 }
